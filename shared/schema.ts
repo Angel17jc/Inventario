@@ -3,9 +3,6 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Import Auth Models
-export * from "./models/auth";
-
 // === TABLE DEFINITIONS ===
 
 export const categories = pgTable("categories", {
