@@ -1,6 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Package, Tag, Truck, ArrowRightLeft, LogOut, Wine } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { LayoutDashboard, Package, Tag, Truck, ArrowRightLeft, Wine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const menuItems = [
@@ -13,7 +12,6 @@ const menuItems = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { logout, user } = useAuth();
 
   return (
     <div className="flex h-screen w-64 flex-col bg-card border-r border-border/50 text-foreground shadow-2xl sticky top-0">
@@ -50,24 +48,9 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User & Logout */}
-      <div className="p-4 border-t border-border/30 bg-background/30 backdrop-blur-sm">
-        <div className="flex items-center gap-3 px-2 mb-4">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-amber-600 flex items-center justify-center text-primary-foreground font-bold shadow-lg">
-            {user?.firstName?.charAt(0) || "A"}
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-sm font-semibold truncate text-white">{user?.firstName} {user?.lastName}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-          </div>
-        </div>
-        <button
-          onClick={() => logout()}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-red-900/50 text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-all duration-200 text-sm font-medium"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Cerrar Sesión</span>
-        </button>
+      {/* Footer info */}
+      <div className="p-6 border-t border-border/30 bg-background/30 backdrop-blur-sm">
+        <p className="text-xs text-center text-muted-foreground">© 2026 Licorería Manager</p>
       </div>
     </div>
   );
