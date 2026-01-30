@@ -42,6 +42,31 @@ export const movements = pgTable("movements", {
   userId: varchar("user_id"), // Optional linkage to auth user
 });
 
+export const creditAccounts = pgTable("credit_accounts", {
+  id: serial("id").primaryKey(),
+  customerName: text("customer_name").notNull(),
+  productId: integer("product_id").references(() => products.id).notNull(),
+  movementId: integer("movement_id").references(() => movements.id),
+  quantity: integer("quantity").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).notNull().default('0'),
+  remainingAmount: decimal("remaining_amount", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default('pending'), // 'pending', 'partial', 'paid'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const creditPayments = pgTable("credit_payments", {
+  id: serial("id").primaryKey(),
+  creditAccountId: integer("credit_account_id").references(() => creditAccounts.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: varchar("payment_method", { length: 50 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === RELATIONS ===
 export const productsRelations = relations(products, ({ one, many }) => ({
   category: one(categories, {
@@ -70,11 +95,32 @@ export const movementsRelations = relations(movements, ({ one }) => ({
   }),
 }));
 
+export const creditAccountsRelations = relations(creditAccounts, ({ one, many }) => ({
+  product: one(products, {
+    fields: [creditAccounts.productId],
+    references: [products.id],
+  }),
+  movement: one(movements, {
+    fields: [creditAccounts.movementId],
+    references: [movements.id],
+  }),
+  payments: many(creditPayments),
+}));
+
+export const creditPaymentsRelations = relations(creditPayments, ({ one }) => ({
+  creditAccount: one(creditAccounts, {
+    fields: [creditPayments.creditAccountId],
+    references: [creditAccounts.id],
+  }),
+}));
+
 // === BASE SCHEMAS ===
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
 export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
 export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, createdAt: true });
+export const insertCreditAccountSchema = createInsertSchema(creditAccounts).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({ id: true, createdAt: true });
 
 // === EXPLICIT API CONTRACT TYPES ===
 
@@ -83,11 +129,15 @@ export type Category = typeof categories.$inferSelect;
 export type Supplier = typeof suppliers.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Movement = typeof movements.$inferSelect;
+export type CreditAccount = typeof creditAccounts.$inferSelect;
+export type CreditPayment = typeof creditPayments.$inferSelect;
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertMovement = z.infer<typeof insertMovementSchema>;
+export type InsertCreditAccount = z.infer<typeof insertCreditAccountSchema>;
+export type InsertCreditPayment = z.infer<typeof insertCreditPaymentSchema>;
 
 // Extended types for frontend display
 export type ProductWithDetails = Product & {
@@ -97,6 +147,11 @@ export type ProductWithDetails = Product & {
 
 export type MovementWithProduct = Movement & {
   product?: Product | null;
+};
+
+export type CreditAccountWithDetails = CreditAccount & {
+  product?: Product | null;
+  payments?: CreditPayment[];
 };
 
 // Request types
@@ -111,10 +166,19 @@ export type UpdateProductRequest = Partial<InsertProduct>;
 
 export type CreateMovementRequest = InsertMovement;
 
+export type CreateCreditAccountRequest = Omit<InsertCreditAccount, 'totalAmount' | 'remainingAmount' | 'paidAmount' | 'unitPrice' | 'movementId' | 'status'>;
+export type CreateCreditPaymentRequest = InsertCreditPayment;
+
 // Stats types
 export interface DashboardStats {
   totalProducts: number;
   totalValue: number;
   lowStockCount: number;
   recentMovements: MovementWithProduct[];
+}
+
+export interface CreditsStats {
+  totalDebt: number;
+  totalCustomers: number;
+  pendingAccounts: number;
 }

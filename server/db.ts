@@ -117,6 +117,79 @@ export interface Database {
           user_id?: string | null;
         };
       };
+      credit_accounts: {
+        Row: {
+          id: number;
+          customer_name: string;
+          product_id: number;
+          movement_id: number | null;
+          quantity: number;
+          unit_price: string;
+          total_amount: string;
+          paid_amount: string;
+          remaining_amount: string;
+          status: string;
+          notes: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: number;
+          customer_name: string;
+          product_id: number;
+          movement_id?: number | null;
+          quantity: number;
+          unit_price: string;
+          total_amount: string;
+          paid_amount?: string;
+          remaining_amount: string;
+          status?: string;
+          notes?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: number;
+          customer_name?: string;
+          product_id?: number;
+          movement_id?: number | null;
+          quantity?: number;
+          unit_price?: string;
+          total_amount?: string;
+          paid_amount?: string;
+          remaining_amount?: string;
+          status?: string;
+          notes?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+      };
+      credit_payments: {
+        Row: {
+          id: number;
+          credit_account_id: number;
+          amount: string;
+          payment_method: string | null;
+          notes: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: number;
+          credit_account_id: number;
+          amount: string;
+          payment_method?: string | null;
+          notes?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: number;
+          credit_account_id?: number;
+          amount?: string;
+          payment_method?: string | null;
+          notes?: string | null;
+          created_at?: string | null;
+        };
+      };
     };
   };
 }

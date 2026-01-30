@@ -172,11 +172,45 @@ export async function registerRoutes(
       const input = bodySchema.parse(req.body);
       const movement = await storage.createMovement(input);
       res.status(201).json(movement);
-    } catch (err) {
+    } catch (err: any) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
-      throw err;
+      return res.status(400).json({ message: err.message });
+    }
+  });
+
+  // Credits
+  app.get("/api/credits", async (req, res) => {
+    const credits = await storage.getCreditAccounts();
+    res.json(credits);
+  });
+
+  app.get("/api/credits/customer/:customerName", async (req, res) => {
+    const credits = await storage.getCreditAccountsByCustomer(req.params.customerName);
+    res.json(credits);
+  });
+
+  app.get("/api/credits/stats", async (req, res) => {
+    const stats = await storage.getCreditsStats();
+    res.json(stats);
+  });
+
+  app.post("/api/credits", async (req, res) => {
+    try {
+      const credit = await storage.createCreditAccount(req.body);
+      res.status(201).json(credit);
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/credits/payment", async (req, res) => {
+    try {
+      const payment = await storage.createCreditPayment(req.body);
+      res.status(201).json(payment);
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message });
     }
   });
 

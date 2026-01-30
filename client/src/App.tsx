@@ -9,6 +9,7 @@ import Inventory from "@/pages/Inventory";
 import Movements from "@/pages/Movements";
 import Categories from "@/pages/Categories";
 import Suppliers from "@/pages/Suppliers";
+import Credits from "@/pages/Credits";
 
 function Router() {
   return (
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/movements" component={Movements} />
       <Route path="/categories" component={Categories} />
       <Route path="/suppliers" component={Suppliers} />
+      <Route path="/credits" component={Credits} />
       <Route component={NotFound} />
     </Switch>
   );

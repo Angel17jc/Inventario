@@ -1,0 +1,85 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest } from "@shared/schema";
+
+async function fetchCredits(): Promise<CreditAccountWithDetails[]> {
+  const response = await fetch("/api/credits");
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+async function fetchCreditsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]> {
+  const response = await fetch(`/api/credits/customer/${encodeURIComponent(customerName)}`);
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+async function fetchCreditsStats(): Promise<CreditsStats> {
+  const response = await fetch("/api/credits/stats");
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+async function createCredit(credit: CreateCreditAccountRequest) {
+  const response = await fetch("/api/credits", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credit),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+async function createPayment(payment: CreateCreditPaymentRequest) {
+  const response = await fetch("/api/credits/payment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payment),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+export function useCredits() {
+  return useQuery<CreditAccountWithDetails[]>({
+    queryKey: ["credits"],
+    queryFn: fetchCredits,
+  });
+}
+
+export function useCreditsByCustomer(customerName: string) {
+  return useQuery<CreditAccountWithDetails[]>({
+    queryKey: ["credits", "customer", customerName],
+    queryFn: () => fetchCreditsByCustomer(customerName),
+    enabled: !!customerName,
+  });
+}
+
+export function useCreditsStats() {
+  return useQuery<CreditsStats>({
+    queryKey: ["credits", "stats"],
+    queryFn: fetchCreditsStats,
+  });
+}
+
+export function useCreateCredit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createCredit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["credits"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useCreatePayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createPayment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["credits"] });
+    },
+  });
+}

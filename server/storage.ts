@@ -1,9 +1,9 @@
 import { supabase } from "./db";
 import type {
-  Category, Supplier, Product, Movement,
-  InsertCategory, InsertSupplier, InsertProduct, InsertMovement,
+  Category, Supplier, Product, Movement, CreditAccount, CreditPayment,
+  InsertCategory, InsertSupplier, InsertProduct, InsertMovement, InsertCreditAccount, InsertCreditPayment,
   UpdateCategoryRequest, UpdateSupplierRequest, UpdateProductRequest,
-  DashboardStats
+  DashboardStats, CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest
 } from "@shared/schema";
 
 // Helper functions to convert between camelCase and snake_case
@@ -50,6 +50,13 @@ export interface IStorage {
   
   getMovements(): Promise<(Movement & { product: Product | null })[]>;
   createMovement(movement: InsertMovement): Promise<Movement>;
+  
+  getCreditAccounts(): Promise<CreditAccountWithDetails[]>;
+  getCreditAccountsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]>;
+  getCreditAccount(id: number): Promise<CreditAccountWithDetails | undefined>;
+  createCreditAccount(credit: CreateCreditAccountRequest): Promise<CreditAccount>;
+  createCreditPayment(payment: CreateCreditPaymentRequest): Promise<CreditPayment>;
+  getCreditsStats(): Promise<CreditsStats>;
   
   getDashboardStats(): Promise<DashboardStats>;
 }
@@ -155,26 +162,190 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMovement(movement: InsertMovement): Promise<Movement> {
-    const { data: newMovement, error: movementError } = await supabase.from('movements').insert(toSnakeCase(movement)).select().single();
-    if (movementError) throw movementError;
-
+    // Verificar stock disponible antes de procesar el movimiento
     const { data: product, error: productError } = await supabase.from('products').select('quantity').eq('id', movement.productId).single();
     if (productError) throw productError;
 
-    let newQuantity = (product as any).quantity;
+    const currentQuantity = (product as any).quantity;
+    let newQuantity = currentQuantity;
+    
     if (movement.type === 'IN') {
       newQuantity += movement.quantity;
     } else if (movement.type === 'OUT') {
       newQuantity -= movement.quantity;
+      // Validar que hay suficiente stock para la salida
+      if (newQuantity < 0) {
+        throw new Error(`Stock insuficiente. Disponible: ${currentQuantity}, Solicitado: ${movement.quantity}`);
+      }
     } else if (movement.type === 'ADJUSTMENT') {
       newQuantity = movement.quantity;
     }
 
+    // Crear el movimiento solo si la validación pasó
+    const { data: newMovement, error: movementError } = await supabase.from('movements').insert(toSnakeCase(movement)).select().single();
+    if (movementError) throw movementError;
+
+    // Actualizar la cantidad del producto
     // @ts-expect-error - Supabase types don't infer quantity update correctly
     const { error: updateError } = await supabase.from('products').update({ quantity: newQuantity }).eq('id', movement.productId);
     if (updateError) throw updateError;
 
     return toCamelCase(newMovement);
+  }
+
+  async getCreditAccounts(): Promise<CreditAccountWithDetails[]> {
+    const { data, error } = await supabase
+      .from('credit_accounts')
+      .select('*, product:products(*), payments:credit_payments(*)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(toCamelCase);
+  }
+
+  async getCreditAccountsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]> {
+    const { data, error } = await supabase
+      .from('credit_accounts')
+      .select('*, product:products(*), payments:credit_payments(*)')
+      .eq('customer_name', customerName)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(toCamelCase);
+  }
+
+  async getCreditAccount(id: number): Promise<CreditAccountWithDetails | undefined> {
+    const { data, error } = await supabase
+      .from('credit_accounts')
+      .select('*, product:products(*), payments:credit_payments(*)')
+      .eq('id', id)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data ? toCamelCase(data) : undefined;
+  }
+
+  async createCreditAccount(credit: CreateCreditAccountRequest): Promise<CreditAccount> {
+    // Primero crear un movimiento OUT
+    const movement: InsertMovement = {
+      productId: credit.productId,
+      type: 'OUT',
+      quantity: credit.quantity,
+      reason: `Fiado a: ${credit.customerName}`,
+    };
+
+    // Verificar stock disponible
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('quantity, selling_price')
+      .eq('id', credit.productId)
+      .single();
+    if (productError) throw productError;
+
+    const currentQuantity = (product as any).quantity;
+    const newQuantity = currentQuantity - credit.quantity;
+
+    if (newQuantity < 0) {
+      throw new Error(`Stock insuficiente. Disponible: ${currentQuantity}, Solicitado: ${credit.quantity}`);
+    }
+
+    // Crear movimiento
+    const { data: newMovement, error: movementError } = await supabase
+      .from('movements')
+      .insert(toSnakeCase(movement))
+      .select()
+      .single();
+    if (movementError) throw movementError;
+
+    // Actualizar stock
+    const { error: updateError } = await (supabase as any)
+      .from('products')
+      .update({ quantity: newQuantity })
+      .eq('id', credit.productId);
+    if (updateError) throw updateError;
+
+    // Calcular montos
+    const unitPrice = parseFloat((product as any).selling_price);
+    const totalAmount = unitPrice * credit.quantity;
+
+    // Crear cuenta de crédito
+    const creditData: InsertCreditAccount = {
+      customerName: credit.customerName,
+      productId: credit.productId,
+      movementId: (newMovement as any).id,
+      quantity: credit.quantity,
+      unitPrice: unitPrice.toFixed(2),
+      totalAmount: totalAmount.toFixed(2),
+      paidAmount: '0',
+      remainingAmount: totalAmount.toFixed(2),
+      status: 'pending',
+      notes: credit.notes || null,
+    };
+
+    const { data: newCredit, error: creditError } = await supabase
+      .from('credit_accounts')
+      .insert(toSnakeCase(creditData))
+      .select()
+      .single();
+    if (creditError) throw creditError;
+
+    return toCamelCase(newCredit);
+  }
+
+  async createCreditPayment(payment: CreateCreditPaymentRequest): Promise<CreditPayment> {
+    // Obtener cuenta de crédito actual
+    const { data: credit, error: creditError } = await supabase
+      .from('credit_accounts')
+      .select('*')
+      .eq('id', payment.creditAccountId)
+      .single();
+    if (creditError) throw creditError;
+
+    const creditData = credit as any;
+    const currentRemaining = parseFloat(creditData.remaining_amount);
+    const paymentAmount = parseFloat(payment.amount);
+
+    if (paymentAmount > currentRemaining) {
+      throw new Error(`El pago ($${paymentAmount}) excede la deuda restante ($${currentRemaining})`);
+    }
+
+    // Crear el pago
+    const { data: newPayment, error: paymentError } = await supabase
+      .from('credit_payments')
+      .insert(toSnakeCase(payment))
+      .select()
+      .single();
+    if (paymentError) throw paymentError;
+
+    // Actualizar cuenta de crédito
+    const newPaidAmount = parseFloat(creditData.paid_amount) + paymentAmount;
+    const newRemainingAmount = currentRemaining - paymentAmount;
+    const newStatus = newRemainingAmount === 0 ? 'paid' : 'partial';
+
+    const { error: updateError } = await (supabase as any)
+      .from('credit_accounts')
+      .update({
+        paid_amount: newPaidAmount.toFixed(2),
+        remaining_amount: newRemainingAmount.toFixed(2),
+        status: newStatus,
+      })
+      .eq('id', payment.creditAccountId);
+    if (updateError) throw updateError;
+
+    return toCamelCase(newPayment);
+  }
+
+  async getCreditsStats(): Promise<CreditsStats> {
+    const { data: accounts, error } = await supabase.from('credit_accounts').select('*');
+    if (error) throw error;
+
+    const accountsData = accounts as any[] || [];
+    const totalDebt = accountsData.reduce((sum, acc) => sum + parseFloat(acc.remaining_amount || '0'), 0);
+    const uniqueCustomers = new Set(accountsData.map(acc => acc.customer_name)).size;
+    const pendingAccounts = accountsData.filter(acc => acc.status === 'pending').length;
+
+    return {
+      totalDebt,
+      totalCustomers: uniqueCustomers,
+      pendingAccounts,
+    };
   }
 
   async getDashboardStats(): Promise<DashboardStats> {

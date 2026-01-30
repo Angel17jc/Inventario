@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Package, Tag, Truck, ArrowRightLeft, Wine } from "lucide-react";
+import { LayoutDashboard, Package, Tag, Truck, ArrowRightLeft, Wine, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const menuItems = [
@@ -8,6 +8,7 @@ const menuItems = [
   { icon: Tag, label: "Categorías", href: "/categories" },
   { icon: Truck, label: "Proveedores", href: "/suppliers" },
   { icon: ArrowRightLeft, label: "Movimientos", href: "/movements" },
+  { icon: CreditCard, label: "Fiados", href: "/credits" },
 ];
 
 export function Sidebar() {
