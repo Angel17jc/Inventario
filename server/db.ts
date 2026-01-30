@@ -1,14 +1,127 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
-import * as schema from "@shared/schema";
+import { createClient } from '@supabase/supabase-js';
 
-const { Pool } = pg;
-
-if (!process.env.DATABASE_URL) {
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "SUPABASE_URL and SUPABASE_ANON_KEY must be set. Did you forget to configure Supabase?",
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
+// Define the database schema with snake_case columns
+export interface Database {
+  public: {
+    Tables: {
+      categories: {
+        Row: {
+          id: number;
+          name: string;
+          description: string | null;
+        };
+        Insert: {
+          id?: number;
+          name: string;
+          description?: string | null;
+        };
+        Update: {
+          id?: number;
+          name?: string;
+          description?: string | null;
+        };
+      };
+      suppliers: {
+        Row: {
+          id: number;
+          name: string;
+          contact_info: string | null;
+          address: string | null;
+        };
+        Insert: {
+          id?: number;
+          name: string;
+          contact_info?: string | null;
+          address?: string | null;
+        };
+        Update: {
+          id?: number;
+          name?: string;
+          contact_info?: string | null;
+          address?: string | null;
+        };
+      };
+      products: {
+        Row: {
+          id: number;
+          name: string;
+          description: string | null;
+          sku: string | null;
+          quantity: number;
+          cost_price: string;
+          selling_price: string;
+          category_id: number | null;
+          supplier_id: number | null;
+          image_url: string | null;
+          min_stock_level: number | null;
+        };
+        Insert: {
+          id?: number;
+          name: string;
+          description?: string | null;
+          sku?: string | null;
+          quantity?: number;
+          cost_price: string;
+          selling_price: string;
+          category_id?: number | null;
+          supplier_id?: number | null;
+          image_url?: string | null;
+          min_stock_level?: number | null;
+        };
+        Update: {
+          id?: number;
+          name?: string;
+          description?: string | null;
+          sku?: string | null;
+          quantity?: number;
+          cost_price?: string;
+          selling_price?: string;
+          category_id?: number | null;
+          supplier_id?: number | null;
+          image_url?: string | null;
+          min_stock_level?: number | null;
+        };
+      };
+      movements: {
+        Row: {
+          id: number;
+          product_id: number;
+          type: string;
+          quantity: number;
+          reason: string | null;
+          created_at: string | null;
+          user_id: string | null;
+        };
+        Insert: {
+          id?: number;
+          product_id: number;
+          type: string;
+          quantity: number;
+          reason?: string | null;
+          created_at?: string | null;
+          user_id?: string | null;
+        };
+        Update: {
+          id?: number;
+          product_id?: number;
+          type?: string;
+          quantity?: number;
+          reason?: string | null;
+          created_at?: string | null;
+          user_id?: string | null;
+        };
+      };
+    };
+  };
+}
+
+export const supabase = createClient<Database>(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);

@@ -193,56 +193,61 @@ export async function registerRoutes(
 }
 
 async function seedDatabase() {
-  const existingProducts = await storage.getProducts();
-  if (existingProducts.length === 0) {
-    console.log("Seeding database...");
-    
-    // Categories
-    const cat1 = await storage.createCategory({ name: "Vinos", description: "Vinos tintos, blancos y rosados" });
-    const cat2 = await storage.createCategory({ name: "Licores", description: "Whisky, Vodka, Ron, etc." });
-    const cat3 = await storage.createCategory({ name: "Cervezas", description: "Nacionales e importadas" });
+  try {
+    const existingProducts = await storage.getProducts();
+    if (existingProducts.length === 0) {
+      console.log("Seeding database...");
+      
+      // Categories
+      const cat1 = await storage.createCategory({ name: "Vinos", description: "Vinos tintos, blancos y rosados" });
+      const cat2 = await storage.createCategory({ name: "Licores", description: "Whisky, Vodka, Ron, etc." });
+      const cat3 = await storage.createCategory({ name: "Cervezas", description: "Nacionales e importadas" });
 
-    // Suppliers
-    const sup1 = await storage.createSupplier({ name: "Distribuidora Nacional", contactInfo: "555-0101", address: "Calle Principal 123" });
-    const sup2 = await storage.createSupplier({ name: "Importados Premium", contactInfo: "555-0202", address: "Av. Central 456" });
+      // Suppliers
+      const sup1 = await storage.createSupplier({ name: "Distribuidora Nacional", contactInfo: "555-0101", address: "Calle Principal 123" });
+      const sup2 = await storage.createSupplier({ name: "Importados Premium", contactInfo: "555-0202", address: "Av. Central 456" });
 
-    // Products
-    await storage.createProduct({
-      name: "Whisky Black Label 12 Años",
-      description: "Botella de 750ml",
-      sku: "WBL750",
-      quantity: 24,
-      costPrice: "35.00",
-      sellingPrice: "55.00",
-      categoryId: cat2.id,
-      supplierId: sup2.id,
-      minStockLevel: 10,
-    });
+      // Products
+      await storage.createProduct({
+        name: "Whisky Black Label 12 Años",
+        description: "Botella de 750ml",
+        sku: "WBL750",
+        quantity: 24,
+        costPrice: "35.00",
+        sellingPrice: "55.00",
+        categoryId: cat2.id,
+        supplierId: sup2.id,
+        minStockLevel: 10,
+      });
 
-    await storage.createProduct({
-      name: "Vino Tinto Malbec Reserva",
-      description: "Botella de 750ml, cosecha 2020",
-      sku: "VMR2020",
-      quantity: 50,
-      costPrice: "12.00",
-      sellingPrice: "25.00",
-      categoryId: cat1.id,
-      supplierId: sup1.id,
-      minStockLevel: 12,
-    });
+      await storage.createProduct({
+        name: "Vino Tinto Malbec Reserva",
+        description: "Botella de 750ml, cosecha 2020",
+        sku: "VMR2020",
+        quantity: 50,
+        costPrice: "12.00",
+        sellingPrice: "25.00",
+        categoryId: cat1.id,
+        supplierId: sup1.id,
+        minStockLevel: 12,
+      });
 
-    await storage.createProduct({
-      name: "Cerveza Artesanal IPA",
-      description: "Pack de 6 unidades",
-      sku: "CAIPA6",
-      quantity: 100,
-      costPrice: "8.00",
-      sellingPrice: "15.00",
-      categoryId: cat3.id,
-      supplierId: sup1.id,
-      minStockLevel: 20,
-    });
-    
-    console.log("Database seeded successfully.");
+      await storage.createProduct({
+        name: "Cerveza Artesanal IPA",
+        description: "Pack de 6 unidades",
+        sku: "CAIPA6",
+        quantity: 100,
+        costPrice: "8.00",
+        sellingPrice: "15.00",
+        categoryId: cat3.id,
+        supplierId: sup1.id,
+        minStockLevel: 20,
+      });
+      
+      console.log("Database seeded successfully.");
+    }
+  } catch (error) {
+    console.error("Error seeding database:", error);
+    // Don't throw - allow app to start anyway
   }
 }
