@@ -182,7 +182,7 @@ export default function Movements() {
                       <div className="flex-1">
                         <h4 className="font-semibold text-white">{move.product?.name}</h4>
                         <div className="flex gap-3 text-xs text-muted-foreground mt-1">
-                          <span>{format(new Date(move.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</span>
+                          {move.createdAt && <span>{format(new Date(move.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</span>}
                           {move.reason && (
                             <>
                               <span>•</span>

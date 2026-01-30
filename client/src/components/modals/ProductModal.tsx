@@ -83,12 +83,19 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
   }, [product, form]);
 
   function onSubmit(data: ProductFormValues) {
+    // Convert numeric decimal values to strings as expected by schema
+    const submitData = {
+      ...data,
+      costPrice: String(data.costPrice),
+      sellingPrice: String(data.sellingPrice),
+    };
+
     if (isEditing) {
-      updateProduct.mutate({ id: product.id, ...data }, {
+      updateProduct.mutate({ id: product.id, ...submitData }, {
         onSuccess: () => onOpenChange(false),
       });
     } else {
-      createProduct.mutate(data, {
+      createProduct.mutate(submitData, {
         onSuccess: () => onOpenChange(false),
       });
     }

@@ -210,3 +210,14 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
   }
   return url;
 }
+
+// ============================================
+// REQUEST/RESPONSE TYPE EXPORTS
+// ============================================
+export type CreateCategoryRequest = z.infer<typeof api.categories.create.input>;
+export type UpdateCategoryRequest = z.infer<typeof api.categories.update.input>;
+export type CreateSupplierRequest = z.infer<typeof api.suppliers.create.input>;
+export type UpdateSupplierRequest = z.infer<typeof api.suppliers.update.input>;
+export type CreateProductRequest = z.infer<typeof api.products.create.input>;
+export type UpdateProductRequest = z.infer<typeof api.products.update.input>;
+export type CreateMovementRequest = z.infer<typeof api.movements.create.input>;
