@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Sidebar } from "@/components/layout/Sidebar";
 import { useCredits, useCreditsStats, useCreateCredit, useCreatePayment } from "@/hooks/use-credits";
 import { useProducts } from "@/hooks/use-products";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,42 +114,45 @@ export default function Credits() {
   );
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Fiados</h1>
-          <p className="text-muted-foreground">Gestiona las cuentas de crédito de tus clientes</p>
-        </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Fiado
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Registrar Nuevo Fiado</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateCredit} className="space-y-4">
-              <div>
-                <Label htmlFor="customerName">Nombre del Cliente</Label>
-                <Input
-                  id="customerName"
-                  value={formData.customerName}
-                  onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="productId">Producto</Label>
-                <Select
-                  value={formData.productId}
-                  onValueChange={(value) => setFormData({ ...formData, productId: value })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar producto" />
+    <div className="flex h-screen bg-background text-foreground">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+        <div className="p-8 max-w-7xl mx-auto space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">Fiados</h1>
+              <p className="text-muted-foreground">Gestiona las cuentas de crédito de tus clientes</p>
+            </div>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nuevo Fiado
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Registrar Nuevo Fiado</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreateCredit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="customerName">Nombre del Cliente</Label>
+                    <Input
+                      id="customerName"
+                      value={formData.customerName}
+                      onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="productId">Producto</Label>
+                    <Select
+                      value={formData.productId}
+                      onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar producto" />
                   </SelectTrigger>
                   <SelectContent>
                     {products.map((product) => (
@@ -353,6 +357,8 @@ export default function Credits() {
           )}
         </DialogContent>
       </Dialog>
+        </div>
+      </main>
     </div>
   );
 }

@@ -1,8 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+// Prefer using the Service Role Key on the server for full privileges.
+// Fallback to ANON key only when SERVICE key is not provided (not recommended for production).
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
   throw new Error(
-    "SUPABASE_URL and SUPABASE_ANON_KEY must be set. Did you forget to configure Supabase?",
+    'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) must be set. ' +
+      'On the server prefer SUPABASE_SERVICE_ROLE_KEY from your Supabase project settings.',
+  );
+}
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    'Warning: SUPABASE_SERVICE_ROLE_KEY not set; falling back to SUPABASE_ANON_KEY. ' +
+      'This is OK for local dev but NOT recommended for production.',
   );
 }
 
@@ -194,7 +208,4 @@ export interface Database {
   };
 }
 
-export const supabase = createClient<Database>(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+export const supabase = createClient<Database>(supabaseUrl, supabaseKey);

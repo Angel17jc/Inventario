@@ -101,7 +101,12 @@ export function useDeleteProduct() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to delete product");
+        let errMsg = 'Failed to delete product';
+        try {
+          const errBody = await res.json();
+          if (errBody && errBody.message) errMsg = errBody.message;
+        } catch (_) {}
+        throw new Error(errMsg);
       }
     },
     onSuccess: () => {

@@ -151,6 +151,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProduct(id: number): Promise<void> {
+    // Buscar cuentas de crédito asociadas al producto
+    const { data: accounts, error: accountsError } = await supabase
+      .from('credit_accounts')
+      .select('id, status')
+      .eq('product_id', id);
+    if (accountsError) throw accountsError;
+
+    const accs = (accounts as any[]) || [];
+    if (accs.length > 0) {
+      // Si existen cuentas no pagadas (pending o partial), bloquear la eliminación
+      const blocked = accs.find((a) => a.status !== 'paid');
+      if (blocked) {
+        throw new Error('No se puede eliminar el producto: existen cuentas de crédito (fiados) pendientes o parciales asociadas');
+      }
+
+      // Todas las cuentas están pagadas: procedemos a eliminarlas (esto eliminará también los pagos por ON DELETE CASCADE)
+      const ids = accs.map((a) => a.id);
+      const { error: delAccError } = await supabase.from('credit_accounts').delete().in('id', ids);
+      if (delAccError) throw delAccError;
+    }
+
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
   }
@@ -223,15 +244,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCreditAccount(credit: CreateCreditAccountRequest): Promise<CreditAccount> {
-    // Primero crear un movimiento OUT
-    const movement: InsertMovement = {
-      productId: credit.productId,
-      type: 'OUT',
-      quantity: credit.quantity,
-      reason: `Fiado a: ${credit.customerName}`,
-    };
+    // Implementación con manejo de compensación para asegurar consistencia
+    // Pasos:
+    // 1. Validar stock
+    // 2. Crear movimiento
+    // 3. Actualizar stock
+    // 4. Crear cuenta de crédito
+    // Si falla la creación de la cuenta, intentar revertir (restaurar stock y borrar movimiento)
 
-    // Verificar stock disponible
+    // Verificar stock disponible y obtener precio
     const { data: product, error: productError } = await supabase
       .from('products')
       .select('quantity, selling_price')
@@ -241,52 +262,87 @@ export class DatabaseStorage implements IStorage {
 
     const currentQuantity = (product as any).quantity;
     const newQuantity = currentQuantity - credit.quantity;
-
     if (newQuantity < 0) {
       throw new Error(`Stock insuficiente. Disponible: ${currentQuantity}, Solicitado: ${credit.quantity}`);
     }
 
-    // Crear movimiento
-    const { data: newMovement, error: movementError } = await supabase
-      .from('movements')
-      .insert(toSnakeCase(movement))
-      .select()
-      .single();
-    if (movementError) throw movementError;
-
-    // Actualizar stock
-    const { error: updateError } = await (supabase as any)
-      .from('products')
-      .update({ quantity: newQuantity })
-      .eq('id', credit.productId);
-    if (updateError) throw updateError;
-
-    // Calcular montos
-    const unitPrice = parseFloat((product as any).selling_price);
-    const totalAmount = unitPrice * credit.quantity;
-
-    // Crear cuenta de crédito
-    const creditData: InsertCreditAccount = {
-      customerName: credit.customerName,
+    // Preparar movimiento
+    const movement: InsertMovement = {
       productId: credit.productId,
-      movementId: (newMovement as any).id,
+      type: 'OUT',
       quantity: credit.quantity,
-      unitPrice: unitPrice.toFixed(2),
-      totalAmount: totalAmount.toFixed(2),
-      paidAmount: '0',
-      remainingAmount: totalAmount.toFixed(2),
-      status: 'pending',
-      notes: credit.notes || null,
+      reason: `Fiado a: ${credit.customerName}`,
     };
 
-    const { data: newCredit, error: creditError } = await supabase
-      .from('credit_accounts')
-      .insert(toSnakeCase(creditData))
-      .select()
-      .single();
-    if (creditError) throw creditError;
+    // Variables para rollback
+    let createdMovementId: number | null = null;
+    let stockUpdated = false;
 
-    return toCamelCase(newCredit);
+    try {
+      // Crear movimiento
+      const { data: newMovement, error: movementError } = await supabase
+        .from('movements')
+        .insert(toSnakeCase(movement))
+        .select()
+        .single();
+      if (movementError) throw movementError;
+      createdMovementId = (newMovement as any).id;
+
+      // Actualizar stock
+      const { error: updateError } = await (supabase as any)
+        .from('products')
+        .update({ quantity: newQuantity })
+        .eq('id', credit.productId);
+      if (updateError) throw updateError;
+      stockUpdated = true;
+
+      // Calcular montos
+      const unitPrice = parseFloat((product as any).selling_price);
+      const totalAmount = unitPrice * credit.quantity;
+
+      // Crear cuenta de crédito
+      const creditData: InsertCreditAccount = {
+        customerName: credit.customerName,
+        productId: credit.productId,
+        movementId: createdMovementId,
+        quantity: credit.quantity,
+        unitPrice: unitPrice.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+        paidAmount: '0',
+        remainingAmount: totalAmount.toFixed(2),
+        status: 'pending',
+        notes: credit.notes || null,
+      };
+
+      const { data: newCredit, error: creditError } = await supabase
+        .from('credit_accounts')
+        .insert(toSnakeCase(creditData))
+        .select()
+        .single();
+      if (creditError) throw creditError;
+
+      return toCamelCase(newCredit);
+    } catch (err) {
+      // Intentar revertir cambios si fue creado movimiento o actualizado stock
+      try {
+        if (stockUpdated) {
+          // Restaurar cantidad original
+          await (supabase as any)
+            .from('products')
+            .update({ quantity: currentQuantity })
+            .eq('id', credit.productId);
+        }
+        if (createdMovementId) {
+          await supabase.from('movements').delete().eq('id', createdMovementId);
+        }
+      } catch (revertErr) {
+        // Si el revert falla, lo registramos y seguimos lanzando el error original
+        // eslint-disable-next-line no-console
+        console.error('Error during compensating rollback:', revertErr);
+      }
+
+      throw err;
+    }
   }
 
   async createCreditPayment(payment: CreateCreditPaymentRequest): Promise<CreditPayment> {

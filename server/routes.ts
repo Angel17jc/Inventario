@@ -153,8 +153,13 @@ export async function registerRoutes(
   });
 
   app.delete(api.products.delete.path, async (req, res) => {
-    await storage.deleteProduct(Number(req.params.id));
-    res.status(204).send();
+    try {
+      await storage.deleteProduct(Number(req.params.id));
+      res.status(204).send();
+    } catch (err: any) {
+      // Si es una violación de integridad referencial u otro error controlado, devolver 400 con mensaje
+      return res.status(400).json({ message: err.message || 'Error al eliminar el producto' });
+    }
   });
 
   // Movements
@@ -220,8 +225,10 @@ export async function registerRoutes(
     res.json(stats);
   });
 
-  // Seed Data
-  await seedDatabase();
+  // Seed Data (omitimos si la variable de entorno SKIP_SEED está activada)
+  if (process.env.SKIP_SEED !== 'true') {
+    await seedDatabase();
+  }
 
   return httpServer;
 }
