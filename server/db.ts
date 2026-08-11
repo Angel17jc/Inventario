@@ -2,7 +2,15 @@ import { createClient } from '@supabase/supabase-js';
 
 // Prefer using the Service Role Key on the server for full privileges.
 // Fallback to ANON key only when SERVICE key is not provided (not recommended for production).
-const supabaseUrl = process.env.SUPABASE_URL;
+const rawSupabaseUrl = process.env.SUPABASE_URL || '';
+// Normalize SUPABASE_URL: user might accidentally include the PostgREST path (/rest/v1)
+let supabaseUrl = rawSupabaseUrl;
+if (rawSupabaseUrl.includes('/rest/v1')) {
+  // strip any trailing /rest/v1 or /rest/v1/
+  supabaseUrl = rawSupabaseUrl.replace(/\/rest\/v1\/?$/i, '');
+  // eslint-disable-next-line no-console
+  console.warn('Normalized SUPABASE_URL by removing /rest/v1 suffix. Using', supabaseUrl);
+}
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
