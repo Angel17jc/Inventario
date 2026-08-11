@@ -40,8 +40,25 @@ function CanonicalPathRedirect() {
 
 function ProtectedRouter() {
   const { session, role, activeOrganization, isLoading, isOrganizationsLoading } = useAuth();
+  const [location, setLocation] = useLocation();
+  const isPasswordReset = window.location.search.includes("reset=1");
+  const isPublicAuthRoute = location === "/iniciar-sesion" || location === "/recuperar-acceso" || location === "/restablecer-contrasena";
+
+  useEffect(() => {
+    if (isLoading || isOrganizationsLoading) return;
+
+    if (isPasswordReset && location !== "/restablecer-contrasena") {
+      setLocation("/restablecer-contrasena?reset=1", { replace: true });
+      return;
+    }
+
+    if ((!session || !role) && !isPasswordReset && !isPublicAuthRoute) {
+      setLocation("/iniciar-sesion", { replace: true });
+    }
+  }, [isLoading, isOrganizationsLoading, isPasswordReset, isPublicAuthRoute, location, role, session, setLocation]);
+
   if (isLoading || isOrganizationsLoading) return <div className="min-h-screen bg-background" />;
-  if (!session || !role || window.location.search.includes("reset=1")) return <Login />;
+  if (!session || !role || isPasswordReset) return <Login />;
   if (!activeOrganization) return <main className="grid min-h-screen place-items-center bg-background p-6 text-center text-muted-foreground">No tienes una empresa activa asignada.</main>;
   return <Router />;
 }
