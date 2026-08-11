@@ -3,7 +3,7 @@ import { useStats } from "@/hooks/use-movements";
 import { StatCard } from "@/components/ui/StatCard";
 import { Package, DollarSign, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -11,16 +11,7 @@ import { cn } from "@/lib/utils";
 export default function Dashboard() {
   const { data: stats, isLoading } = useStats();
 
-  // Mock data for chart - in a real app this would come from the API history
-  const chartData = [
-    { name: 'Lun', value: 4000 },
-    { name: 'Mar', value: 3000 },
-    { name: 'Mie', value: 2000 },
-    { name: 'Jue', value: 2780 },
-    { name: 'Vie', value: 1890 },
-    { name: 'Sab', value: 2390 },
-    { name: 'Dom', value: 3490 },
-  ];
+  const chartData = stats?.weeklyActivity ?? [];
 
   if (isLoading) {
     return (
@@ -82,7 +73,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Chart Section */}
             <div className="lg:col-span-2 glass-panel p-6 rounded-2xl">
-              <h3 className="text-xl font-bold font-display text-white mb-6">Actividad de Ventas (Semanal)</h3>
+              <h3 className="text-xl font-bold font-display text-white mb-6">Actividad de Inventario (7 días)</h3>
               <div className="h-80 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
@@ -93,13 +84,15 @@ export default function Dashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                    <XAxis dataKey="name" stroke="#64748b" />
+                    <XAxis dataKey="label" stroke="#64748b" />
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
                       itemStyle={{ color: '#EAB308' }}
                     />
-                    <Area type="monotone" dataKey="value" stroke="#EAB308" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                    <Legend />
+                    <Area type="monotone" name="Entradas" dataKey="inbound" stroke="#22c55e" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                    <Area type="monotone" name="Salidas" dataKey="outbound" stroke="#ef4444" strokeWidth={3} fillOpacity={0} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

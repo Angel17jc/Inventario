@@ -489,11 +489,37 @@ export class DatabaseStorage implements IStorage {
     const { data: recentMovements, error: movementsError } = await supabase.from('movements').select('*, product:products(*)').eq('organization_id', this.organizationScope).order('created_at', { ascending: false }).limit(5);
     if (movementsError) throw movementsError;
 
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 6);
+    sevenDaysAgo.setUTCHours(0, 0, 0, 0);
+    const { data: activityRows, error: activityError } = await supabase
+      .from('movements')
+      .select('type, quantity, created_at')
+      .eq('organization_id', this.organizationScope)
+      .gte('created_at', sevenDaysAgo.toISOString());
+    if (activityError) throw activityError;
+
+    const activityByDate = new Map<string, { date: string; label: string; inbound: number; outbound: number }>();
+    for (let offset = 6; offset >= 0; offset--) {
+      const day = new Date();
+      day.setUTCDate(day.getUTCDate() - offset);
+      const date = day.toISOString().slice(0, 10);
+      activityByDate.set(date, { date, label: day.toLocaleDateString('es-EC', { weekday: 'short' }), inbound: 0, outbound: 0 });
+    }
+    for (const movement of (activityRows as any[]) ?? []) {
+      const date = movement.created_at?.slice(0, 10);
+      const bucket = date ? activityByDate.get(date) : undefined;
+      if (!bucket) continue;
+      if (movement.type === 'IN') bucket.inbound += movement.quantity;
+      if (movement.type === 'OUT') bucket.outbound += movement.quantity;
+    }
+
     return {
       totalProducts: totalProducts || 0,
       totalValue,
       lowStockCount,
       recentMovements: (recentMovements || []).map(toCamelCase),
+      weeklyActivity: Array.from(activityByDate.values()),
     };
   }
 }

@@ -190,6 +190,7 @@ export const api = {
           totalValue: z.number(),
           lowStockCount: z.number(),
           recentMovements: z.array(z.custom<typeof movements.$inferSelect & { product: typeof products.$inferSelect | null }>()),
+          weeklyActivity: z.array(z.object({ date: z.string(), label: z.string(), inbound: z.number(), outbound: z.number() })),
         }),
       },
     },

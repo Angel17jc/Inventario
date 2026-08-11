@@ -224,6 +224,7 @@ export interface DashboardStats {
   totalValue: number;
   lowStockCount: number;
   recentMovements: MovementWithProduct[];
+  weeklyActivity: Array<{ date: string; label: string; inbound: number; outbound: number }>;
 }
 
 export interface CreditsStats {
