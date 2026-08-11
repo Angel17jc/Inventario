@@ -54,6 +54,11 @@ function ProtectedRouter() {
 
     if ((!session || !role) && !isPasswordReset && !isPublicAuthRoute) {
       setLocation("/iniciar-sesion", { replace: true });
+      return;
+    }
+
+    if (session && role && !isPasswordReset && isPublicAuthRoute) {
+      setLocation("/panel", { replace: true });
     }
   }, [isLoading, isOrganizationsLoading, isPasswordReset, isPublicAuthRoute, location, role, session, setLocation]);
 
