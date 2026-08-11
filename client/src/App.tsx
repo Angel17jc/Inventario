@@ -1,4 +1,5 @@
-import { Switch, Route, Redirect } from "wouter";
+import { useEffect } from "react";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,6 +14,29 @@ import Credits from "@/pages/Credits";
 import Platform from "@/pages/Platform";
 import Login from "@/pages/Login";
 import { AuthProvider, useAuth } from "@/lib/auth";
+
+const legacyPathRedirects: Record<string, string> = {
+  "/": "/panel",
+  "/inventory": "/inventario",
+  "/movements": "/movimientos",
+  "/categories": "/categorias",
+  "/suppliers": "/proveedores",
+  "/credits": "/fiados",
+  "/platform": "/clientes",
+};
+
+function CanonicalPathRedirect() {
+  const [location, setLocation] = useLocation();
+  const canonicalPath = legacyPathRedirects[location];
+
+  useEffect(() => {
+    if (canonicalPath) {
+      setLocation(canonicalPath, { replace: true });
+    }
+  }, [canonicalPath, setLocation]);
+
+  return null;
+}
 
 function ProtectedRouter() {
   const { session, role, activeOrganization, isLoading, isOrganizationsLoading } = useAuth();
@@ -34,13 +58,6 @@ function Router() {
       <Route path="/fiados" component={Credits} />
       {role === "platform_admin" && <Route path="/clientes" component={Platform} />}
 
-      <Route path="/"><Redirect to="/panel" /></Route>
-      <Route path="/inventory"><Redirect to="/inventario" /></Route>
-      <Route path="/movements"><Redirect to="/movimientos" /></Route>
-      <Route path="/categories"><Redirect to="/categorias" /></Route>
-      <Route path="/suppliers"><Redirect to="/proveedores" /></Route>
-      <Route path="/credits"><Redirect to="/fiados" /></Route>
-      {role === "platform_admin" && <Route path="/platform"><Redirect to="/clientes" /></Route>}
       <Route component={NotFound} />
     </Switch>
   );
@@ -50,6 +67,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <CanonicalPathRedirect />
         <TooltipProvider>
           <Toaster />
           <ProtectedRouter />
