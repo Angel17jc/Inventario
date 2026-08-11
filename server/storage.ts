@@ -44,6 +44,7 @@ export interface IStorage {
   
   getProducts(): Promise<(Product & { category: Category | null, supplier: Supplier | null })[]>;
   getProduct(id: number): Promise<Product | undefined>;
+  getProductBySku(sku: string): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, product: UpdateProductRequest): Promise<Product>;
   deleteProduct(id: number): Promise<void>;
@@ -132,6 +133,12 @@ export class DatabaseStorage implements IStorage {
 
   async getProduct(id: number): Promise<Product | undefined> {
     const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data ? toCamelCase(data) : undefined;
+  }
+
+  async getProductBySku(sku: string): Promise<Product | undefined> {
+    const { data, error } = await supabase.from('products').select('*').eq('sku', sku).single();
     if (error && error.code !== 'PGRST116') throw error;
     return data ? toCamelCase(data) : undefined;
   }

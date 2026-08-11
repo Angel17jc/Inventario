@@ -118,6 +118,13 @@ export async function registerRoutes(
         supplierId: z.coerce.number().optional(),
       });
       const input = bodySchema.parse(req.body);
+      // Validate SKU uniqueness before attempting insert
+      if (input.sku) {
+        const existing = await storage.getProductBySku(String(input.sku));
+        if (existing) {
+          return res.status(409).json({ message: 'SKU already exists' });
+        }
+      }
       // Convert numbers back to strings for decimal fields if needed, or let Drizzle handle it.
       // Drizzle 'decimal' type in Zod schema expects string or number, returns string.
       // We pass the parsed object which has numbers.
@@ -142,6 +149,13 @@ export async function registerRoutes(
         supplierId: z.coerce.number().optional(),
       });
       const input = bodySchema.parse(req.body);
+      // If SKU is being updated, ensure uniqueness (excluding current product)
+      if (input.sku) {
+        const existing = await storage.getProductBySku(String(input.sku));
+        if (existing && existing.id !== Number(req.params.id)) {
+          return res.status(409).json({ message: 'SKU already exists' });
+        }
+      }
       const product = await storage.updateProduct(Number(req.params.id), input as any);
       res.json(product);
     } catch (err) {
