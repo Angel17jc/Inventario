@@ -4,6 +4,9 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig({
+  // Keep browser-safe VITE_* variables in the project root alongside the
+  // server variables used by Express.
+  envDir: import.meta.dirname,
   plugins: [
     react(),
     runtimeErrorOverlay(),
