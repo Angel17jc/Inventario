@@ -194,8 +194,29 @@ export type UpdateProductRequest = Partial<InsertProduct>;
 
 export type CreateMovementRequest = InsertMovement;
 
-export type CreateCreditAccountRequest = Omit<InsertCreditAccount, 'totalAmount' | 'remainingAmount' | 'paidAmount' | 'unitPrice' | 'movementId' | 'status'>;
-export type CreateCreditPaymentRequest = InsertCreditPayment;
+export const createMovementRequestSchema = z.object({
+  productId: z.coerce.number().int().positive(),
+  type: z.enum(["IN", "OUT", "ADJUSTMENT"]),
+  quantity: z.coerce.number().int().positive(),
+  reason: z.string().trim().max(500).nullable().optional(),
+});
+
+export const createCreditAccountRequestSchema = z.object({
+  customerName: z.string().trim().min(2).max(120),
+  productId: z.coerce.number().int().positive(),
+  quantity: z.coerce.number().int().positive(),
+  notes: z.string().trim().max(500).nullable().optional(),
+});
+
+export const createCreditPaymentRequestSchema = z.object({
+  creditAccountId: z.coerce.number().int().positive(),
+  amount: z.coerce.number().positive().max(1_000_000).transform((amount) => amount.toFixed(2)),
+  paymentMethod: z.string().trim().min(1).max(50).nullable().optional(),
+  notes: z.string().trim().max(500).nullable().optional(),
+});
+
+export type CreateCreditAccountRequest = z.infer<typeof createCreditAccountRequestSchema>;
+export type CreateCreditPaymentRequest = z.infer<typeof createCreditPaymentRequestSchema>;
 
 // Stats types
 export interface DashboardStats {

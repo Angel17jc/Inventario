@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole, requirePlatformAdmin } from "./auth";
 import { platformService } from "./platform-service";
 import { api } from "@shared/routes";
+import { createCreditAccountRequestSchema, createCreditPaymentRequestSchema, createMovementRequestSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -227,11 +228,7 @@ export async function registerRoutes(
 
   app.post(api.movements.create.path, requireOperator, async (req, res) => {
     try {
-      const bodySchema = api.movements.create.input.extend({
-        productId: z.coerce.number(),
-        quantity: z.coerce.number(),
-      });
-      const input = bodySchema.parse(req.body);
+      const input = createMovementRequestSchema.parse(req.body);
       const movement = await scopedStorage(req).createMovement(input);
       res.status(201).json(movement);
     } catch (err: any) {
@@ -260,18 +257,20 @@ export async function registerRoutes(
 
   app.post("/api/credits", requireOperator, async (req, res) => {
     try {
-      const credit = await scopedStorage(req).createCreditAccount(req.body);
+      const credit = await scopedStorage(req).createCreditAccount(createCreditAccountRequestSchema.parse(req.body));
       res.status(201).json(credit);
     } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       return res.status(400).json({ message: err.message });
     }
   });
 
   app.post("/api/credits/payment", requireOperator, async (req, res) => {
     try {
-      const payment = await scopedStorage(req).createCreditPayment(req.body);
+      const payment = await scopedStorage(req).createCreditPayment(createCreditPaymentRequestSchema.parse(req.body));
       res.status(201).json(payment);
     } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       return res.status(400).json({ message: err.message });
     }
   });
