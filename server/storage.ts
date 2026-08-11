@@ -63,10 +63,10 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  constructor(private readonly organizationId?: string) {}
+  constructor(private readonly organizationId?: string, private readonly actorId?: string) {}
 
-  forOrganization(organizationId: string): DatabaseStorage {
-    return new DatabaseStorage(organizationId);
+  forOrganization(organizationId: string, actorId?: string): DatabaseStorage {
+    return new DatabaseStorage(organizationId, actorId);
   }
 
   private get organizationScope(): string {
@@ -202,6 +202,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMovement(movement: InsertMovement): Promise<Movement> {
+    const { data, error } = await (supabase as any).rpc('create_inventory_movement', {
+      p_organization_id: this.organizationScope,
+      p_product_id: movement.productId,
+      p_type: movement.type,
+      p_quantity: movement.quantity,
+      p_reason: movement.reason ?? null,
+      p_user_id: this.actorId ?? null,
+    });
+    if (error) throw error;
+    return toCamelCase(data[0]);
+  }
+
+  /** @deprecated Replaced by the atomic PostgreSQL function. */
+  private async createMovementLegacy(movement: InsertMovement): Promise<Movement> {
     // Verificar stock disponible antes de procesar el movimiento
     const { data: product, error: productError } = await supabase.from('products').select('quantity').eq('id', movement.productId).eq('organization_id', this.organizationScope).single();
     if (productError) throw productError;
@@ -266,6 +280,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCreditAccount(credit: CreateCreditAccountRequest): Promise<CreditAccount> {
+    const { data, error } = await (supabase as any).rpc('create_credit_sale', {
+      p_organization_id: this.organizationScope,
+      p_product_id: credit.productId,
+      p_customer_name: credit.customerName,
+      p_quantity: credit.quantity,
+      p_notes: credit.notes ?? null,
+      p_user_id: this.actorId ?? null,
+    });
+    if (error) throw error;
+    return toCamelCase(data[0]);
+  }
+
+  /** @deprecated Replaced by the atomic PostgreSQL function. */
+  private async createCreditAccountLegacy(credit: CreateCreditAccountRequest): Promise<CreditAccount> {
     // Implementación con manejo de compensación para asegurar consistencia
     // Pasos:
     // 1. Validar stock
@@ -371,6 +399,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCreditPayment(payment: CreateCreditPaymentRequest): Promise<CreditPayment> {
+    const { data, error } = await (supabase as any).rpc('register_credit_payment', {
+      p_organization_id: this.organizationScope,
+      p_credit_account_id: payment.creditAccountId,
+      p_amount: payment.amount,
+      p_payment_method: payment.paymentMethod ?? null,
+      p_notes: payment.notes ?? null,
+    });
+    if (error) throw error;
+    return toCamelCase(data[0]);
+  }
+
+  /** @deprecated Replaced by the atomic PostgreSQL function. */
+  private async createCreditPaymentLegacy(payment: CreateCreditPaymentRequest): Promise<CreditPayment> {
     // Obtener cuenta de crédito actual
     const { data: credit, error: creditError } = await supabase
       .from('credit_accounts')

@@ -49,7 +49,7 @@ export async function registerRoutes(
   app.use("/api", requireOrganizationContext);
   const requireManager = requireOrganizationRole("owner", "manager");
   const requireOperator = requireOrganizationRole("owner", "manager", "cashier");
-  const scopedStorage = (req: Express.Request) => storage.forOrganization(req.organization!.id);
+  const scopedStorage = (req: Express.Request) => storage.forOrganization(req.organization!.id, req.user!.id);
 
   // Categories
   app.get(api.categories.list.path, async (req, res) => {
