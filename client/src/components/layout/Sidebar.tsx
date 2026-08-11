@@ -4,12 +4,12 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Package, label: "Inventario", href: "/inventory" },
-  { icon: Tag, label: "Categorías", href: "/categories" },
-  { icon: Truck, label: "Proveedores", href: "/suppliers" },
-  { icon: ArrowRightLeft, label: "Movimientos", href: "/movements" },
-  { icon: CreditCard, label: "Fiados", href: "/credits" },
+  { icon: LayoutDashboard, label: "Dashboard", href: "/panel" },
+  { icon: Package, label: "Inventario", href: "/inventario" },
+  { icon: Tag, label: "Categorías", href: "/categorias" },
+  { icon: Truck, label: "Proveedores", href: "/proveedores" },
+  { icon: ArrowRightLeft, label: "Movimientos", href: "/movimientos" },
+  { icon: CreditCard, label: "Fiados", href: "/fiados" },
 ];
 
 export function Sidebar() {
@@ -46,7 +46,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
         {role === "platform_admin" && (
-          <Link href="/platform"><button className={cn("w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all", location === "/platform" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5 hover:text-white")}><Building2 className="w-5 h-5" /><span className="font-medium text-sm">Clientes</span></button></Link>
+          <Link href="/clientes"><button className={cn("w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all", location === "/clientes" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5 hover:text-white")}><Building2 className="w-5 h-5" /><span className="font-medium text-sm">Clientes</span></button></Link>
         )}
         {menuItems.map((item) => {
           const isActive = location === item.href;

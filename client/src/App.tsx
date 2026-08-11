@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -26,13 +26,21 @@ function Router() {
   const { role } = useAuth();
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/inventory" component={Inventory} />
-      <Route path="/movements" component={Movements} />
-      <Route path="/categories" component={Categories} />
-      <Route path="/suppliers" component={Suppliers} />
-      <Route path="/credits" component={Credits} />
-      {role === "platform_admin" && <Route path="/platform" component={Platform} />}
+      <Route path="/panel" component={Dashboard} />
+      <Route path="/inventario" component={Inventory} />
+      <Route path="/movimientos" component={Movements} />
+      <Route path="/categorias" component={Categories} />
+      <Route path="/proveedores" component={Suppliers} />
+      <Route path="/fiados" component={Credits} />
+      {role === "platform_admin" && <Route path="/clientes" component={Platform} />}
+
+      <Route path="/"><Redirect to="/panel" /></Route>
+      <Route path="/inventory"><Redirect to="/inventario" /></Route>
+      <Route path="/movements"><Redirect to="/movimientos" /></Route>
+      <Route path="/categories"><Redirect to="/categorias" /></Route>
+      <Route path="/suppliers"><Redirect to="/proveedores" /></Route>
+      <Route path="/credits"><Redirect to="/fiados" /></Route>
+      {role === "platform_admin" && <Route path="/platform"><Redirect to="/clientes" /></Route>}
       <Route component={NotFound} />
     </Switch>
   );
