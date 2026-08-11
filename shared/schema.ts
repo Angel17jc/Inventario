@@ -7,12 +7,14 @@ import { z } from "zod";
 
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   name: text("name").notNull(),
   description: text("description"),
 });
 
 export const suppliers = pgTable("suppliers", {
   id: serial("id").primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   name: text("name").notNull(),
   contactInfo: text("contact_info"),
   address: text("address"),
@@ -39,6 +41,7 @@ export const organizationMemberships = pgTable("organization_memberships", {
 
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   name: text("name").notNull(),
   description: text("description"),
   sku: text("sku").unique(),
@@ -53,6 +56,7 @@ export const products = pgTable("products", {
 
 export const movements = pgTable("movements", {
   id: serial("id").primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   productId: integer("product_id").references(() => products.id).notNull(),
   type: varchar("type", { length: 20 }).notNull(), // 'IN', 'OUT', 'ADJUSTMENT'
   quantity: integer("quantity").notNull(),
@@ -63,6 +67,7 @@ export const movements = pgTable("movements", {
 
 export const creditAccounts = pgTable("credit_accounts", {
   id: serial("id").primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   customerName: text("customer_name").notNull(),
   productId: integer("product_id").references(() => products.id).notNull(),
   movementId: integer("movement_id").references(() => movements.id),
@@ -79,6 +84,7 @@ export const creditAccounts = pgTable("credit_accounts", {
 
 export const creditPayments = pgTable("credit_payments", {
   id: serial("id").primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   creditAccountId: integer("credit_account_id").references(() => creditAccounts.id).notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   paymentMethod: varchar("payment_method", { length: 50 }),
@@ -134,12 +140,13 @@ export const creditPaymentsRelations = relations(creditPayments, ({ one }) => ({
 }));
 
 // === BASE SCHEMAS ===
-export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
-export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true });
-export const insertProductSchema = createInsertSchema(products).omit({ id: true });
-export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, createdAt: true });
-export const insertCreditAccountSchema = createInsertSchema(creditAccounts).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({ id: true, createdAt: true });
+// Tenant identity is resolved exclusively on the server from the authenticated request.
+export const insertCategorySchema = createInsertSchema(categories).omit({ id: true, organizationId: true });
+export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true, organizationId: true });
+export const insertProductSchema = createInsertSchema(products).omit({ id: true, organizationId: true });
+export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, organizationId: true, createdAt: true });
+export const insertCreditAccountSchema = createInsertSchema(creditAccounts).omit({ id: true, organizationId: true, createdAt: true, updatedAt: true });
+export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({ id: true, organizationId: true, createdAt: true });
 
 // === EXPLICIT API CONTRACT TYPES ===
 

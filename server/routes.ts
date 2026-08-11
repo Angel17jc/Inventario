@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { requireAuthenticatedUser, requireRole } from "./auth";
+import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole } from "./auth";
 import { api } from "@shared/routes";
 import { z } from "zod";
 
@@ -10,25 +10,30 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   app.use("/api", requireAuthenticatedUser);
-  const requireAdmin = requireRole("admin");
-  const requireOperator = requireRole("admin", "cashier");
+  app.get("/api/organizations/me", async (req, res) => {
+    res.json(await getAccessibleOrganizations(req.user!));
+  });
+  app.use("/api", requireOrganizationContext);
+  const requireManager = requireOrganizationRole("owner", "manager");
+  const requireOperator = requireOrganizationRole("owner", "manager", "cashier");
+  const scopedStorage = (req: Express.Request) => storage.forOrganization(req.organization!.id);
 
   // Categories
   app.get(api.categories.list.path, async (req, res) => {
-    const categories = await storage.getCategories();
+    const categories = await scopedStorage(req).getCategories();
     res.json(categories);
   });
 
   app.get(api.categories.get.path, async (req, res) => {
-    const category = await storage.getCategory(Number(req.params.id));
+    const category = await scopedStorage(req).getCategory(Number(req.params.id));
     if (!category) return res.status(404).json({ message: "Category not found" });
     res.json(category);
   });
 
-  app.post(api.categories.create.path, requireAdmin, async (req, res) => {
+  app.post(api.categories.create.path, requireManager, async (req, res) => {
     try {
       const input = api.categories.create.input.parse(req.body);
-      const category = await storage.createCategory(input);
+      const category = await scopedStorage(req).createCategory(input);
       res.status(201).json(category);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -38,10 +43,10 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.categories.update.path, requireAdmin, async (req, res) => {
+  app.put(api.categories.update.path, requireManager, async (req, res) => {
     try {
       const input = api.categories.update.input.parse(req.body);
-      const category = await storage.updateCategory(Number(req.params.id), input);
+      const category = await scopedStorage(req).updateCategory(Number(req.params.id), input);
       res.json(category);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -51,27 +56,27 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.categories.delete.path, requireAdmin, async (req, res) => {
-    await storage.deleteCategory(Number(req.params.id));
+  app.delete(api.categories.delete.path, requireManager, async (req, res) => {
+    await scopedStorage(req).deleteCategory(Number(req.params.id));
     res.status(204).send();
   });
 
   // Suppliers
   app.get(api.suppliers.list.path, async (req, res) => {
-    const suppliers = await storage.getSuppliers();
+    const suppliers = await scopedStorage(req).getSuppliers();
     res.json(suppliers);
   });
 
   app.get(api.suppliers.get.path, async (req, res) => {
-    const supplier = await storage.getSupplier(Number(req.params.id));
+    const supplier = await scopedStorage(req).getSupplier(Number(req.params.id));
     if (!supplier) return res.status(404).json({ message: "Supplier not found" });
     res.json(supplier);
   });
 
-  app.post(api.suppliers.create.path, requireAdmin, async (req, res) => {
+  app.post(api.suppliers.create.path, requireManager, async (req, res) => {
     try {
       const input = api.suppliers.create.input.parse(req.body);
-      const supplier = await storage.createSupplier(input);
+      const supplier = await scopedStorage(req).createSupplier(input);
       res.status(201).json(supplier);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -81,10 +86,10 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.suppliers.update.path, requireAdmin, async (req, res) => {
+  app.put(api.suppliers.update.path, requireManager, async (req, res) => {
     try {
       const input = api.suppliers.update.input.parse(req.body);
-      const supplier = await storage.updateSupplier(Number(req.params.id), input);
+      const supplier = await scopedStorage(req).updateSupplier(Number(req.params.id), input);
       res.json(supplier);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -94,24 +99,24 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.suppliers.delete.path, requireAdmin, async (req, res) => {
-    await storage.deleteSupplier(Number(req.params.id));
+  app.delete(api.suppliers.delete.path, requireManager, async (req, res) => {
+    await scopedStorage(req).deleteSupplier(Number(req.params.id));
     res.status(204).send();
   });
 
   // Products
   app.get(api.products.list.path, async (req, res) => {
-    const products = await storage.getProducts();
+    const products = await scopedStorage(req).getProducts();
     res.json(products);
   });
 
   app.get(api.products.get.path, async (req, res) => {
-    const product = await storage.getProduct(Number(req.params.id));
+    const product = await scopedStorage(req).getProduct(Number(req.params.id));
     if (!product) return res.status(404).json({ message: "Product not found" });
     res.json(product);
   });
 
-  app.post(api.products.create.path, requireAdmin, async (req, res) => {
+  app.post(api.products.create.path, requireManager, async (req, res) => {
     try {
       // Coerce numeric strings to numbers
       const bodySchema = api.products.create.input.extend({
@@ -125,7 +130,7 @@ export async function registerRoutes(
       const input = bodySchema.parse(req.body);
       // Validate SKU uniqueness before attempting insert
       if (input.sku) {
-        const existing = await storage.getProductBySku(String(input.sku));
+        const existing = await scopedStorage(req).getProductBySku(String(input.sku));
         if (existing) {
           return res.status(409).json({ message: 'SKU already exists' });
         }
@@ -133,7 +138,7 @@ export async function registerRoutes(
       // Convert numbers back to strings for decimal fields if needed, or let Drizzle handle it.
       // Drizzle 'decimal' type in Zod schema expects string or number, returns string.
       // We pass the parsed object which has numbers.
-      const product = await storage.createProduct(input as any); 
+      const product = await scopedStorage(req).createProduct(input as any);
       res.status(201).json(product);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -143,7 +148,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.products.update.path, requireAdmin, async (req, res) => {
+  app.put(api.products.update.path, requireManager, async (req, res) => {
     try {
        const bodySchema = api.products.update.input.extend({
         quantity: z.coerce.number().optional(),
@@ -156,12 +161,12 @@ export async function registerRoutes(
       const input = bodySchema.parse(req.body);
       // If SKU is being updated, ensure uniqueness (excluding current product)
       if (input.sku) {
-        const existing = await storage.getProductBySku(String(input.sku));
+        const existing = await scopedStorage(req).getProductBySku(String(input.sku));
         if (existing && existing.id !== Number(req.params.id)) {
           return res.status(409).json({ message: 'SKU already exists' });
         }
       }
-      const product = await storage.updateProduct(Number(req.params.id), input as any);
+      const product = await scopedStorage(req).updateProduct(Number(req.params.id), input as any);
       res.json(product);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -171,9 +176,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.products.delete.path, requireAdmin, async (req, res) => {
+  app.delete(api.products.delete.path, requireManager, async (req, res) => {
     try {
-      await storage.deleteProduct(Number(req.params.id));
+      await scopedStorage(req).deleteProduct(Number(req.params.id));
       res.status(204).send();
     } catch (err: any) {
       // Si es una violación de integridad referencial u otro error controlado, devolver 400 con mensaje
@@ -183,7 +188,7 @@ export async function registerRoutes(
 
   // Movements
   app.get(api.movements.list.path, async (req, res) => {
-    const movements = await storage.getMovements();
+    const movements = await scopedStorage(req).getMovements();
     res.json(movements);
   });
 
@@ -194,7 +199,7 @@ export async function registerRoutes(
         quantity: z.coerce.number(),
       });
       const input = bodySchema.parse(req.body);
-      const movement = await storage.createMovement(input);
+      const movement = await scopedStorage(req).createMovement(input);
       res.status(201).json(movement);
     } catch (err: any) {
       if (err instanceof z.ZodError) {
@@ -206,23 +211,23 @@ export async function registerRoutes(
 
   // Credits
   app.get("/api/credits", async (req, res) => {
-    const credits = await storage.getCreditAccounts();
+    const credits = await scopedStorage(req).getCreditAccounts();
     res.json(credits);
   });
 
   app.get("/api/credits/customer/:customerName", async (req, res) => {
-    const credits = await storage.getCreditAccountsByCustomer(req.params.customerName);
+    const credits = await scopedStorage(req).getCreditAccountsByCustomer(req.params.customerName);
     res.json(credits);
   });
 
   app.get("/api/credits/stats", async (req, res) => {
-    const stats = await storage.getCreditsStats();
+    const stats = await scopedStorage(req).getCreditsStats();
     res.json(stats);
   });
 
   app.post("/api/credits", requireOperator, async (req, res) => {
     try {
-      const credit = await storage.createCreditAccount(req.body);
+      const credit = await scopedStorage(req).createCreditAccount(req.body);
       res.status(201).json(credit);
     } catch (err: any) {
       return res.status(400).json({ message: err.message });
@@ -231,7 +236,7 @@ export async function registerRoutes(
 
   app.post("/api/credits/payment", requireOperator, async (req, res) => {
     try {
-      const payment = await storage.createCreditPayment(req.body);
+      const payment = await scopedStorage(req).createCreditPayment(req.body);
       res.status(201).json(payment);
     } catch (err: any) {
       return res.status(400).json({ message: err.message });
@@ -240,15 +245,11 @@ export async function registerRoutes(
 
   // Stats
   app.get(api.stats.get.path, async (req, res) => {
-    const stats = await storage.getDashboardStats();
+    const stats = await scopedStorage(req).getDashboardStats();
     res.json(stats);
   });
 
   // Seed Data (omitimos si la variable de entorno SKIP_SEED está activada)
-  if (process.env.SKIP_SEED !== 'true') {
-    await seedDatabase();
-  }
-
   return httpServer;
 }
 

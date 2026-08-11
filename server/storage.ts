@@ -63,20 +63,31 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  constructor(private readonly organizationId?: string) {}
+
+  forOrganization(organizationId: string): DatabaseStorage {
+    return new DatabaseStorage(organizationId);
+  }
+
+  private get organizationScope(): string {
+    if (!this.organizationId) throw new Error("Organization context is required for data access");
+    return this.organizationId;
+  }
+
   async getCategories(): Promise<Category[]> {
-    const { data, error } = await supabase.from('categories').select('*');
+    const { data, error } = await supabase.from('categories').select('*').eq('organization_id', this.organizationScope);
     if (error) throw error;
     return (data || []).map(toCamelCase);
   }
 
   async getCategory(id: number): Promise<Category | undefined> {
-    const { data, error } = await supabase.from('categories').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('categories').select('*').eq('id', id).eq('organization_id', this.organizationScope).single();
     if (error && error.code !== 'PGRST116') throw error;
     return data ? toCamelCase(data) : undefined;
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
-    const { data, error } = await supabase.from('categories').insert(toSnakeCase(category)).select().single();
+    const { data, error } = await (supabase as any).from('categories').insert({ ...toSnakeCase(category), organization_id: this.organizationScope }).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
@@ -84,30 +95,30 @@ export class DatabaseStorage implements IStorage {
   async updateCategory(id: number, category: UpdateCategoryRequest): Promise<Category> {
     const snakeData = toSnakeCase(category);
     // @ts-expect-error - Supabase types don't support dynamic object conversion
-    const { data, error } = await supabase.from('categories').update(snakeData).eq('id', id).select().single();
+    const { data, error } = await supabase.from('categories').update(snakeData).eq('id', id).eq('organization_id', this.organizationScope).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
 
   async deleteCategory(id: number): Promise<void> {
-    const { error } = await supabase.from('categories').delete().eq('id', id);
+    const { error } = await supabase.from('categories').delete().eq('id', id).eq('organization_id', this.organizationScope);
     if (error) throw error;
   }
 
   async getSuppliers(): Promise<Supplier[]> {
-    const { data, error } = await supabase.from('suppliers').select('*');
+    const { data, error } = await supabase.from('suppliers').select('*').eq('organization_id', this.organizationScope);
     if (error) throw error;
     return (data || []).map(toCamelCase);
   }
 
   async getSupplier(id: number): Promise<Supplier | undefined> {
-    const { data, error } = await supabase.from('suppliers').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('suppliers').select('*').eq('id', id).eq('organization_id', this.organizationScope).single();
     if (error && error.code !== 'PGRST116') throw error;
     return data ? toCamelCase(data) : undefined;
   }
 
   async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
-    const { data, error } = await supabase.from('suppliers').insert(toSnakeCase(supplier)).select().single();
+    const { data, error } = await (supabase as any).from('suppliers').insert({ ...toSnakeCase(supplier), organization_id: this.organizationScope }).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
@@ -115,36 +126,36 @@ export class DatabaseStorage implements IStorage {
   async updateSupplier(id: number, supplier: UpdateSupplierRequest): Promise<Supplier> {
     const snakeData = toSnakeCase(supplier);
     // @ts-expect-error - Supabase types don't support dynamic object conversion
-    const { data, error } = await supabase.from('suppliers').update(snakeData).eq('id', id).select().single();
+    const { data, error } = await supabase.from('suppliers').update(snakeData).eq('id', id).eq('organization_id', this.organizationScope).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
 
   async deleteSupplier(id: number): Promise<void> {
-    const { error } = await supabase.from('suppliers').delete().eq('id', id);
+    const { error } = await supabase.from('suppliers').delete().eq('id', id).eq('organization_id', this.organizationScope);
     if (error) throw error;
   }
 
   async getProducts(): Promise<(Product & { category: Category | null, supplier: Supplier | null })[]> {
-    const { data, error } = await supabase.from('products').select('*, category:categories(*), supplier:suppliers(*)');
+    const { data, error } = await supabase.from('products').select('*, category:categories(*), supplier:suppliers(*)').eq('organization_id', this.organizationScope);
     if (error) throw error;
     return (data || []).map(toCamelCase);
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
-    const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('products').select('*').eq('id', id).eq('organization_id', this.organizationScope).single();
     if (error && error.code !== 'PGRST116') throw error;
     return data ? toCamelCase(data) : undefined;
   }
 
   async getProductBySku(sku: string): Promise<Product | undefined> {
-    const { data, error } = await supabase.from('products').select('*').eq('sku', sku).single();
+    const { data, error } = await supabase.from('products').select('*').eq('sku', sku).eq('organization_id', this.organizationScope).single();
     if (error && error.code !== 'PGRST116') throw error;
     return data ? toCamelCase(data) : undefined;
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
-    const { data, error } = await supabase.from('products').insert(toSnakeCase(product)).select().single();
+    const { data, error } = await (supabase as any).from('products').insert({ ...toSnakeCase(product), organization_id: this.organizationScope }).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
@@ -152,7 +163,7 @@ export class DatabaseStorage implements IStorage {
   async updateProduct(id: number, product: UpdateProductRequest): Promise<Product> {
     const snakeData = toSnakeCase(product);
     // @ts-expect-error - Supabase types don't support dynamic object conversion
-    const { data, error } = await supabase.from('products').update(snakeData).eq('id', id).select().single();
+    const { data, error } = await supabase.from('products').update(snakeData).eq('id', id).eq('organization_id', this.organizationScope).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
@@ -162,7 +173,8 @@ export class DatabaseStorage implements IStorage {
     const { data: accounts, error: accountsError } = await supabase
       .from('credit_accounts')
       .select('id, status')
-      .eq('product_id', id);
+      .eq('product_id', id)
+      .eq('organization_id', this.organizationScope);
     if (accountsError) throw accountsError;
 
     const accs = (accounts as any[]) || [];
@@ -175,23 +187,23 @@ export class DatabaseStorage implements IStorage {
 
       // Todas las cuentas están pagadas: procedemos a eliminarlas (esto eliminará también los pagos por ON DELETE CASCADE)
       const ids = accs.map((a) => a.id);
-      const { error: delAccError } = await supabase.from('credit_accounts').delete().in('id', ids);
+      const { error: delAccError } = await supabase.from('credit_accounts').delete().in('id', ids).eq('organization_id', this.organizationScope);
       if (delAccError) throw delAccError;
     }
 
-    const { error } = await supabase.from('products').delete().eq('id', id);
+    const { error } = await supabase.from('products').delete().eq('id', id).eq('organization_id', this.organizationScope);
     if (error) throw error;
   }
 
   async getMovements(): Promise<(Movement & { product: Product | null })[]> {
-    const { data, error } = await supabase.from('movements').select('*, product:products(*)').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('movements').select('*, product:products(*)').eq('organization_id', this.organizationScope).order('created_at', { ascending: false });
     if (error) throw error;
     return (data || []).map(toCamelCase);
   }
 
   async createMovement(movement: InsertMovement): Promise<Movement> {
     // Verificar stock disponible antes de procesar el movimiento
-    const { data: product, error: productError } = await supabase.from('products').select('quantity').eq('id', movement.productId).single();
+    const { data: product, error: productError } = await supabase.from('products').select('quantity').eq('id', movement.productId).eq('organization_id', this.organizationScope).single();
     if (productError) throw productError;
 
     const currentQuantity = (product as any).quantity;
@@ -210,12 +222,12 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Crear el movimiento solo si la validación pasó
-    const { data: newMovement, error: movementError } = await supabase.from('movements').insert(toSnakeCase(movement)).select().single();
+    const { data: newMovement, error: movementError } = await (supabase as any).from('movements').insert({ ...toSnakeCase(movement), organization_id: this.organizationScope }).select().single();
     if (movementError) throw movementError;
 
     // Actualizar la cantidad del producto
     // @ts-expect-error - Supabase types don't infer quantity update correctly
-    const { error: updateError } = await supabase.from('products').update({ quantity: newQuantity }).eq('id', movement.productId);
+    const { error: updateError } = await supabase.from('products').update({ quantity: newQuantity }).eq('id', movement.productId).eq('organization_id', this.organizationScope);
     if (updateError) throw updateError;
 
     return toCamelCase(newMovement);
@@ -225,6 +237,7 @@ export class DatabaseStorage implements IStorage {
     const { data, error } = await supabase
       .from('credit_accounts')
       .select('*, product:products(*), payments:credit_payments(*)')
+      .eq('organization_id', this.organizationScope)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return (data || []).map(toCamelCase);
@@ -235,6 +248,7 @@ export class DatabaseStorage implements IStorage {
       .from('credit_accounts')
       .select('*, product:products(*), payments:credit_payments(*)')
       .eq('customer_name', customerName)
+      .eq('organization_id', this.organizationScope)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return (data || []).map(toCamelCase);
@@ -245,6 +259,7 @@ export class DatabaseStorage implements IStorage {
       .from('credit_accounts')
       .select('*, product:products(*), payments:credit_payments(*)')
       .eq('id', id)
+      .eq('organization_id', this.organizationScope)
       .single();
     if (error && error.code !== 'PGRST116') throw error;
     return data ? toCamelCase(data) : undefined;
@@ -264,6 +279,7 @@ export class DatabaseStorage implements IStorage {
       .from('products')
       .select('quantity, selling_price')
       .eq('id', credit.productId)
+      .eq('organization_id', this.organizationScope)
       .single();
     if (productError) throw productError;
 
@@ -287,9 +303,9 @@ export class DatabaseStorage implements IStorage {
 
     try {
       // Crear movimiento
-      const { data: newMovement, error: movementError } = await supabase
+      const { data: newMovement, error: movementError } = await (supabase as any)
         .from('movements')
-        .insert(toSnakeCase(movement))
+        .insert({ ...toSnakeCase(movement), organization_id: this.organizationScope })
         .select()
         .single();
       if (movementError) throw movementError;
@@ -299,7 +315,8 @@ export class DatabaseStorage implements IStorage {
       const { error: updateError } = await (supabase as any)
         .from('products')
         .update({ quantity: newQuantity })
-        .eq('id', credit.productId);
+        .eq('id', credit.productId)
+        .eq('organization_id', this.organizationScope);
       if (updateError) throw updateError;
       stockUpdated = true;
 
@@ -321,9 +338,9 @@ export class DatabaseStorage implements IStorage {
         notes: credit.notes || null,
       };
 
-      const { data: newCredit, error: creditError } = await supabase
+      const { data: newCredit, error: creditError } = await (supabase as any)
         .from('credit_accounts')
-        .insert(toSnakeCase(creditData))
+        .insert({ ...toSnakeCase(creditData), organization_id: this.organizationScope })
         .select()
         .single();
       if (creditError) throw creditError;
@@ -337,10 +354,11 @@ export class DatabaseStorage implements IStorage {
           await (supabase as any)
             .from('products')
             .update({ quantity: currentQuantity })
-            .eq('id', credit.productId);
+            .eq('id', credit.productId)
+            .eq('organization_id', this.organizationScope);
         }
         if (createdMovementId) {
-          await supabase.from('movements').delete().eq('id', createdMovementId);
+          await supabase.from('movements').delete().eq('id', createdMovementId).eq('organization_id', this.organizationScope);
         }
       } catch (revertErr) {
         // Si el revert falla, lo registramos y seguimos lanzando el error original
@@ -358,6 +376,7 @@ export class DatabaseStorage implements IStorage {
       .from('credit_accounts')
       .select('*')
       .eq('id', payment.creditAccountId)
+      .eq('organization_id', this.organizationScope)
       .single();
     if (creditError) throw creditError;
 
@@ -370,9 +389,9 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Crear el pago
-    const { data: newPayment, error: paymentError } = await supabase
+    const { data: newPayment, error: paymentError } = await (supabase as any)
       .from('credit_payments')
-      .insert(toSnakeCase(payment))
+      .insert({ ...toSnakeCase(payment), organization_id: this.organizationScope })
       .select()
       .single();
     if (paymentError) throw paymentError;
@@ -389,14 +408,15 @@ export class DatabaseStorage implements IStorage {
         remaining_amount: newRemainingAmount.toFixed(2),
         status: newStatus,
       })
-      .eq('id', payment.creditAccountId);
+      .eq('id', payment.creditAccountId)
+      .eq('organization_id', this.organizationScope);
     if (updateError) throw updateError;
 
     return toCamelCase(newPayment);
   }
 
   async getCreditsStats(): Promise<CreditsStats> {
-    const { data: accounts, error } = await supabase.from('credit_accounts').select('*');
+    const { data: accounts, error } = await supabase.from('credit_accounts').select('*').eq('organization_id', this.organizationScope);
     if (error) throw error;
 
     const accountsData = accounts as any[] || [];
@@ -412,20 +432,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
-    const { count: totalProducts, error: countError } = await supabase.from('products').select('*', { count: 'exact', head: true });
+    const { count: totalProducts, error: countError } = await supabase.from('products').select('*', { count: 'exact', head: true }).eq('organization_id', this.organizationScope);
     if (countError) throw countError;
 
-    const { data: productsData, error: productsError } = await supabase.from('products').select('quantity, cost_price');
+    const { data: productsData, error: productsError } = await supabase.from('products').select('quantity, cost_price').eq('organization_id', this.organizationScope);
     if (productsError) throw productsError;
     
     const totalValue = (productsData as any[])?.reduce((sum, p) => sum + (p.quantity * parseFloat(p.cost_price || '0')), 0) || 0;
 
-    const { data: allProducts, error: allError } = await supabase.from('products').select('quantity, min_stock_level');
+    const { data: allProducts, error: allError } = await supabase.from('products').select('quantity, min_stock_level').eq('organization_id', this.organizationScope);
     if (allError) throw allError;
     
     const lowStockCount = (allProducts as any[])?.filter(p => p.quantity <= (p.min_stock_level || 5)).length || 0;
 
-    const { data: recentMovements, error: movementsError } = await supabase.from('movements').select('*, product:products(*)').order('created_at', { ascending: false }).limit(5);
+    const { data: recentMovements, error: movementsError } = await supabase.from('movements').select('*, product:products(*)').eq('organization_id', this.organizationScope).order('created_at', { ascending: false }).limit(5);
     if (movementsError) throw movementsError;
 
     return {

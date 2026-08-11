@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, Package, Tag, Truck, ArrowRightLeft, Wine, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
@@ -13,6 +14,7 @@ const menuItems = [
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { activeOrganization, organizations, setActiveOrganization } = useAuth();
 
   return (
     <div className="flex h-screen w-64 flex-col bg-card border-r border-border/50 text-foreground shadow-2xl sticky top-0">
@@ -26,6 +28,20 @@ export function Sidebar() {
           <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Manager</p>
         </div>
       </div>
+
+      {organizations.length > 1 && (
+        <div className="px-4 pt-4">
+          <label className="sr-only" htmlFor="organization-selector">Empresa activa</label>
+          <select
+            id="organization-selector"
+            value={activeOrganization?.id ?? ""}
+            onChange={(event) => setActiveOrganization(event.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+          >
+            {organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
+          </select>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">

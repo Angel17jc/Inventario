@@ -1,5 +1,9 @@
 # Arquitectura SaaS multiempresa
 
+## Orden de migraciones
+
+Ejecuta las migraciones en orden numérico. Después de `003_scope_legacy_data_to_organization.sql`, ejecuta `004_apply_tenant_data_rls.sql` para limitar las lecturas directas de Supabase a la organización correspondiente. Las escrituras siguen siendo exclusivamente de la API, donde se aplican los permisos de rol.
+
 ## Modelo de acceso
 
 - `platform_admin`: administrador de la plataforma. Es el único rol global y se guarda en `auth.users.raw_app_meta_data` como `platform_role`.

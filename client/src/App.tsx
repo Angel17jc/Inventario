@@ -14,9 +14,10 @@ import Login from "@/pages/Login";
 import { AuthProvider, useAuth } from "@/lib/auth";
 
 function ProtectedRouter() {
-  const { session, role, isLoading } = useAuth();
-  if (isLoading) return <div className="min-h-screen bg-background" />;
+  const { session, role, activeOrganization, isLoading, isOrganizationsLoading } = useAuth();
+  if (isLoading || isOrganizationsLoading) return <div className="min-h-screen bg-background" />;
   if (!session || !role) return <Login />;
+  if (!activeOrganization) return <main className="grid min-h-screen place-items-center bg-background p-6 text-center text-muted-foreground">No tienes una empresa activa asignada.</main>;
   return <Router />;
 }
 
