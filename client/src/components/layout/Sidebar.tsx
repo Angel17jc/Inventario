@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Package, Tag, Truck, ArrowRightLeft, Wine, CreditCard, Building2 } from "lucide-react";
+import { LayoutDashboard, Package, Tag, Truck, ArrowRightLeft, Wine, CreditCard, Building2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -14,7 +14,7 @@ const menuItems = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { activeOrganization, organizations, setActiveOrganization, role } = useAuth();
+  const { activeOrganization, organizations, setActiveOrganization, role, signOut, user } = useAuth();
 
   return (
     <div className="flex h-screen w-64 flex-col bg-card border-r border-border/50 text-foreground shadow-2xl sticky top-0">
@@ -70,6 +70,10 @@ export function Sidebar() {
 
       {/* Footer info */}
       <div className="p-6 border-t border-border/30 bg-background/30 backdrop-blur-sm">
+        <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+        <button onClick={() => void signOut()} className="mt-3 flex w-full items-center justify-center gap-2 text-xs text-muted-foreground transition-colors hover:text-white">
+          <LogOut className="h-4 w-4" /> Cerrar sesión
+        </button>
         <p className="text-xs text-center text-muted-foreground">© 2026 Licorería Manager</p>
       </div>
     </div>
