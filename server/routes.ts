@@ -30,6 +30,22 @@ export async function registerRoutes(
       throw error;
     }
   });
+  app.post("/api/platform/organization-users", requirePlatformAdmin, async (req, res) => {
+    const inputSchema = z.object({
+      organizationId: z.string().uuid(),
+      email: z.string().trim().email().max(255),
+      password: z.string().min(12).max(128),
+      role: z.enum(["manager", "cashier"]),
+    });
+    try {
+      const input = inputSchema.parse(req.body);
+      const user = await platformService.createOrganizationUser(input);
+      return res.status(201).json(user);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message });
+      throw error;
+    }
+  });
   app.use("/api", requireOrganizationContext);
   const requireManager = requireOrganizationRole("owner", "manager");
   const requireOperator = requireOrganizationRole("owner", "manager", "cashier");

@@ -7,6 +7,13 @@ export interface CreateOrganizationInput {
   ownerPassword: string;
 }
 
+export interface CreateOrganizationUserInput {
+  organizationId: string;
+  email: string;
+  password: string;
+  role: "manager" | "cashier";
+}
+
 function normalizeSlug(value: string): string {
   return value
     .normalize("NFD")
@@ -51,6 +58,37 @@ export class PlatformService {
       // Compensate in reverse order to avoid incomplete client accounts.
       if (userId) await supabase.auth.admin.deleteUser(userId).catch(() => undefined);
       await (supabase as any).from("organizations").delete().eq("id", organization.id);
+      throw error;
+    }
+  }
+
+  async createOrganizationUser(input: CreateOrganizationUserInput) {
+    const { data: organization, error: organizationError } = await (supabase as any)
+      .from("organizations")
+      .select("id, status")
+      .eq("id", input.organizationId)
+      .maybeSingle();
+    if (organizationError) throw organizationError;
+    if (!organization || organization.status !== "active") throw new Error("Organization is not active");
+
+    let userId: string | undefined;
+    try {
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: input.email.trim().toLowerCase(),
+        password: input.password,
+        email_confirm: true,
+      });
+      if (error || !data.user) throw error ?? new Error("Could not create user account");
+      userId = data.user.id;
+
+      const { error: membershipError } = await (supabase as any)
+        .from("organization_memberships")
+        .insert({ organization_id: input.organizationId, user_id: userId, role: input.role, status: "active" });
+      if (membershipError) throw membershipError;
+
+      return { id: userId, email: data.user.email, role: input.role };
+    } catch (error) {
+      if (userId) await supabase.auth.admin.deleteUser(userId).catch(() => undefined);
       throw error;
     }
   }
