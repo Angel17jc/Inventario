@@ -14,6 +14,7 @@ export default function Platform() {
   const [form, setForm] = useState({ name: "", slug: "", ownerEmail: "", ownerPassword: "" });
   const [userForm, setUserForm] = useState<{ organizationId: string; email: string; password: string; role: "manager" | "cashier" }>({ organizationId: activeOrganization?.id ?? "", email: "", password: "", role: "cashier" });
   const [staff, setStaff] = useState<Array<{ id: string; email: string; role: string; status: string }>>([]);
+  const [passwords, setPasswords] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!userForm.organizationId) return setStaff([]);
@@ -24,6 +25,15 @@ export default function Platform() {
     const response = await authenticatedFetch(`/api/platform/organization-users/${userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organizationId: userForm.organizationId, ...changes }) });
     if (!response.ok) return toast({ title: "Error", description: "No fue posible actualizar el usuario", variant: "destructive" });
     setStaff(await authenticatedFetch(`/api/platform/organizations/${userForm.organizationId}/users`).then((result) => result.json()));
+  }
+
+  async function resetPassword(userId: string) {
+    const password = passwords[userId] ?? "";
+    if (password.length < 12) return toast({ title: "Error", description: "La contraseña debe tener al menos 12 caracteres", variant: "destructive" });
+    const response = await authenticatedFetch(`/api/platform/users/${userId}/reset-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
+    if (!response.ok) return toast({ title: "Error", description: "No fue posible restablecer la contraseña", variant: "destructive" });
+    setPasswords({ ...passwords, [userId]: "" });
+    toast({ title: "Contraseña actualizada", description: "Entrega la nueva contraseña al usuario de forma segura." });
   }
 
   async function submit(event: FormEvent) {
@@ -105,6 +115,8 @@ export default function Platform() {
             {member.role === "owner" ? <span className="text-xs text-muted-foreground">Propietario</span> : <>
               <select value={member.role} onChange={(event) => void updateStaffMember(member.id, { role: event.target.value })} className="rounded border border-input bg-background px-2 py-1"><option value="cashier">Cajero</option><option value="manager">Gerente</option></select>
               <Button size="sm" variant="outline" onClick={() => void updateStaffMember(member.id, { status: member.status === "active" ? "disabled" : "active" })}>{member.status === "active" ? "Desactivar" : "Activar"}</Button>
+              <Input type="password" value={passwords[member.id] ?? ""} onChange={(event) => setPasswords({ ...passwords, [member.id]: event.target.value })} placeholder="Nueva contraseña" className="h-8 w-40" />
+              <Button size="sm" variant="outline" onClick={() => void resetPassword(member.id)}>Restablecer</Button>
             </>}
             <span className="text-xs text-muted-foreground">{member.status}</span>
           </div>)}

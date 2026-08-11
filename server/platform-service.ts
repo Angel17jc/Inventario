@@ -32,6 +32,18 @@ function normalizeSlug(value: string): string {
 }
 
 export class PlatformService {
+  async updateOrganizationStatus(organizationId: string, status: "active" | "suspended") {
+    const { data, error } = await (supabase as any).from("organizations").update({ status }).eq("id", organizationId).select("id, name, status").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async resetUserPassword(userId: string, password: string) {
+    const { data, error } = await supabase.auth.admin.updateUserById(userId, { password });
+    if (error || !data.user) throw error ?? new Error("Could not reset user password");
+    return { id: data.user.id, email: data.user.email };
+  }
+
   async createOrganizationWithOwner(input: CreateOrganizationInput) {
     const name = input.name.trim();
     const slug = normalizeSlug(input.slug || name);

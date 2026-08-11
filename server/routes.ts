@@ -60,6 +60,16 @@ export async function registerRoutes(
     const input = z.object({ organizationId: z.string().uuid(), role: z.enum(["manager", "cashier"]).optional(), status: z.enum(["active", "disabled"]).optional() }).refine((value) => value.role || value.status, "At least one change is required").parse({ ...req.body, userId: req.params.userId });
     res.json(await platformService.updateOrganizationUser({ ...input, userId: z.string().uuid().parse(req.params.userId) }));
   });
+  app.patch("/api/platform/organizations/:organizationId/status", requirePlatformAdmin, async (req, res) => {
+    const organizationId = z.string().uuid().parse(req.params.organizationId);
+    const { status } = z.object({ status: z.enum(["active", "suspended"]) }).parse(req.body);
+    res.json(await platformService.updateOrganizationStatus(organizationId, status));
+  });
+  app.post("/api/platform/users/:userId/reset-password", requirePlatformAdmin, async (req, res) => {
+    const userId = z.string().uuid().parse(req.params.userId);
+    const { password } = z.object({ password: z.string().min(12).max(128) }).parse(req.body);
+    res.json(await platformService.resetUserPassword(userId, password));
+  });
   app.use("/api", requireOrganizationContext);
   const requireManager = requireOrganizationRole("owner", "manager");
   const requireOperator = requireOrganizationRole("owner", "manager", "cashier");
