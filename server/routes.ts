@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole } from "./auth";
+import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole, requirePlatformAdmin } from "./auth";
+import { platformService } from "./platform-service";
 import { api } from "@shared/routes";
 import { z } from "zod";
 
@@ -12,6 +13,22 @@ export async function registerRoutes(
   app.use("/api", requireAuthenticatedUser);
   app.get("/api/organizations/me", async (req, res) => {
     res.json(await getAccessibleOrganizations(req.user!));
+  });
+  app.post("/api/platform/organizations", requirePlatformAdmin, async (req, res) => {
+    const inputSchema = z.object({
+      name: z.string().trim().min(2).max(120),
+      slug: z.string().trim().max(120).optional().default(""),
+      ownerEmail: z.string().trim().email().max(255),
+      ownerPassword: z.string().min(12).max(128),
+    });
+    try {
+      const input = inputSchema.parse(req.body);
+      const result = await platformService.createOrganizationWithOwner(input);
+      return res.status(201).json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message });
+      throw error;
+    }
   });
   app.use("/api", requireOrganizationContext);
   const requireManager = requireOrganizationRole("owner", "manager");

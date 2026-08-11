@@ -10,6 +10,7 @@ import Movements from "@/pages/Movements";
 import Categories from "@/pages/Categories";
 import Suppliers from "@/pages/Suppliers";
 import Credits from "@/pages/Credits";
+import Platform from "@/pages/Platform";
 import Login from "@/pages/Login";
 import { AuthProvider, useAuth } from "@/lib/auth";
 
@@ -22,6 +23,7 @@ function ProtectedRouter() {
 }
 
 function Router() {
+  const { role } = useAuth();
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
@@ -30,6 +32,7 @@ function Router() {
       <Route path="/categories" component={Categories} />
       <Route path="/suppliers" component={Suppliers} />
       <Route path="/credits" component={Credits} />
+      {role === "platform_admin" && <Route path="/platform" component={Platform} />}
       <Route component={NotFound} />
     </Switch>
   );

@@ -78,6 +78,11 @@ export async function requireOrganizationContext(req: Request, res: Response, ne
   return next();
 }
 
+export function requirePlatformAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.user?.isPlatformAdmin) return res.status(403).json({ message: "Platform administrator permissions required" });
+  return next();
+}
+
 export function requireOrganizationRole(...allowedRoles: OrganizationRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.organization) return res.status(401).json({ message: "Organization context required" });
