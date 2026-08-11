@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,18 @@ export default function Platform() {
   const [isUserSubmitting, setIsUserSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", slug: "", ownerEmail: "", ownerPassword: "" });
   const [userForm, setUserForm] = useState<{ organizationId: string; email: string; password: string; role: "manager" | "cashier" }>({ organizationId: activeOrganization?.id ?? "", email: "", password: "", role: "cashier" });
+  const [staff, setStaff] = useState<Array<{ id: string; email: string; role: string; status: string }>>([]);
+
+  useEffect(() => {
+    if (!userForm.organizationId) return setStaff([]);
+    authenticatedFetch(`/api/platform/organizations/${userForm.organizationId}/users`).then((response) => response.ok ? response.json() : []).then(setStaff);
+  }, [userForm.organizationId]);
+
+  async function updateStaffMember(userId: string, changes: Record<string, string>) {
+    const response = await authenticatedFetch(`/api/platform/organization-users/${userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organizationId: userForm.organizationId, ...changes }) });
+    if (!response.ok) return toast({ title: "Error", description: "No fue posible actualizar el usuario", variant: "destructive" });
+    setStaff(await authenticatedFetch(`/api/platform/organizations/${userForm.organizationId}/users`).then((result) => result.json()));
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -86,6 +98,17 @@ export default function Platform() {
           </select>
           <Button type="submit" disabled={isUserSubmitting || organizations.length === 0} className="w-full">{isUserSubmitting ? "Creando usuario..." : "Crear usuario"}</Button>
         </form>
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-xl">
+          <h2 className="text-xl font-semibold text-white">Personal del cliente</h2>
+          {staff.map((member) => <div key={member.id} className="flex flex-wrap items-center gap-3 border-b border-border pb-3 text-sm last:border-0">
+            <span className="min-w-48 flex-1 text-muted-foreground">{member.email}</span>
+            {member.role === "owner" ? <span className="text-xs text-muted-foreground">Propietario</span> : <>
+              <select value={member.role} onChange={(event) => void updateStaffMember(member.id, { role: event.target.value })} className="rounded border border-input bg-background px-2 py-1"><option value="cashier">Cajero</option><option value="manager">Gerente</option></select>
+              <Button size="sm" variant="outline" onClick={() => void updateStaffMember(member.id, { status: member.status === "active" ? "disabled" : "active" })}>{member.status === "active" ? "Desactivar" : "Activar"}</Button>
+            </>}
+            <span className="text-xs text-muted-foreground">{member.status}</span>
+          </div>)}
+        </section>
       </div>
     </main>
   </div>;

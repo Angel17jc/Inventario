@@ -52,6 +52,14 @@ export async function registerRoutes(
       throw error;
     }
   });
+  app.get("/api/platform/organizations/:organizationId/users", requirePlatformAdmin, async (req, res) => {
+    const organizationId = z.string().uuid().parse(req.params.organizationId);
+    res.json(await platformService.listOrganizationUsers(organizationId));
+  });
+  app.patch("/api/platform/organization-users/:userId", requirePlatformAdmin, async (req, res) => {
+    const input = z.object({ organizationId: z.string().uuid(), role: z.enum(["manager", "cashier"]).optional(), status: z.enum(["active", "disabled"]).optional() }).refine((value) => value.role || value.status, "At least one change is required").parse({ ...req.body, userId: req.params.userId });
+    res.json(await platformService.updateOrganizationUser({ ...input, userId: z.string().uuid().parse(req.params.userId) }));
+  });
   app.use("/api", requireOrganizationContext);
   const requireManager = requireOrganizationRole("owner", "manager");
   const requireOperator = requireOrganizationRole("owner", "manager", "cashier");

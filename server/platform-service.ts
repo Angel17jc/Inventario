@@ -14,6 +14,13 @@ export interface CreateOrganizationUserInput {
   role: "manager" | "cashier";
 }
 
+export interface UpdateOrganizationUserInput {
+  organizationId: string;
+  userId: string;
+  role?: "manager" | "cashier";
+  status?: "active" | "disabled";
+}
+
 function normalizeSlug(value: string): string {
   return value
     .normalize("NFD")
@@ -91,6 +98,49 @@ export class PlatformService {
       if (userId) await supabase.auth.admin.deleteUser(userId).catch(() => undefined);
       throw error;
     }
+  }
+
+  async listOrganizationUsers(organizationId: string) {
+    const { data: memberships, error } = await (supabase as any)
+      .from("organization_memberships")
+      .select("user_id, role, status, created_at")
+      .eq("organization_id", organizationId)
+      .order("created_at");
+    if (error) throw error;
+
+    const { data: authData, error: authError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (authError) throw authError;
+    const usersById = new Map(authData.users.map((user) => [user.id, user]));
+    return memberships.map((membership: any) => ({
+      id: membership.user_id,
+      email: usersById.get(membership.user_id)?.email ?? "Unknown user",
+      role: membership.role,
+      status: membership.status,
+      createdAt: membership.created_at,
+    }));
+  }
+
+  async updateOrganizationUser(input: UpdateOrganizationUserInput) {
+    const { data: membership, error: membershipError } = await (supabase as any)
+      .from("organization_memberships")
+      .select("role")
+      .eq("organization_id", input.organizationId)
+      .eq("user_id", input.userId)
+      .maybeSingle();
+    if (membershipError) throw membershipError;
+    if (!membership) throw new Error("Organization user not found");
+    if (membership.role === "owner") throw new Error("Owner membership cannot be changed from this screen");
+
+    const changes = { ...(input.role ? { role: input.role } : {}), ...(input.status ? { status: input.status } : {}) };
+    const { data, error } = await (supabase as any)
+      .from("organization_memberships")
+      .update(changes)
+      .eq("organization_id", input.organizationId)
+      .eq("user_id", input.userId)
+      .select("user_id, role, status")
+      .single();
+    if (error) throw error;
+    return data;
   }
 }
 
