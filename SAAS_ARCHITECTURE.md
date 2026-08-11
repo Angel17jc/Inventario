@@ -18,10 +18,10 @@ El usuario de plataforma no debe ser miembro de cada cliente: puede administrar 
 
 La migración de fundación (`002_saas_foundation.sql`) no toca los datos existentes. La siguiente migración hará lo siguiente dentro de una transacción:
 
-1. Crear una organización de legado.
-2. Añadir `organization_id` inicialmente nullable a las tablas de negocio.
-3. Asignar todos los registros actuales a la organización de legado.
-4. Convertir `organization_id` en obligatorio y sustituir índices únicos globales por índices únicos por organización.
+1. Ejecutar `003_scope_legacy_data_to_organization.sql` después de la fundación.
+2. Crear la organización `legacy-inventory` si aún no existe.
+3. Añadir `organization_id` a las tablas de negocio y asignar todos los registros actuales a esa organización.
+4. Convertir `organization_id` en obligatorio, crear índices únicos por organización y añadir claves foráneas compuestas entre entidades del mismo cliente.
 
 ## Operación de administración
 
