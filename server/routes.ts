@@ -12,6 +12,10 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   app.use("/api", requireAuthenticatedUser);
   app.get("/api/organizations/me", async (req, res) => {
     res.json(await getAccessibleOrganizations(req.user!));

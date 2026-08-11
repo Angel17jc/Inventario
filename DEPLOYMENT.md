@@ -25,3 +25,5 @@ npm test
 npm run check
 npm run build
 ```
+
+Después de desplegar, verifica `GET /api/health`. El endpoint responde sin autenticación y no consulta ni expone datos de clientes.
