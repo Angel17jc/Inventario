@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, decimal, varchar, uuid } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -16,6 +16,25 @@ export const suppliers = pgTable("suppliers", {
   name: text("name").notNull(),
   contactInfo: text("contact_info"),
   address: text("address"),
+});
+
+export const organizations = pgTable("organizations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const organizationMemberships = pgTable("organization_memberships", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  userId: uuid("user_id").notNull(),
+  role: varchar("role", { length: 20 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const products = pgTable("products", {
@@ -127,6 +146,8 @@ export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit
 // Base types
 export type Category = typeof categories.$inferSelect;
 export type Supplier = typeof suppliers.$inferSelect;
+export type Organization = typeof organizations.$inferSelect;
+export type OrganizationMembership = typeof organizationMemberships.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Movement = typeof movements.$inferSelect;
 export type CreditAccount = typeof creditAccounts.$inferSelect;
