@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole, requirePlatformAdmin } from "./auth";
 import { platformService } from "./platform-service";
+import { sendApiError } from "./errors";
 import { api } from "@shared/routes";
 import { createCreditAccountRequestSchema, createCreditPaymentRequestSchema, createMovementRequestSchema } from "@shared/schema";
 import { z } from "zod";
@@ -261,7 +262,7 @@ export async function registerRoutes(
       res.status(201).json(credit);
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return res.status(400).json({ message: err.message });
+      return sendApiError(res, err);
     }
   });
 
@@ -271,7 +272,7 @@ export async function registerRoutes(
       res.status(201).json(payment);
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return res.status(400).json({ message: err.message });
+      return sendApiError(res, err);
     }
   });
 
