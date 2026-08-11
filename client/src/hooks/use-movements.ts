@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type CreateMovementRequest } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { authenticatedFetch } from "@/lib/auth";
 
 export function useMovements() {
   return useQuery({
     queryKey: [api.movements.list.path],
     queryFn: async () => {
-      const res = await fetch(api.movements.list.path, { credentials: "include" });
+      const res = await authenticatedFetch(api.movements.list.path);
       if (!res.ok) throw new Error("Failed to fetch movements");
       return api.movements.list.responses[200].parse(await res.json());
     },
@@ -19,11 +20,10 @@ export function useCreateMovement() {
 
   return useMutation({
     mutationFn: async (data: CreateMovementRequest) => {
-      const res = await fetch(api.movements.create.path, {
+      const res = await authenticatedFetch(api.movements.create.path, {
         method: api.movements.create.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!res.ok) {
         const error = await res.json();
@@ -47,7 +47,7 @@ export function useStats() {
   return useQuery({
     queryKey: [api.stats.get.path],
     queryFn: async () => {
-      const res = await fetch(api.stats.get.path, { credentials: "include" });
+      const res = await authenticatedFetch(api.stats.get.path);
       if (!res.ok) throw new Error("Failed to fetch stats");
       return api.stats.get.responses[200].parse(await res.json());
     },

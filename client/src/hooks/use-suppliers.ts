@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type CreateSupplierRequest, type UpdateSupplierRequest } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { authenticatedFetch } from "@/lib/auth";
 
 export function useSuppliers() {
   return useQuery({
     queryKey: [api.suppliers.list.path],
     queryFn: async () => {
-      const res = await fetch(api.suppliers.list.path, { credentials: "include" });
+      const res = await authenticatedFetch(api.suppliers.list.path);
       if (!res.ok) throw new Error("Failed to fetch suppliers");
       return api.suppliers.list.responses[200].parse(await res.json());
     },
@@ -19,11 +20,10 @@ export function useCreateSupplier() {
 
   return useMutation({
     mutationFn: async (data: CreateSupplierRequest) => {
-      const res = await fetch(api.suppliers.create.path, {
+      const res = await authenticatedFetch(api.suppliers.create.path, {
         method: api.suppliers.create.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to create supplier");
       return api.suppliers.create.responses[201].parse(await res.json());
@@ -45,11 +45,10 @@ export function useUpdateSupplier() {
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: number } & UpdateSupplierRequest) => {
       const url = buildUrl(api.suppliers.update.path, { id });
-      const res = await fetch(url, {
+      const res = await authenticatedFetch(url, {
         method: api.suppliers.update.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to update supplier");
       return api.suppliers.update.responses[200].parse(await res.json());
@@ -71,7 +70,7 @@ export function useDeleteSupplier() {
   return useMutation({
     mutationFn: async (id: number) => {
       const url = buildUrl(api.suppliers.delete.path, { id });
-      const res = await fetch(url, { method: api.suppliers.delete.method, credentials: "include" });
+      const res = await authenticatedFetch(url, { method: api.suppliers.delete.method });
       if (!res.ok) throw new Error("Failed to delete supplier");
     },
     onSuccess: () => {

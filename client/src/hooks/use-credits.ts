@@ -1,26 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest } from "@shared/schema";
+import { authenticatedFetch } from "@/lib/auth";
 
 async function fetchCredits(): Promise<CreditAccountWithDetails[]> {
-  const response = await fetch("/api/credits");
+  const response = await authenticatedFetch("/api/credits");
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }
 
 async function fetchCreditsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]> {
-  const response = await fetch(`/api/credits/customer/${encodeURIComponent(customerName)}`);
+  const response = await authenticatedFetch(`/api/credits/customer/${encodeURIComponent(customerName)}`);
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }
 
 async function fetchCreditsStats(): Promise<CreditsStats> {
-  const response = await fetch("/api/credits/stats");
+  const response = await authenticatedFetch("/api/credits/stats");
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }
 
 async function createCredit(credit: CreateCreditAccountRequest) {
-  const response = await fetch("/api/credits", {
+  const response = await authenticatedFetch("/api/credits", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(credit),
@@ -30,7 +31,7 @@ async function createCredit(credit: CreateCreditAccountRequest) {
 }
 
 async function createPayment(payment: CreateCreditPaymentRequest) {
-  const response = await fetch("/api/credits/payment", {
+  const response = await authenticatedFetch("/api/credits/payment", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payment),

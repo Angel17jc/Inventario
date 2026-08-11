@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type CreateProductRequest, type UpdateProductRequest } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { authenticatedFetch } from "@/lib/auth";
 
 export function useProducts() {
   return useQuery({
     queryKey: [api.products.list.path],
     queryFn: async () => {
-      const res = await fetch(api.products.list.path, { credentials: "include" });
+      const res = await authenticatedFetch(api.products.list.path);
       if (!res.ok) throw new Error("Failed to fetch products");
       return api.products.list.responses[200].parse(await res.json());
     },
@@ -18,7 +19,7 @@ export function useProduct(id: number) {
     queryKey: [api.products.get.path, id],
     queryFn: async () => {
       const url = buildUrl(api.products.get.path, { id });
-      const res = await fetch(url, { credentials: "include" });
+      const res = await authenticatedFetch(url);
       if (res.status === 404) return null;
       if (!res.ok) throw new Error("Failed to fetch product");
       return api.products.get.responses[200].parse(await res.json());
@@ -33,11 +34,10 @@ export function useCreateProduct() {
 
   return useMutation({
     mutationFn: async (data: CreateProductRequest) => {
-      const res = await fetch(api.products.create.path, {
+      const res = await authenticatedFetch(api.products.create.path, {
         method: api.products.create.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       
       if (!res.ok) {
@@ -64,11 +64,10 @@ export function useUpdateProduct() {
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: number } & UpdateProductRequest) => {
       const url = buildUrl(api.products.update.path, { id });
-      const res = await fetch(url, {
+      const res = await authenticatedFetch(url, {
         method: api.products.update.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
 
       if (!res.ok) {
@@ -95,9 +94,8 @@ export function useDeleteProduct() {
   return useMutation({
     mutationFn: async (id: number) => {
       const url = buildUrl(api.products.delete.path, { id });
-      const res = await fetch(url, { 
+      const res = await authenticatedFetch(url, {
         method: api.products.delete.method,
-        credentials: "include" 
       });
 
       if (!res.ok) {

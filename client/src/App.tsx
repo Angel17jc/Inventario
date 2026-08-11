@@ -10,6 +10,15 @@ import Movements from "@/pages/Movements";
 import Categories from "@/pages/Categories";
 import Suppliers from "@/pages/Suppliers";
 import Credits from "@/pages/Credits";
+import Login from "@/pages/Login";
+import { AuthProvider, useAuth } from "@/lib/auth";
+
+function ProtectedRouter() {
+  const { session, role, isLoading } = useAuth();
+  if (isLoading) return <div className="min-h-screen bg-background" />;
+  if (!session || !role) return <Login />;
+  return <Router />;
+}
 
 function Router() {
   return (
@@ -28,10 +37,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <ProtectedRouter />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

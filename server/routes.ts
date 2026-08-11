@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { requireAuthenticatedUser, requireRole } from "./auth";
 import { api } from "@shared/routes";
 import { z } from "zod";
 
@@ -8,6 +9,10 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.use("/api", requireAuthenticatedUser);
+  const requireAdmin = requireRole("admin");
+  const requireOperator = requireRole("admin", "cashier");
+
   // Categories
   app.get(api.categories.list.path, async (req, res) => {
     const categories = await storage.getCategories();
@@ -20,7 +25,7 @@ export async function registerRoutes(
     res.json(category);
   });
 
-  app.post(api.categories.create.path, async (req, res) => {
+  app.post(api.categories.create.path, requireAdmin, async (req, res) => {
     try {
       const input = api.categories.create.input.parse(req.body);
       const category = await storage.createCategory(input);
@@ -33,7 +38,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.categories.update.path, async (req, res) => {
+  app.put(api.categories.update.path, requireAdmin, async (req, res) => {
     try {
       const input = api.categories.update.input.parse(req.body);
       const category = await storage.updateCategory(Number(req.params.id), input);
@@ -46,7 +51,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.categories.delete.path, async (req, res) => {
+  app.delete(api.categories.delete.path, requireAdmin, async (req, res) => {
     await storage.deleteCategory(Number(req.params.id));
     res.status(204).send();
   });
@@ -63,7 +68,7 @@ export async function registerRoutes(
     res.json(supplier);
   });
 
-  app.post(api.suppliers.create.path, async (req, res) => {
+  app.post(api.suppliers.create.path, requireAdmin, async (req, res) => {
     try {
       const input = api.suppliers.create.input.parse(req.body);
       const supplier = await storage.createSupplier(input);
@@ -76,7 +81,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.suppliers.update.path, async (req, res) => {
+  app.put(api.suppliers.update.path, requireAdmin, async (req, res) => {
     try {
       const input = api.suppliers.update.input.parse(req.body);
       const supplier = await storage.updateSupplier(Number(req.params.id), input);
@@ -89,7 +94,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.suppliers.delete.path, async (req, res) => {
+  app.delete(api.suppliers.delete.path, requireAdmin, async (req, res) => {
     await storage.deleteSupplier(Number(req.params.id));
     res.status(204).send();
   });
@@ -106,7 +111,7 @@ export async function registerRoutes(
     res.json(product);
   });
 
-  app.post(api.products.create.path, async (req, res) => {
+  app.post(api.products.create.path, requireAdmin, async (req, res) => {
     try {
       // Coerce numeric strings to numbers
       const bodySchema = api.products.create.input.extend({
@@ -138,7 +143,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.products.update.path, async (req, res) => {
+  app.put(api.products.update.path, requireAdmin, async (req, res) => {
     try {
        const bodySchema = api.products.update.input.extend({
         quantity: z.coerce.number().optional(),
@@ -166,7 +171,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.products.delete.path, async (req, res) => {
+  app.delete(api.products.delete.path, requireAdmin, async (req, res) => {
     try {
       await storage.deleteProduct(Number(req.params.id));
       res.status(204).send();
@@ -182,7 +187,7 @@ export async function registerRoutes(
     res.json(movements);
   });
 
-  app.post(api.movements.create.path, async (req, res) => {
+  app.post(api.movements.create.path, requireOperator, async (req, res) => {
     try {
       const bodySchema = api.movements.create.input.extend({
         productId: z.coerce.number(),
@@ -215,7 +220,7 @@ export async function registerRoutes(
     res.json(stats);
   });
 
-  app.post("/api/credits", async (req, res) => {
+  app.post("/api/credits", requireOperator, async (req, res) => {
     try {
       const credit = await storage.createCreditAccount(req.body);
       res.status(201).json(credit);
@@ -224,7 +229,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/credits/payment", async (req, res) => {
+  app.post("/api/credits/payment", requireOperator, async (req, res) => {
     try {
       const payment = await storage.createCreditPayment(req.body);
       res.status(201).json(payment);
