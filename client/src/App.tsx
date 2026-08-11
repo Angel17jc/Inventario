@@ -11,6 +11,7 @@ import Categories from "@/pages/Categories";
 import Suppliers from "@/pages/Suppliers";
 import Credits from "@/pages/Credits";
 import Platform from "@/pages/Platform";
+import Account from "@/pages/Account";
 import Login from "@/pages/Login";
 import { AuthProvider, useAuth } from "@/lib/auth";
 
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/categories" component={Categories} />
       <Route path="/suppliers" component={Suppliers} />
       <Route path="/credits" component={Credits} />
+      <Route path="/account" component={Account} />
       {role === "platform_admin" && <Route path="/platform" component={Platform} />}
       <Route component={NotFound} />
     </Switch>

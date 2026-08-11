@@ -70,6 +70,7 @@ export function Sidebar() {
 
       {/* Footer info */}
       <div className="p-6 border-t border-border/30 bg-background/30 backdrop-blur-sm">
+        <Link href="/account"><button className="mb-3 w-full text-xs text-muted-foreground hover:text-white">Mi contraseña</button></Link>
         <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
         <button onClick={() => void signOut()} className="mt-3 flex w-full items-center justify-center gap-2 text-xs text-muted-foreground transition-colors hover:text-white">
           <LogOut className="h-4 w-4" /> Cerrar sesión
