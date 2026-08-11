@@ -20,6 +20,10 @@ if (!supabaseUrl || !supabaseKey) {
   );
 }
 
+if (process.env.NODE_ENV === 'production' && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY must be set in production');
+}
+
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   // eslint-disable-next-line no-console
   console.warn(
