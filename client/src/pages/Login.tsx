@@ -7,6 +7,24 @@ import { Input } from "@/components/ui/input";
 type Mode = "login" | "forgot" | "reset";
 const passwordRule = /^(?=.*[A-Za-z])(?=.*\d).{10,}$/;
 
+function getAuthErrorMessage(error: { message: string; status?: number }) {
+  const message = error.message.toLowerCase();
+
+  if (message.includes("redirect") || message.includes("redirect_to")) {
+    return "La URL de recuperación no está autorizada en Supabase. Agrega http://localhost:5000/** en Authentication → URL Configuration.";
+  }
+
+  if (message.includes("rate limit") || error.status === 429) {
+    return "Se alcanzó el límite temporal de correos de Supabase. Espera unos minutos antes de intentarlo otra vez.";
+  }
+
+  if (message.includes("smtp") || message.includes("email")) {
+    return "Supabase no pudo enviar el correo. Revisa Authentication → Emails y la configuración SMTP del proyecto.";
+  }
+
+  return "No fue posible completar la solicitud. Verifica los datos e inténtalo nuevamente.";
+}
+
 export default function Login() {
   const [mode, setMode] = useState<Mode>(window.location.search.includes("reset=1") ? "reset" : "login");
   const [email, setEmail] = useState("");
@@ -31,7 +49,10 @@ export default function Login() {
         ? await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/?reset=1` })
         : await supabase.auth.updateUser({ password });
     setIsSubmitting(false);
-    if (result.error) return setError("No fue posible completar la solicitud. Verifica los datos e inténtalo nuevamente.");
+    if (result.error) {
+      console.error("Authentication request failed", { message: result.error.message, status: result.error.status });
+      return setError(getAuthErrorMessage(result.error));
+    }
     if (mode === "forgot") setMessage("Enviaremos un correo con un enlace seguro para recuperar tu contraseña. Revisa también la carpeta de spam.");
     if (mode === "reset") { setMessage("Tu contraseña fue actualizada. Ahora puedes iniciar sesión."); setMode("login"); window.history.replaceState({}, "", "/"); }
   }
