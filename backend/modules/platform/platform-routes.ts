@@ -1,40 +1,17 @@
 import type { Express, RequestHandler } from "express";
 import { z } from "zod";
 import { platformService } from "../../platform-service";
+import {
+  createOrganizationSchema,
+  createOrganizationUserSchema,
+  resetPasswordSchema,
+  updateOrganizationStatusSchema,
+  updateOrganizationUserSchema,
+} from "./platform-schemas";
 
 interface PlatformRouteDependencies {
   requirePlatformAdmin: RequestHandler;
 }
-
-const createOrganizationSchema = z.object({
-  name: z.string().trim().min(2).max(120),
-  slug: z.string().trim().max(120).optional().default(""),
-  ownerEmail: z.string().trim().email().max(255),
-  ownerPassword: z.string().min(12).max(128),
-});
-
-const createOrganizationUserSchema = z.object({
-  organizationId: z.string().uuid(),
-  email: z.string().trim().email().max(255),
-  password: z.string().min(12).max(128),
-  role: z.enum(["manager", "cashier"]),
-});
-
-const updateOrganizationUserSchema = z
-  .object({
-    organizationId: z.string().uuid(),
-    role: z.enum(["manager", "cashier"]).optional(),
-    status: z.enum(["active", "disabled"]).optional(),
-  })
-  .refine((value) => value.role || value.status, "At least one change is required");
-
-const updateOrganizationStatusSchema = z.object({
-  status: z.enum(["active", "suspended"]),
-});
-
-const resetPasswordSchema = z.object({
-  password: z.string().min(12).max(128),
-});
 
 export function registerPlatformRoutes(app: Express, { requirePlatformAdmin }: PlatformRouteDependencies) {
   app.post("/api/platform/organizations", requirePlatformAdmin, async (req, res) => {
