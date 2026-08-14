@@ -6,29 +6,29 @@ El sistema separa la interfaz, la API y el acceso a datos por dominio de negocio
 
 ## Frontend
 
-`client/src/modules` contiene los módulos funcionales:
+`frontend/src/modules` contiene los módulos funcionales:
 
 - `catalog`: categorías y proveedores.
 - `inventory`: productos y movimientos.
 - `credits`: fiados y pagos.
 - `platform`: administración de clientes SaaS, propietarios y personal.
 
-Cada módulo es responsable de su página, componentes internos y acceso a su API. `client/src/App.tsx` solo registra rutas de pantalla. Las reexportaciones en `client/src/pages` y `client/src/hooks` son adaptadores temporales de compatibilidad; el código nuevo debe importar desde el módulo dueño.
+Cada módulo es responsable de su página, componentes internos y acceso a su API. `frontend/src/App.tsx` solo registra rutas de pantalla. Las reexportaciones en `frontend/src/pages` y `frontend/src/hooks` son adaptadores temporales de compatibilidad; el código nuevo debe importar desde el módulo dueño.
 
-`client/src/components` y `client/src/lib` contienen únicamente elementos reutilizables, infraestructura de autenticación, manejo de errores y utilidades compartidas. No deben contener reglas de negocio específicas de inventario, catálogo, fiados o plataforma.
+`frontend/src/components` y `frontend/src/lib` contienen únicamente elementos reutilizables, infraestructura de autenticación, manejo de errores y utilidades compartidas. No deben contener reglas de negocio específicas de inventario, catálogo, fiados o plataforma.
 
 ## Backend
 
-`server/modules` agrupa las rutas HTTP por dominio:
+`backend/modules` agrupa las rutas HTTP por dominio:
 
 - `catalog/catalog-routes.ts`
 - `inventory/inventory-routes.ts`
 - `credits/credit-routes.ts`
 - `platform/platform-routes.ts`
 
-`server/routes.ts` es el ensamblador: configura salud, autenticación, contexto de organización y registra cada módulo. No debe acumular reglas de negocio.
+`backend/routes.ts` es el ensamblador: configura salud, autenticación, contexto de organización y registra cada módulo. No debe acumular reglas de negocio.
 
-`server/platform-service.ts` implementa los flujos que requieren Supabase Admin API, como crear propietarios, gestionar personal y restablecer contraseñas. La clave de servicio permanece exclusivamente en el servidor.
+`backend/platform-service.ts` implementa los flujos que requieren Supabase Admin API, como crear propietarios, gestionar personal y restablecer contraseñas. La clave de servicio permanece exclusivamente en el servidor.
 
 ## Seguridad y tenencia
 

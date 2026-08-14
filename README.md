@@ -111,7 +111,7 @@ La aplicación estará disponible en [http://localhost:5000](http://localhost:50
 
 ```
 Inventory-Dashboard/
-├── client/                 # Frontend React
+├── frontend/               # Frontend React
 │   ├── src/
 │   │   ├── components/    # Componentes React
 │   │   │   ├── layout/    # Componentes de layout (Sidebar)
@@ -134,7 +134,7 @@ Inventory-Dashboard/
 │   │   └── main.tsx       # Punto de entrada
 │   └── index.html
 │
-├── server/                # Backend Express
+├── backend/               # Backend Express
 │   ├── db.ts             # Configuración de Supabase
 │   ├── storage.ts        # Capa de acceso a datos
 │   ├── index.ts          # Servidor Express
