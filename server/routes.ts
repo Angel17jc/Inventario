@@ -6,6 +6,7 @@ import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizati
 import { platformService } from "./platform-service";
 import { sendApiError } from "./errors";
 import { registerCatalogRoutes } from "./modules/catalog/catalog-routes";
+import { registerInventoryRoutes } from "./modules/inventory/inventory-routes";
 import { api } from "@shared/routes";
 import { createCreditAccountRequestSchema, createCreditPaymentRequestSchema, createMovementRequestSchema } from "@shared/schema";
 import { z } from "zod";
@@ -89,107 +90,7 @@ export async function registerRoutes(
   const scopedStorage = (req: Express.Request) => storage.forOrganization(req.organization!.id, req.user!.id);
 
   registerCatalogRoutes(app, { requireManager, scopedStorage });
-
-  // Products
-  app.get(api.products.list.path, async (req, res) => {
-    const products = await scopedStorage(req).getProducts();
-    res.json(products);
-  });
-
-  app.get(api.products.get.path, async (req, res) => {
-    const product = await scopedStorage(req).getProduct(Number(req.params.id));
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    res.json(product);
-  });
-
-  app.post(api.products.create.path, requireManager, async (req, res) => {
-    try {
-      // Coerce numeric strings to numbers
-      const bodySchema = api.products.create.input.extend({
-        quantity: z.coerce.number(),
-        costPrice: z.coerce.number(), // drizzle-zod expects number or string for decimal, but we want to ensure it's handled right
-        sellingPrice: z.coerce.number(),
-        minStockLevel: z.coerce.number().optional(),
-        categoryId: z.coerce.number().optional(),
-        supplierId: z.coerce.number().optional(),
-      });
-      const input = bodySchema.parse(req.body);
-      // Validate SKU uniqueness before attempting insert
-      if (input.sku) {
-        const existing = await scopedStorage(req).getProductBySku(String(input.sku));
-        if (existing) {
-          return res.status(409).json({ message: 'SKU already exists' });
-        }
-      }
-      // Convert numbers back to strings for decimal fields if needed, or let Drizzle handle it.
-      // Drizzle 'decimal' type in Zod schema expects string or number, returns string.
-      // We pass the parsed object which has numbers.
-      const product = await scopedStorage(req).createProduct(input as any);
-      res.status(201).json(product);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
-    }
-  });
-
-  app.put(api.products.update.path, requireManager, async (req, res) => {
-    try {
-       const bodySchema = api.products.update.input.extend({
-        quantity: z.coerce.number().optional(),
-        costPrice: z.coerce.number().optional(),
-        sellingPrice: z.coerce.number().optional(),
-        minStockLevel: z.coerce.number().optional(),
-        categoryId: z.coerce.number().optional(),
-        supplierId: z.coerce.number().optional(),
-      });
-      const input = bodySchema.parse(req.body);
-      // If SKU is being updated, ensure uniqueness (excluding current product)
-      if (input.sku) {
-        const existing = await scopedStorage(req).getProductBySku(String(input.sku));
-        if (existing && existing.id !== Number(req.params.id)) {
-          return res.status(409).json({ message: 'SKU already exists' });
-        }
-      }
-      const product = await scopedStorage(req).updateProduct(Number(req.params.id), input as any);
-      res.json(product);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
-    }
-  });
-
-  app.delete(api.products.delete.path, requireManager, async (req, res) => {
-    try {
-      await scopedStorage(req).deleteProduct(Number(req.params.id));
-      res.status(204).send();
-    } catch (err: any) {
-      // Si es una violación de integridad referencial u otro error controlado, devolver 400 con mensaje
-      return res.status(400).json({ message: err.message || 'Error al eliminar el producto' });
-    }
-  });
-
-  // Movements
-  app.get(api.movements.list.path, async (req, res) => {
-    const movements = await scopedStorage(req).getMovements();
-    res.json(movements);
-  });
-
-  app.post(api.movements.create.path, requireOperator, async (req, res) => {
-    try {
-      const input = createMovementRequestSchema.parse(req.body);
-      const movement = await scopedStorage(req).createMovement(input);
-      res.status(201).json(movement);
-    } catch (err: any) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      return res.status(400).json({ message: err.message });
-    }
-  });
+  registerInventoryRoutes(app, { requireManager, requireOperator, scopedStorage });
 
   // Credits
   app.get("/api/credits", async (req, res) => {
