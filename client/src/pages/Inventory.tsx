@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { useProducts, useDeleteProduct } from "@/hooks/use-products";
+import { useProducts, useDeleteProduct } from "@/modules/inventory/products/product-queries";
 import { ProductModal } from "@/components/modals/ProductModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
