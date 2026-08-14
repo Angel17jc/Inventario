@@ -96,10 +96,6 @@ export default function Credits() {
     return <Badge variant={variants[status]}>{labels[status] || status}</Badge>;
   };
 
-  if (isLoading) {
-    return <div className="p-6">Cargando...</div>;
-  }
-
   // Agrupar por cliente
   const creditsByCustomer = credits.reduce<Record<string, CreditAccountWithDetails[]>>(
     (acc, credit) => {
@@ -116,7 +112,7 @@ export default function Credits() {
   return (
     <div className="flex h-screen bg-background text-foreground">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto" aria-busy={isLoading}>
         <div className="p-8 max-w-7xl mx-auto space-y-6">
           <div className="flex justify-between items-center">
             <div>
