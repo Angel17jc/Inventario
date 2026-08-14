@@ -9,7 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import Inventory from "@/pages/Inventory";
 import Movements from "@/pages/Movements";
 import Categories from "@/modules/catalog/categories/CategoriesPage";
-import Suppliers from "@/pages/Suppliers";
+import Suppliers from "@/modules/catalog/suppliers/SuppliersPage";
 import Credits from "@/pages/Credits";
 import Platform from "@/pages/Platform";
 import Login from "@/pages/Login";
