@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { supabase } from "./db";
 import type { OrganizationRole } from "@shared/tenancy";
+export { requireOrganizationRole } from "./authorization";
 
 const organizationRoles = ["owner", "manager", "cashier"] as const;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -81,16 +82,6 @@ export async function requireOrganizationContext(req: Request, res: Response, ne
 export function requirePlatformAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.user?.isPlatformAdmin) return res.status(403).json({ message: "Platform administrator permissions required" });
   return next();
-}
-
-export function requireOrganizationRole(...allowedRoles: OrganizationRole[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.organization) return res.status(401).json({ message: "Organization context required" });
-    if (req.organization.role !== "platform_admin" && !allowedRoles.includes(req.organization.role)) {
-      return res.status(403).json({ message: "Insufficient permissions" });
-    }
-    return next();
-  };
 }
 
 export async function getAccessibleOrganizations(user: AuthenticatedUser) {
