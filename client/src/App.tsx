@@ -11,7 +11,7 @@ import Movements from "@/modules/inventory/movements/MovementsPage";
 import Categories from "@/modules/catalog/categories/CategoriesPage";
 import Suppliers from "@/modules/catalog/suppliers/SuppliersPage";
 import Credits from "@/modules/credits/CreditsPage";
-import Platform from "@/pages/Platform";
+import Platform from "@/modules/platform/PlatformPage";
 import Login from "@/pages/Login";
 import { AuthProvider, useAuth } from "@/lib/auth";
 

@@ -3,14 +3,11 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { supabase } from "./db";
 import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole, requirePlatformAdmin } from "./auth";
-import { platformService } from "./platform-service";
-import { sendApiError } from "./errors";
 import { registerCatalogRoutes } from "./modules/catalog/catalog-routes";
 import { registerInventoryRoutes } from "./modules/inventory/inventory-routes";
 import { registerCreditRoutes } from "./modules/credits/credit-routes";
+import { registerPlatformRoutes } from "./modules/platform/platform-routes";
 import { api } from "@shared/routes";
-import { createCreditAccountRequestSchema, createCreditPaymentRequestSchema, createMovementRequestSchema } from "@shared/schema";
-import { z } from "zod";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -35,56 +32,7 @@ export async function registerRoutes(
   app.get("/api/organizations/me", async (req, res) => {
     res.json(await getAccessibleOrganizations(req.user!));
   });
-  app.post("/api/platform/organizations", requirePlatformAdmin, async (req, res) => {
-    const inputSchema = z.object({
-      name: z.string().trim().min(2).max(120),
-      slug: z.string().trim().max(120).optional().default(""),
-      ownerEmail: z.string().trim().email().max(255),
-      ownerPassword: z.string().min(12).max(128),
-    });
-    try {
-      const input = inputSchema.parse(req.body);
-      const result = await platformService.createOrganizationWithOwner(input);
-      return res.status(201).json(result);
-    } catch (error) {
-      if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message });
-      throw error;
-    }
-  });
-  app.post("/api/platform/organization-users", requirePlatformAdmin, async (req, res) => {
-    const inputSchema = z.object({
-      organizationId: z.string().uuid(),
-      email: z.string().trim().email().max(255),
-      password: z.string().min(12).max(128),
-      role: z.enum(["manager", "cashier"]),
-    });
-    try {
-      const input = inputSchema.parse(req.body);
-      const user = await platformService.createOrganizationUser(input);
-      return res.status(201).json(user);
-    } catch (error) {
-      if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message });
-      throw error;
-    }
-  });
-  app.get("/api/platform/organizations/:organizationId/users", requirePlatformAdmin, async (req, res) => {
-    const organizationId = z.string().uuid().parse(req.params.organizationId);
-    res.json(await platformService.listOrganizationUsers(organizationId));
-  });
-  app.patch("/api/platform/organization-users/:userId", requirePlatformAdmin, async (req, res) => {
-    const input = z.object({ organizationId: z.string().uuid(), role: z.enum(["manager", "cashier"]).optional(), status: z.enum(["active", "disabled"]).optional() }).refine((value) => value.role || value.status, "At least one change is required").parse({ ...req.body, userId: req.params.userId });
-    res.json(await platformService.updateOrganizationUser({ ...input, userId: z.string().uuid().parse(req.params.userId) }));
-  });
-  app.patch("/api/platform/organizations/:organizationId/status", requirePlatformAdmin, async (req, res) => {
-    const organizationId = z.string().uuid().parse(req.params.organizationId);
-    const { status } = z.object({ status: z.enum(["active", "suspended"]) }).parse(req.body);
-    res.json(await platformService.updateOrganizationStatus(organizationId, status));
-  });
-  app.post("/api/platform/users/:userId/reset-password", requirePlatformAdmin, async (req, res) => {
-    const userId = z.string().uuid().parse(req.params.userId);
-    const { password } = z.object({ password: z.string().min(12).max(128) }).parse(req.body);
-    res.json(await platformService.resetUserPassword(userId, password));
-  });
+  registerPlatformRoutes(app, { requirePlatformAdmin });
   app.use("/api", requireOrganizationContext);
   const requireManager = requireOrganizationRole("owner", "manager");
   const requireOperator = requireOrganizationRole("owner", "manager", "cashier");
