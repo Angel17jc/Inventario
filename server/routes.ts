@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { supabase } from "./db";
 import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole, requirePlatformAdmin } from "./auth";
 import { platformService } from "./platform-service";
 import { sendApiError } from "./errors";
@@ -14,6 +15,17 @@ export async function registerRoutes(
 ): Promise<Server> {
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.get("/api/health/database", async (_req, res, next) => {
+    const { error } = await supabase
+      .from("organizations")
+      .select("id", { head: true, count: "exact" })
+      .limit(1);
+
+    if (error) return next(error);
+
+    return res.json({ status: "ok", database: "reachable", timestamp: new Date().toISOString() });
   });
 
   app.use("/api", requireAuthenticatedUser);
