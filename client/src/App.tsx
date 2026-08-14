@@ -8,7 +8,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Inventory from "@/pages/Inventory";
 import Movements from "@/pages/Movements";
-import Categories from "@/pages/Categories";
+import Categories from "@/modules/catalog/categories/CategoriesPage";
 import Suppliers from "@/pages/Suppliers";
 import Credits from "@/pages/Credits";
 import Platform from "@/pages/Platform";
