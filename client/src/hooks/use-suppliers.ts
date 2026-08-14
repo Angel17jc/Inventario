@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type CreateSupplierRequest, type UpdateSupplierRequest } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
 import { authenticatedFetch } from "@/lib/auth";
+import { getApiErrorMessage } from "@/lib/api-errors";
 
 export function useSuppliers() {
   return useQuery({
@@ -25,7 +26,7 @@ export function useCreateSupplier() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create supplier");
+      if (!res.ok) throw new Error(await getApiErrorMessage(res, "No se pudo crear el proveedor"));
       return api.suppliers.create.responses[201].parse(await res.json());
     },
     onSuccess: () => {
@@ -50,7 +51,7 @@ export function useUpdateSupplier() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to update supplier");
+      if (!res.ok) throw new Error(await getApiErrorMessage(res, "No se pudo actualizar el proveedor"));
       return api.suppliers.update.responses[200].parse(await res.json());
     },
     onSuccess: () => {
@@ -71,7 +72,7 @@ export function useDeleteSupplier() {
     mutationFn: async (id: number) => {
       const url = buildUrl(api.suppliers.delete.path, { id });
       const res = await authenticatedFetch(url, { method: api.suppliers.delete.method });
-      if (!res.ok) throw new Error("Failed to delete supplier");
+      if (!res.ok) throw new Error(await getApiErrorMessage(res, "No se pudo eliminar el proveedor"));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.suppliers.list.path] });

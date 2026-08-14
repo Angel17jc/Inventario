@@ -49,10 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authenticatedFetch("/api/organizations/me")
       .then(async (response) => response.ok ? response.json() : [])
       .then((data: Organization[]) => {
-        setOrganizations(data.filter((organization) => organization.status === "active"));
-        setActiveOrganizationId((currentId) => currentId && data.some((organization) => organization.id === currentId)
-          ? currentId
-          : data.find((organization) => organization.status === "active")?.id ?? null);
+        const activeOrganizations = data.filter((organization) => organization.status === "active");
+        const nextOrganizationId = activeOrganizationId && activeOrganizations.some((organization) => organization.id === activeOrganizationId)
+          ? activeOrganizationId
+          : activeOrganizations[0]?.id ?? null;
+
+        setOrganizations(activeOrganizations);
+        setActiveOrganizationId(nextOrganizationId);
+
+        if (nextOrganizationId) {
+          localStorage.setItem("activeOrganizationId", nextOrganizationId);
+        } else {
+          localStorage.removeItem("activeOrganizationId");
+        }
       })
       .finally(() => setIsOrganizationsLoading(false));
   }, [session]);
@@ -78,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setActiveOrganization: (organizationId: string) => {
       localStorage.setItem("activeOrganizationId", organizationId);
       setActiveOrganizationId(organizationId);
-      window.location.assign("/");
+      window.location.assign("/panel");
     },
     isOrganizationsLoading,
     isLoading,

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type CreateCategoryRequest, type UpdateCategoryRequest } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
 import { authenticatedFetch } from "@/lib/auth";
+import { getApiErrorMessage } from "@/lib/api-errors";
 
 export function useCategories() {
   return useQuery({
@@ -25,7 +26,7 @@ export function useCreateCategory() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create category");
+      if (!res.ok) throw new Error(await getApiErrorMessage(res, "No se pudo crear la categoría"));
       return api.categories.create.responses[201].parse(await res.json());
     },
     onSuccess: () => {
@@ -50,7 +51,7 @@ export function useUpdateCategory() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to update category");
+      if (!res.ok) throw new Error(await getApiErrorMessage(res, "No se pudo actualizar la categoría"));
       return api.categories.update.responses[200].parse(await res.json());
     },
     onSuccess: () => {
@@ -71,7 +72,7 @@ export function useDeleteCategory() {
     mutationFn: async (id: number) => {
       const url = buildUrl(api.categories.delete.path, { id });
       const res = await authenticatedFetch(url, { method: api.categories.delete.method });
-      if (!res.ok) throw new Error("Failed to delete category");
+      if (!res.ok) throw new Error(await getApiErrorMessage(res, "No se pudo eliminar la categoría"));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.categories.list.path] });
