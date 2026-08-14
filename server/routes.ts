@@ -7,6 +7,7 @@ import { platformService } from "./platform-service";
 import { sendApiError } from "./errors";
 import { registerCatalogRoutes } from "./modules/catalog/catalog-routes";
 import { registerInventoryRoutes } from "./modules/inventory/inventory-routes";
+import { registerCreditRoutes } from "./modules/credits/credit-routes";
 import { api } from "@shared/routes";
 import { createCreditAccountRequestSchema, createCreditPaymentRequestSchema, createMovementRequestSchema } from "@shared/schema";
 import { z } from "zod";
@@ -91,42 +92,7 @@ export async function registerRoutes(
 
   registerCatalogRoutes(app, { requireManager, scopedStorage });
   registerInventoryRoutes(app, { requireManager, requireOperator, scopedStorage });
-
-  // Credits
-  app.get("/api/credits", async (req, res) => {
-    const credits = await scopedStorage(req).getCreditAccounts();
-    res.json(credits);
-  });
-
-  app.get("/api/credits/customer/:customerName", async (req, res) => {
-    const credits = await scopedStorage(req).getCreditAccountsByCustomer(req.params.customerName);
-    res.json(credits);
-  });
-
-  app.get("/api/credits/stats", async (req, res) => {
-    const stats = await scopedStorage(req).getCreditsStats();
-    res.json(stats);
-  });
-
-  app.post("/api/credits", requireOperator, async (req, res) => {
-    try {
-      const credit = await scopedStorage(req).createCreditAccount(createCreditAccountRequestSchema.parse(req.body));
-      res.status(201).json(credit);
-    } catch (err: any) {
-      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendApiError(res, err);
-    }
-  });
-
-  app.post("/api/credits/payment", requireOperator, async (req, res) => {
-    try {
-      const payment = await scopedStorage(req).createCreditPayment(createCreditPaymentRequestSchema.parse(req.body));
-      res.status(201).json(payment);
-    } catch (err: any) {
-      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendApiError(res, err);
-    }
-  });
+  registerCreditRoutes(app, { requireOperator, scopedStorage });
 
   // Stats
   app.get(api.stats.get.path, async (req, res) => {
