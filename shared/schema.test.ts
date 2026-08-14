@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   createCreditAccountRequestSchema,
   createCreditPaymentRequestSchema,
+  createCategoryRequestSchema,
+  createSupplierRequestSchema,
   createMovementRequestSchema,
 } from "./schema";
 
@@ -26,4 +28,15 @@ test("normalizes payment amounts and rejects invalid values", () => {
   const payment = createCreditPaymentRequestSchema.parse({ creditAccountId: "9", amount: "12.5", paymentMethod: "Efectivo" });
   assert.equal(payment.amount, "12.50");
   assert.throws(() => createCreditPaymentRequestSchema.parse({ creditAccountId: 9, amount: -1 }));
+});
+
+test("validates category names before they reach the API", () => {
+  assert.deepEqual(createCategoryRequestSchema.parse({ name: "  Cervezas  ", description: "  Nacionales  " }), { name: "Cervezas", description: "Nacionales" });
+  assert.throws(() => createCategoryRequestSchema.parse({ name: " " }));
+});
+
+test("validates supplier names and contact field limits", () => {
+  assert.equal(createSupplierRequestSchema.parse({ name: "Distribuidora Norte", contactInfo: "0990000000" }).name, "Distribuidora Norte");
+  assert.throws(() => createSupplierRequestSchema.parse({ name: "A" }));
+  assert.throws(() => createSupplierRequestSchema.parse({ name: "Proveedor", contactInfo: "x".repeat(256) }));
 });

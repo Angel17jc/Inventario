@@ -3,7 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Edit2, Loader2, Plus, Tag, Trash2 } from "lucide-react";
-import { insertCategorySchema } from "@shared/schema";
+import { createCategoryRequestSchema } from "@shared/schema";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from "./category-queries";
 
-type CategoryFormValues = z.infer<typeof insertCategorySchema>;
+type CategoryFormValues = z.infer<typeof createCategoryRequestSchema>;
 type EditableCategory = CategoryFormValues & { id: number };
 
 export default function CategoriesPage() {
@@ -22,7 +22,7 @@ export default function CategoriesPage() {
   const deleteCategory = useDeleteCategory();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<EditableCategory | null>(null);
-  const form = useForm<CategoryFormValues>({ resolver: zodResolver(insertCategorySchema), defaultValues: { name: "", description: "" } });
+  const form = useForm<CategoryFormValues>({ resolver: zodResolver(createCategoryRequestSchema), defaultValues: { name: "", description: "" } });
 
   function closeModal() {
     setIsModalOpen(false);

@@ -148,6 +148,21 @@ export const insertMovementSchema = createInsertSchema(movements).omit({ id: tru
 export const insertCreditAccountSchema = createInsertSchema(creditAccounts).omit({ id: true, organizationId: true, createdAt: true, updatedAt: true });
 export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({ id: true, organizationId: true, createdAt: true });
 
+export const createCategoryRequestSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  description: z.string().trim().max(500).nullable().optional(),
+});
+
+export const updateCategoryRequestSchema = createCategoryRequestSchema.partial();
+
+export const createSupplierRequestSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  contactInfo: z.string().trim().max(255).nullable().optional(),
+  address: z.string().trim().max(500).nullable().optional(),
+});
+
+export const updateSupplierRequestSchema = createSupplierRequestSchema.partial();
+
 // === EXPLICIT API CONTRACT TYPES ===
 
 // Base types
@@ -183,11 +198,11 @@ export type CreditAccountWithDetails = CreditAccount & {
 };
 
 // Request types
-export type CreateCategoryRequest = InsertCategory;
-export type UpdateCategoryRequest = Partial<InsertCategory>;
+export type CreateCategoryRequest = z.infer<typeof createCategoryRequestSchema>;
+export type UpdateCategoryRequest = z.infer<typeof updateCategoryRequestSchema>;
 
-export type CreateSupplierRequest = InsertSupplier;
-export type UpdateSupplierRequest = Partial<InsertSupplier>;
+export type CreateSupplierRequest = z.infer<typeof createSupplierRequestSchema>;
+export type UpdateSupplierRequest = z.infer<typeof updateSupplierRequestSchema>;
 
 export type CreateProductRequest = InsertProduct;
 export type UpdateProductRequest = Partial<InsertProduct>;

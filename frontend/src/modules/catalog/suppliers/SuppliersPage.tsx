@@ -3,7 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Edit2, Loader2, Plus, Trash2, Truck } from "lucide-react";
-import { insertSupplierSchema } from "@shared/schema";
+import { createSupplierRequestSchema } from "@shared/schema";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCreateSupplier, useDeleteSupplier, useSuppliers, useUpdateSupplier } from "./supplier-queries";
 
-type SupplierFormValues = z.infer<typeof insertSupplierSchema>;
+type SupplierFormValues = z.infer<typeof createSupplierRequestSchema>;
 type EditableSupplier = SupplierFormValues & { id: number };
 
 export default function SuppliersPage() {
@@ -20,7 +20,7 @@ export default function SuppliersPage() {
   const createSupplier = useCreateSupplier(); const updateSupplier = useUpdateSupplier(); const deleteSupplier = useDeleteSupplier();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<EditableSupplier | null>(null);
-  const form = useForm<SupplierFormValues>({ resolver: zodResolver(insertSupplierSchema), defaultValues: { name: "", contactInfo: "", address: "" } });
+  const form = useForm<SupplierFormValues>({ resolver: zodResolver(createSupplierRequestSchema), defaultValues: { name: "", contactInfo: "", address: "" } });
 
   function closeModal() { setIsModalOpen(false); setEditingSupplier(null); form.reset(); }
   function openNewSupplier() { setEditingSupplier(null); form.reset({ name: "", contactInfo: "", address: "" }); setIsModalOpen(true); }

@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { 
-  insertCategorySchema, 
-  insertSupplierSchema, 
+  createCategoryRequestSchema,
+  createSupplierRequestSchema,
+  updateCategoryRequestSchema,
+  updateSupplierRequestSchema,
   insertProductSchema, 
   insertMovementSchema,
   products,
@@ -49,7 +51,7 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/categories',
-      input: insertCategorySchema,
+      input: createCategoryRequestSchema,
       responses: {
         201: z.custom<typeof categories.$inferSelect>(),
         400: errorSchemas.validation,
@@ -58,7 +60,7 @@ export const api = {
     update: {
       method: 'PUT' as const,
       path: '/api/categories/:id',
-      input: insertCategorySchema.partial(),
+      input: updateCategoryRequestSchema,
       responses: {
         200: z.custom<typeof categories.$inferSelect>(),
         400: errorSchemas.validation,
@@ -93,7 +95,7 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/suppliers',
-      input: insertSupplierSchema,
+      input: createSupplierRequestSchema,
       responses: {
         201: z.custom<typeof suppliers.$inferSelect>(),
         400: errorSchemas.validation,
@@ -102,7 +104,7 @@ export const api = {
     update: {
       method: 'PUT' as const,
       path: '/api/suppliers/:id',
-      input: insertSupplierSchema.partial(),
+      input: updateSupplierRequestSchema,
       responses: {
         200: z.custom<typeof suppliers.$inferSelect>(),
         400: errorSchemas.validation,
