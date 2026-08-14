@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { useSuppliers, useCreateSupplier, useUpdateSupplier, useDeleteSupplier } from "@/hooks/use-suppliers";
+import { useSuppliers, useCreateSupplier, useUpdateSupplier, useDeleteSupplier } from "@/modules/catalog/suppliers/supplier-queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

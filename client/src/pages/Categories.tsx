@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from "@/hooks/use-categories";
+import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from "@/modules/catalog/categories/category-queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
