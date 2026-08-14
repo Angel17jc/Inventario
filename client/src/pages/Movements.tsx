@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { useMovements, useCreateMovement } from "@/hooks/use-movements";
+import { useMovements, useCreateMovement } from "@/modules/inventory/movements/movement-queries";
 import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
