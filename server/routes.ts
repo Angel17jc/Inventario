@@ -5,6 +5,7 @@ import { supabase } from "./db";
 import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole, requirePlatformAdmin } from "./auth";
 import { platformService } from "./platform-service";
 import { sendApiError } from "./errors";
+import { registerCatalogRoutes } from "./modules/catalog/catalog-routes";
 import { api } from "@shared/routes";
 import { createCreditAccountRequestSchema, createCreditPaymentRequestSchema, createMovementRequestSchema } from "@shared/schema";
 import { z } from "zod";
@@ -87,91 +88,7 @@ export async function registerRoutes(
   const requireOperator = requireOrganizationRole("owner", "manager", "cashier");
   const scopedStorage = (req: Express.Request) => storage.forOrganization(req.organization!.id, req.user!.id);
 
-  // Categories
-  app.get(api.categories.list.path, async (req, res) => {
-    const categories = await scopedStorage(req).getCategories();
-    res.json(categories);
-  });
-
-  app.get(api.categories.get.path, async (req, res) => {
-    const category = await scopedStorage(req).getCategory(Number(req.params.id));
-    if (!category) return res.status(404).json({ message: "Category not found" });
-    res.json(category);
-  });
-
-  app.post(api.categories.create.path, requireManager, async (req, res) => {
-    try {
-      const input = api.categories.create.input.parse(req.body);
-      const category = await scopedStorage(req).createCategory(input);
-      res.status(201).json(category);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
-    }
-  });
-
-  app.put(api.categories.update.path, requireManager, async (req, res) => {
-    try {
-      const input = api.categories.update.input.parse(req.body);
-      const category = await scopedStorage(req).updateCategory(Number(req.params.id), input);
-      res.json(category);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
-    }
-  });
-
-  app.delete(api.categories.delete.path, requireManager, async (req, res) => {
-    await scopedStorage(req).deleteCategory(Number(req.params.id));
-    res.status(204).send();
-  });
-
-  // Suppliers
-  app.get(api.suppliers.list.path, async (req, res) => {
-    const suppliers = await scopedStorage(req).getSuppliers();
-    res.json(suppliers);
-  });
-
-  app.get(api.suppliers.get.path, async (req, res) => {
-    const supplier = await scopedStorage(req).getSupplier(Number(req.params.id));
-    if (!supplier) return res.status(404).json({ message: "Supplier not found" });
-    res.json(supplier);
-  });
-
-  app.post(api.suppliers.create.path, requireManager, async (req, res) => {
-    try {
-      const input = api.suppliers.create.input.parse(req.body);
-      const supplier = await scopedStorage(req).createSupplier(input);
-      res.status(201).json(supplier);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
-    }
-  });
-
-  app.put(api.suppliers.update.path, requireManager, async (req, res) => {
-    try {
-      const input = api.suppliers.update.input.parse(req.body);
-      const supplier = await scopedStorage(req).updateSupplier(Number(req.params.id), input);
-      res.json(supplier);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
-    }
-  });
-
-  app.delete(api.suppliers.delete.path, requireManager, async (req, res) => {
-    await scopedStorage(req).deleteSupplier(Number(req.params.id));
-    res.status(204).send();
-  });
+  registerCatalogRoutes(app, { requireManager, scopedStorage });
 
   // Products
   app.get(api.products.list.path, async (req, res) => {
