@@ -10,7 +10,7 @@ import Inventory from "@/modules/inventory/products/InventoryPage";
 import Movements from "@/modules/inventory/movements/MovementsPage";
 import Categories from "@/modules/catalog/categories/CategoriesPage";
 import Suppliers from "@/modules/catalog/suppliers/SuppliersPage";
-import Credits from "@/pages/Credits";
+import Credits from "@/modules/credits/CreditsPage";
 import Platform from "@/pages/Platform";
 import Login from "@/pages/Login";
 import { AuthProvider, useAuth } from "@/lib/auth";
