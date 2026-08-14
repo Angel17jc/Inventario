@@ -3,12 +3,10 @@ import { z } from "zod";
 import { api } from "@shared/routes";
 import { createMovementRequestSchema } from "@shared/schema";
 import { DatabaseStorage } from "../../storage";
+import { createProductSchema, updateProductSchema } from "./inventory-schemas";
 
 type ScopedStorage = (request: Request) => DatabaseStorage;
 interface InventoryRouteDependencies { requireManager: RequestHandler; requireOperator: RequestHandler; scopedStorage: ScopedStorage; }
-
-const createProductSchema = api.products.create.input.extend({ quantity: z.coerce.number(), costPrice: z.coerce.number(), sellingPrice: z.coerce.number(), minStockLevel: z.coerce.number().optional(), categoryId: z.coerce.number().optional(), supplierId: z.coerce.number().optional() });
-const updateProductSchema = api.products.update.input.extend({ quantity: z.coerce.number().optional(), costPrice: z.coerce.number().optional(), sellingPrice: z.coerce.number().optional(), minStockLevel: z.coerce.number().optional(), categoryId: z.coerce.number().optional(), supplierId: z.coerce.number().optional() });
 
 export function registerInventoryRoutes(app: Express, { requireManager, requireOperator, scopedStorage }: InventoryRouteDependencies) {
   app.get(api.products.list.path, async (req, res) => res.json(await scopedStorage(req).getProducts()));
