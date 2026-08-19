@@ -11,7 +11,7 @@ const REQUIRED_VARIABLES = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] as cons
 // runs, leaving only an opaque FUNCTION_INVOCATION_FAILED. Importing inside the
 // promise brings that window inside the catch.
 let bootstrap: Promise<RequestHandler | null> | undefined;
-let failure: { name: string; code: string } | null = null;
+let failure: { name: string; code: string; detail: string } | null = null;
 
 function start(): Promise<RequestHandler | null> {
   return import("../backend/app")
@@ -20,7 +20,12 @@ function start(): Promise<RequestHandler | null> {
     .catch((error: unknown) => {
       console.error("API initialisation failed:", error);
       const cause = error as { name?: string; code?: string };
-      failure = { name: cause?.name ?? "Error", code: cause?.code ?? "none" };
+      failure = {
+        name: cause?.name ?? "Error",
+        code: cause?.code ?? "none",
+        // Module specifier only; it names project files, never a value.
+        detail: String(cause?.message ?? "").slice(0, 300),
+      };
       return null;
     });
 }
