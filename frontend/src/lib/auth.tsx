@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
@@ -28,6 +28,12 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// A till is often left unattended mid-shift, so an idle session is signed out
+// rather than left open for whoever sits down next.
+const IDLE_LIMIT_MS = 30 * 60 * 1000;
+const IDLE_CHECK_MS = 30 * 1000;
+const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
+
 function getRole(user: User | null): Role | null {
   if (user?.app_metadata.platform_role === "platform_admin" || user?.app_metadata.role === "admin") return "platform_admin";
   // Organization membership, not a JWT claim, authorizes tenant users.
@@ -37,7 +43,7 @@ function getRole(user: User | null): Role | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(localStorage.getItem("activeOrganizationId"));
+  const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(sessionStorage.getItem("activeOrganizationId"));
   const [isLoading, setIsLoading] = useState(true);
   const [isOrganizationsLoading, setIsOrganizationsLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
@@ -61,9 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setActiveOrganizationId(nextOrganizationId);
 
         if (nextOrganizationId) {
-          localStorage.setItem("activeOrganizationId", nextOrganizationId);
+          sessionStorage.setItem("activeOrganizationId", nextOrganizationId);
         } else {
-          localStorage.removeItem("activeOrganizationId");
+          sessionStorage.removeItem("activeOrganizationId");
         }
       })
       .finally(() => setIsOrganizationsLoading(false));
@@ -86,6 +92,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
+  const lastActivityRef = useRef(Date.now());
+
+  useEffect(() => {
+    if (!session) return;
+
+    // Activity only touches a ref, so no render happens on every keystroke; a
+    // single interval decides when the session has gone stale.
+    lastActivityRef.current = Date.now();
+    const recordActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+
+    for (const event of ACTIVITY_EVENTS) {
+      window.addEventListener(event, recordActivity, { passive: true });
+    }
+
+    const interval = window.setInterval(() => {
+      if (Date.now() - lastActivityRef.current < IDLE_LIMIT_MS) return;
+      sessionStorage.removeItem("activeOrganizationId");
+      void supabase.auth.signOut();
+    }, IDLE_CHECK_MS);
+
+    return () => {
+      window.clearInterval(interval);
+      for (const event of ACTIVITY_EVENTS) {
+        window.removeEventListener(event, recordActivity);
+      }
+    };
+  }, [session]);
+
   const value = useMemo(() => ({
     session,
     user: session?.user ?? null,
@@ -93,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     organizations,
     activeOrganization: organizations.find((organization) => organization.id === activeOrganizationId) ?? null,
     setActiveOrganization: (organizationId: string) => {
-      localStorage.setItem("activeOrganizationId", organizationId);
+      sessionStorage.setItem("activeOrganizationId", organizationId);
       setActiveOrganizationId(organizationId);
       window.location.assign("/panel");
     },
@@ -102,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isPasswordRecovery,
     completePasswordRecovery: () => setIsPasswordRecovery(false),
     signOut: async () => {
-      localStorage.removeItem("activeOrganizationId");
+      sessionStorage.removeItem("activeOrganizationId");
       await supabase.auth.signOut();
     },
   }), [session, organizations, activeOrganizationId, isLoading, isOrganizationsLoading, isPasswordRecovery]);
@@ -120,7 +156,7 @@ export async function authenticatedFetch(input: RequestInfo | URL, init: Request
   const { data: { session } } = await supabase.auth.getSession();
   const headers = new Headers(init.headers);
   if (session?.access_token) headers.set("Authorization", `Bearer ${session.access_token}`);
-  const organizationId = localStorage.getItem("activeOrganizationId");
+  const organizationId = sessionStorage.getItem("activeOrganizationId");
   if (organizationId) headers.set("X-Organization-Id", organizationId);
   return fetch(input, { ...init, headers });
 }
