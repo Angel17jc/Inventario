@@ -1,8 +1,8 @@
 import type { Express, Request, RequestHandler } from "express";
 import { z } from "zod";
-import { createCreditAccountRequestSchema, createCreditPaymentRequestSchema } from "@shared/schema";
-import { sendApiError } from "../../errors";
-import { DatabaseStorage } from "../../storage";
+import { createCreditAccountRequestSchema, createCreditPaymentRequestSchema } from "../../../shared/schema.js";
+import { sendApiError } from "../../errors.js";
+import { DatabaseStorage } from "../../storage.js";
 
 type ScopedStorage = (request: Request) => DatabaseStorage;
 interface CreditRouteDependencies { requireOperator: RequestHandler; scopedStorage: ScopedStorage; }

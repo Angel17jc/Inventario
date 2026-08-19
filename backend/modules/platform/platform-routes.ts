@@ -1,13 +1,13 @@
 import type { Express, RequestHandler } from "express";
 import { z } from "zod";
-import { platformService } from "../../platform-service";
+import { platformService } from "../../platform-service.js";
 import {
   createOrganizationSchema,
   createOrganizationUserSchema,
   resetPasswordSchema,
   updateOrganizationStatusSchema,
   updateOrganizationUserSchema,
-} from "./platform-schemas";
+} from "./platform-schemas.js";
 
 interface PlatformRouteDependencies {
   requirePlatformAdmin: RequestHandler;

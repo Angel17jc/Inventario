@@ -1,7 +1,7 @@
 import type { Express, Request, RequestHandler } from "express";
 import { z } from "zod";
-import { api } from "@shared/routes";
-import { DatabaseStorage } from "../../storage";
+import { api } from "../../../shared/routes.js";
+import { DatabaseStorage } from "../../storage.js";
 
 type ScopedStorage = (request: Request) => DatabaseStorage;
 

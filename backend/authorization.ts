@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { OrganizationRole } from "@shared/tenancy";
+import type { OrganizationRole } from "../shared/tenancy.js";
 
 export function requireOrganizationRole(...allowedRoles: OrganizationRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {

@@ -6,7 +6,7 @@ import {
   createCategoryRequestSchema,
   createSupplierRequestSchema,
   createMovementRequestSchema,
-} from "./schema";
+} from "./schema.js";
 
 test("accepts a valid stock movement", () => {
   const movement = createMovementRequestSchema.parse({ productId: "7", type: "OUT", quantity: "2", reason: "Venta" });

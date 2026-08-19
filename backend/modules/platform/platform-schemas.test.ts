@@ -5,7 +5,7 @@ import {
   createOrganizationUserSchema,
   resetPasswordSchema,
   updateOrganizationUserSchema,
-} from "./platform-schemas";
+} from "./platform-schemas.js";
 
 const organizationId = "3a6d6b1c-8519-4be9-990d-f5f6d0eea733";
 

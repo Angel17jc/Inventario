@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getApiError } from "./errors";
+import { getApiError } from "./errors.js";
 
 test("maps database conflicts to HTTP 409", () => {
   assert.deepEqual(getApiError({ code: "23505" }), {

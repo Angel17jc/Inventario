@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { NextFunction, Request, Response } from "express";
-import { requireOrganizationRole } from "./authorization";
+import { requireOrganizationRole } from "./authorization.js";
 
 function createResponse() {
   const result = { statusCode: 200, body: undefined as unknown };

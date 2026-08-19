@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { api } from "@shared/routes";
+import { api } from "../../../shared/routes.js";
 
 const optionalSkuSchema = z
   .string()

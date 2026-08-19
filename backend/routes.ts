@@ -1,13 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { supabase } from "./db";
-import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole, requirePlatformAdmin } from "./auth";
-import { registerCatalogRoutes } from "./modules/catalog/catalog-routes";
-import { registerInventoryRoutes } from "./modules/inventory/inventory-routes";
-import { registerCreditRoutes } from "./modules/credits/credit-routes";
-import { registerPlatformRoutes } from "./modules/platform/platform-routes";
-import { api } from "@shared/routes";
+import { storage } from "./storage.js";
+import { supabase } from "./db.js";
+import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizationContext, requireOrganizationRole, requirePlatformAdmin } from "./auth.js";
+import { registerCatalogRoutes } from "./modules/catalog/catalog-routes.js";
+import { registerInventoryRoutes } from "./modules/inventory/inventory-routes.js";
+import { registerCreditRoutes } from "./modules/credits/credit-routes.js";
+import { registerPlatformRoutes } from "./modules/platform/platform-routes.js";
+import { api } from "../shared/routes.js";
 
 export async function registerRoutes(
   httpServer: Server,

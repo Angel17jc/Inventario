@@ -1,4 +1,4 @@
-import { supabase } from "./db";
+import { supabase } from "./db.js";
 
 export interface CreateOrganizationInput {
   name: string;

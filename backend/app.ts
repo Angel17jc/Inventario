@@ -1,7 +1,7 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import type { Server } from "http";
-import { registerRoutes } from "./routes";
-import { getApiError } from "./errors";
+import { registerRoutes } from "./routes.js";
+import { getApiError } from "./errors.js";
 
 declare module "http" {
   interface IncomingMessage {

@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
-import { supabase } from "./db";
-import type { OrganizationRole } from "@shared/tenancy";
-export { requireOrganizationRole } from "./authorization";
+import { supabase } from "./db.js";
+import type { OrganizationRole } from "../shared/tenancy.js";
+export { requireOrganizationRole } from "./authorization.js";
 
 const organizationRoles = ["owner", "manager", "cashier"] as const;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

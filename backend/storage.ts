@@ -1,10 +1,10 @@
-import { supabase } from "./db";
+import { supabase } from "./db.js";
 import type {
   Category, Supplier, Product, Movement, CreditAccount, CreditPayment,
   InsertCategory, InsertSupplier, InsertProduct, InsertMovement, InsertCreditAccount, InsertCreditPayment,
   UpdateCategoryRequest, UpdateSupplierRequest, UpdateProductRequest,
   DashboardStats, CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest
-} from "@shared/schema";
+} from "../shared/schema.js";
 
 // Helper functions to convert between camelCase and snake_case
 function toSnakeCase(obj: any): any {

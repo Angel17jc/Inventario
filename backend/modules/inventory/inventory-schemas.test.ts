@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createProductSchema, updateProductSchema } from "./inventory-schemas";
+import { createProductSchema, updateProductSchema } from "./inventory-schemas.js";
 
 test("normalizes valid product input and an empty SKU", () => {
   const product = createProductSchema.parse({

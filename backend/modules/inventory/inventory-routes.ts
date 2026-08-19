@@ -1,9 +1,9 @@
 import type { Express, Request, RequestHandler } from "express";
 import { z } from "zod";
-import { api } from "@shared/routes";
-import { createMovementRequestSchema } from "@shared/schema";
-import { DatabaseStorage } from "../../storage";
-import { createProductSchema, updateProductSchema } from "./inventory-schemas";
+import { api } from "../../../shared/routes.js";
+import { createMovementRequestSchema } from "../../../shared/schema.js";
+import { DatabaseStorage } from "../../storage.js";
+import { createProductSchema, updateProductSchema } from "./inventory-schemas.js";
 
 type ScopedStorage = (request: Request) => DatabaseStorage;
 interface InventoryRouteDependencies { requireManager: RequestHandler; requireOperator: RequestHandler; scopedStorage: ScopedStorage; }
