@@ -10,6 +10,10 @@ En producción configura siempre:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
+Las claves usan el sistema nuevo de Supabase: `SUPABASE_SERVICE_ROLE_KEY` contiene una clave secreta (`sb_secret_...`) y `VITE_SUPABASE_ANON_KEY` una publicable (`sb_publishable_...`). Son independientes del JWT secret, así que revocar una no cierra las sesiones de los usuarios.
+
+El build aborta si `VITE_SUPABASE_ANON_KEY` contiene una clave secreta, porque Vite incrusta las variables `VITE_*` en el bundle del navegador.
+
 El servidor rechaza el inicio en producción si falta `SUPABASE_SERVICE_ROLE_KEY`. La clave de servicio se utiliza solo en Express para ejecutar operaciones transaccionales y administrar usuarios; nunca debe aparecer en variables `VITE_*`, código cliente ni repositorio.
 
 ## Migraciones
