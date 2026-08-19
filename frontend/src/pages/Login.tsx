@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { CheckCircle2, Eye, EyeOff, Loader2, Mail, ShieldCheck, Wine } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -14,7 +15,7 @@ function getAuthErrorMessage(error: { message: string; status?: number }) {
   const message = error.message.toLowerCase();
 
   if (message.includes("redirect") || message.includes("redirect_to")) {
-    return "La URL de recuperación no está autorizada en Supabase. Agrega http://localhost:5000/** en Authentication → URL Configuration.";
+    return "La URL de recuperación no está autorizada en Supabase. Revisa Authentication → URL Configuration.";
   }
 
   if (message.includes("rate limit") || error.status === 429) {
@@ -30,7 +31,8 @@ function getAuthErrorMessage(error: { message: string; status?: number }) {
 
 export default function Login() {
   const [location, setLocation] = useLocation();
-  const mode: Mode = window.location.search.includes("reset=1")
+  const { isPasswordRecovery, completePasswordRecovery } = useAuth();
+  const mode: Mode = isPasswordRecovery || window.location.search.includes("reset=1")
     ? "reset"
     : location === "/recuperar-acceso"
       ? "forgot"
@@ -84,6 +86,7 @@ export default function Login() {
       return;
     }
 
+    completePasswordRecovery();
     await supabase.auth.signOut();
     setLocation("/iniciar-sesion", { replace: true });
   }

@@ -21,6 +21,8 @@ type AuthContextValue = {
   setActiveOrganization: (organizationId: string) => void;
   isOrganizationsLoading: boolean;
   isLoading: boolean;
+  isPasswordRecovery: boolean;
+  completePasswordRecovery: () => void;
   signOut: () => Promise<void>;
 };
 
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(localStorage.getItem("activeOrganizationId"));
   const [isLoading, setIsLoading] = useState(true);
   const [isOrganizationsLoading, setIsOrganizationsLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -71,7 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setIsLoading(false);
     });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    // Supabase reports the recovery link through this event. Relying on it
+    // instead of the redirect URL matters because an unlisted redirect_to is
+    // not rejected: Supabase silently falls back to the Site URL, and the
+    // reset form would never open.
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") setIsPasswordRecovery(true);
       setSession(nextSession);
       setIsLoading(false);
     });
@@ -91,11 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     isOrganizationsLoading,
     isLoading,
+    isPasswordRecovery,
+    completePasswordRecovery: () => setIsPasswordRecovery(false),
     signOut: async () => {
       localStorage.removeItem("activeOrganizationId");
       await supabase.auth.signOut();
     },
-  }), [session, organizations, activeOrganizationId, isLoading, isOrganizationsLoading]);
+  }), [session, organizations, activeOrganizationId, isLoading, isOrganizationsLoading, isPasswordRecovery]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

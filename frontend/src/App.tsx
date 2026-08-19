@@ -39,9 +39,9 @@ function CanonicalPathRedirect() {
 }
 
 function ProtectedRouter() {
-  const { session, role, activeOrganization, isLoading, isOrganizationsLoading } = useAuth();
+  const { session, role, activeOrganization, isLoading, isOrganizationsLoading, isPasswordRecovery } = useAuth();
   const [location, setLocation] = useLocation();
-  const isPasswordReset = window.location.search.includes("reset=1");
+  const isPasswordReset = isPasswordRecovery || window.location.search.includes("reset=1");
   const isPublicAuthRoute = location === "/iniciar-sesion" || location === "/recuperar-acceso" || location === "/restablecer-contrasena";
 
   useEffect(() => {
