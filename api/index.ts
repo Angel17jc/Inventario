@@ -14,12 +14,12 @@ let bootstrap: Promise<RequestHandler | null> | undefined;
 let failure: { name: string; code: string; detail: string } | null = null;
 
 function start(): Promise<RequestHandler | null> {
-  return import("../backend/app")
+  return import("../backend/app.js")
     .then(({ createApp }) => createApp(createServer()))
     .then((app) => app as unknown as RequestHandler)
     .catch((error: unknown) => {
       console.error("API initialisation failed:", error);
-      const cause = error as { name?: string; code?: string };
+      const cause = error as { name?: string; code?: string; message?: string };
       failure = {
         name: cause?.name ?? "Error",
         code: cause?.code ?? "none",
