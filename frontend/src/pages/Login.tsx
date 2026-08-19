@@ -1,14 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
-import { CheckCircle2, Eye, EyeOff, Loader2, Mail, ShieldCheck, Wine } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Loader2, Mail, Wine } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type Mode = "login" | "forgot" | "reset";
+type Mode = "login" | "forgot";
 
-const passwordRule = /^(?=.*[A-Za-z])(?=.*\d).{10,}$/;
 const passwordResetPath = "/restablecer-contrasena?reset=1";
 
 function getAuthErrorMessage(error: { message: string; status?: number }) {
@@ -31,17 +29,10 @@ function getAuthErrorMessage(error: { message: string; status?: number }) {
 
 export default function Login() {
   const [location, setLocation] = useLocation();
-  const { isPasswordRecovery, completePasswordRecovery } = useAuth();
-  const mode: Mode = isPasswordRecovery || window.location.search.includes("reset=1")
-    ? "reset"
-    : location === "/recuperar-acceso"
-      ? "forgot"
-      : "login";
+  const mode: Mode = location === "/recuperar-acceso" ? "forgot" : "login";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,17 +48,10 @@ export default function Login() {
     setError(null);
     setMessage(null);
 
-    if (mode === "reset" && (!passwordRule.test(password) || password !== confirmation)) {
-      setError("Usa al menos 10 caracteres, una letra, un número y confirma la misma contraseña.");
-      return;
-    }
-
     setIsSubmitting(true);
     const result = mode === "login"
       ? await supabase.auth.signInWithPassword({ email, password })
-      : mode === "forgot"
-        ? await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}${passwordResetPath}` })
-        : await supabase.auth.updateUser({ password });
+      : await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}${passwordResetPath}` });
     setIsSubmitting(false);
 
     if (result.error) {
@@ -81,52 +65,37 @@ export default function Login() {
       return;
     }
 
-    if (mode === "forgot") {
-      setMessage("Enviaremos un correo con un enlace seguro para recuperar tu contraseña. Revisa también la carpeta de spam.");
-      return;
-    }
-
-    completePasswordRecovery();
-    await supabase.auth.signOut();
-    setLocation("/iniciar-sesion", { replace: true });
+    setMessage("Enviaremos un correo con un enlace seguro para recuperar tu contraseña. Revisa también la carpeta de spam.");
   }
-
-  const isReset = mode === "reset";
 
   return (
     <main className="grid min-h-screen place-items-center bg-background p-6">
       <form onSubmit={submit} className="w-full max-w-md space-y-5 rounded-2xl border border-border bg-card p-8 shadow-2xl">
         <div className="space-y-2 text-center">
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary">
-            {isReset ? <ShieldCheck /> : mode === "forgot" ? <Mail /> : <Wine />}
+            {mode === "forgot" ? <Mail /> : <Wine />}
           </div>
           <h1 className="text-2xl font-bold text-white">
-            {isReset ? "Nueva contraseña" : mode === "forgot" ? "Recuperar acceso" : "Licorería Manager"}
+            {mode === "forgot" ? "Recuperar acceso" : "Licorería Manager"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {isReset ? "Crea una contraseña segura para tu cuenta." : mode === "forgot" ? "Te enviaremos un enlace de recuperación a tu correo." : "Inicia sesión para continuar"}
+            {mode === "forgot" ? "Te enviaremos un enlace de recuperación a tu correo." : "Inicia sesión para continuar"}
           </p>
         </div>
 
-        {!isReset && <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="correo@empresa.com" required autoComplete="email" />}
-        {mode !== "forgot" && (
+        <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="correo@empresa.com" required autoComplete="email" />
+        {mode === "login" && (
           <div className="relative">
-            <Input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isReset ? "Nueva contraseña" : "Contraseña"} required autoComplete={isReset ? "new-password" : "current-password"} />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-muted-foreground" aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>
+            <Input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Contraseña" required autoComplete="current-password" className="pr-11" />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-        )}
-        {isReset && (
-          <>
-            <div className="relative">
-              <Input type={showConfirmation ? "text" : "password"} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder="Confirmar nueva contraseña" required autoComplete="new-password" />
-              <button type="button" onClick={() => setShowConfirmation(!showConfirmation)} className="absolute right-3 top-2.5 text-muted-foreground" aria-label={showConfirmation ? "Ocultar confirmación" : "Mostrar confirmación"}>
-                {showConfirmation ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">Mínimo 10 caracteres, con una letra y un número.</p>
-          </>
         )}
 
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -134,7 +103,7 @@ export default function Login() {
 
         <Button className="w-full" type="submit" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {mode === "login" ? "Ingresar" : mode === "forgot" ? "Enviar correo de recuperación" : "Guardar nueva contraseña"}
+          {mode === "login" ? "Ingresar" : "Enviar correo de recuperación"}
         </Button>
         {mode === "login" && <button type="button" onClick={() => changeRoute("/recuperar-acceso")} className="w-full text-sm text-primary">¿Olvidaste tu contraseña?</button>}
         {mode === "forgot" && <button type="button" onClick={() => changeRoute("/iniciar-sesion")} className="w-full text-sm text-primary">Volver a iniciar sesión</button>}

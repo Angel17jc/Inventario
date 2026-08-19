@@ -8,6 +8,7 @@ import { registerInventoryRoutes } from "./modules/inventory/inventory-routes.js
 import { registerCreditRoutes } from "./modules/credits/credit-routes.js";
 import { registerPlatformRoutes } from "./modules/platform/platform-routes.js";
 import { api } from "../shared/routes.js";
+import { updatePasswordRequestSchema } from "../shared/schema.js";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -32,6 +33,20 @@ export async function registerRoutes(
   app.get("/api/organizations/me", async (req, res) => {
     res.json(await getAccessibleOrganizations(req.user!));
   });
+  // Registered before the organization guard: a user following a recovery link
+  // is authenticated but has no reason to carry an organization context yet.
+  app.post("/api/account/password", async (req, res, next) => {
+    const parsed = updatePasswordRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Contraseña inválida." });
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(req.user!.id, { password: parsed.data.password });
+    if (error) return next(error);
+
+    return res.status(204).end();
+  });
+
   registerPlatformRoutes(app, { requirePlatformAdmin });
   app.use("/api", requireOrganizationContext);
   const requireManager = requireOrganizationRole("owner", "manager");

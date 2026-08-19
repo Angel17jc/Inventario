@@ -13,6 +13,7 @@ import Suppliers from "@/modules/catalog/suppliers/SuppliersPage";
 import Credits from "@/modules/credits/CreditsPage";
 import Platform from "@/modules/platform/PlatformPage";
 import Login from "@/pages/Login";
+import ResetPassword from "@/pages/ResetPassword";
 import { AuthProvider, useAuth } from "@/lib/auth";
 
 const legacyPathRedirects: Record<string, string> = {
@@ -63,7 +64,8 @@ function ProtectedRouter() {
   }, [isLoading, isOrganizationsLoading, isPasswordReset, isPublicAuthRoute, location, role, session, setLocation]);
 
   if (isLoading || isOrganizationsLoading) return <div className="min-h-screen bg-background" />;
-  if (!session || !role || isPasswordReset) return <Login />;
+  if (isPasswordReset) return <ResetPassword />;
+  if (!session || !role) return <Login />;
   if (!activeOrganization) return <main className="grid min-h-screen place-items-center bg-background p-6 text-center text-muted-foreground">No tienes una empresa activa asignada.</main>;
   return <Router />;
 }
