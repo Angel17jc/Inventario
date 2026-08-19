@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "./supabase";
+import { arrivedFromRecoveryLink, supabase } from "./supabase";
 
 export type Role = "platform_admin" | "owner" | "manager" | "cashier";
 
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(sessionStorage.getItem("activeOrganizationId"));
   const [isLoading, setIsLoading] = useState(true);
   const [isOrganizationsLoading, setIsOrganizationsLoading] = useState(true);
-  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(arrivedFromRecoveryLink);
 
   useEffect(() => {
     if (!session) {
