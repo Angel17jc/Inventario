@@ -10,7 +10,7 @@ import {
   categories,
   suppliers,
   movements
-} from './schema';
+} from './schema.js';
 
 // ============================================
 // SHARED ERROR SCHEMAS

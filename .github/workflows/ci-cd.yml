@@ -42,6 +42,16 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
+      # Vercel runs the API under Node's native ESM resolver, which needs an
+      # explicit extension on every relative import. Missing one breaks the
+      # deployed function only, so nothing else in this job would catch it.
+      - name: Fail on extensionless relative imports
+        run: |
+          if grep -rnE "(from|import\()[[:space:]]*['\"](\.{1,2}/)[^'\"]*['\"]" backend shared api --include="*.ts" | grep -vE "\.js['\"]"; then
+            echo "The imports above need a .js extension."
+            exit 1
+          fi
+
       - name: Fail if Tailwind produced no utility classes
         run: |
           CSS=$(find dist/public/assets -name '*.css' | head -1)
