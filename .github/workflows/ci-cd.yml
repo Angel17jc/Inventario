@@ -57,7 +57,10 @@ jobs:
   deploy:
     name: Deploy to Vercel
     needs: verify
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Dormant until the repository variable DEPLOY_VIA_ACTIONS is set to 'true'.
+    # Leave it unset to let Vercel's own Git integration deploy instead, and
+    # never enable both: they would deploy the same commit twice.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_VIA_ACTIONS == 'true'
     runs-on: ubuntu-latest
     environment: production
     env:
