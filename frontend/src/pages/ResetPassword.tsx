@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useId, useMemo, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { Check, Eye, EyeOff, Loader2, ShieldCheck, X } from "lucide-react";
 import { passwordRules } from "@shared/schema";
@@ -23,12 +23,17 @@ function PasswordField({
   autoComplete: string;
 }) {
   const [isVisible, setIsVisible] = useState(false);
+  // The toggle cannot live inside the label: its text would be folded into the
+  // field's accessible name, which screen readers then announce as
+  // "Nueva contraseña Mostrar nueva contraseña".
+  const id = useId();
 
   return (
-    <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <span className="relative block">
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium text-foreground">{label}</label>
+      <div className="relative">
         <Input
+          id={id}
           type={isVisible ? "text" : "password"}
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -44,8 +49,8 @@ function PasswordField({
         >
           {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
-      </span>
-    </label>
+      </div>
+    </div>
   );
 }
 
