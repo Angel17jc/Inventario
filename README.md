@@ -1,380 +1,236 @@
-# 📦 Licorería Manager - Sistema de Gestión de Inventario
+# Licorería Manager
 
-Sistema de gestión de inventario moderno y completo para licorerías construido con React, TypeScript, Express y Supabase.
+Sistema de gestión de inventario y fiados para licorerías, multi-empresa y desplegado como una sola aplicación en Vercel.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-
-## ✨ Características
-
-- 📊 **Dashboard Interactivo** - Visualización en tiempo real de estadísticas de inventario
-- 📦 **Gestión de Productos** - CRUD completo de productos con categorías y proveedores
-- 🏷️ **Categorías** - Organización de productos por categorías personalizadas
-- 🏢 **Proveedores** - Gestión de información de proveedores
-- 📈 **Movimientos** - Registro de entradas, salidas y ajustes de inventario
-- 💳 **Sistema de Fiados** - Gestión completa de cuentas de crédito para clientes
-  - Registro de ventas fiadas con descuento automático de inventario
-  - Seguimiento de pagos parciales y totales
-  - Estadísticas de deudas por cliente
-  - Historial de pagos
-- 🔔 **Alertas de Stock Bajo** - Notificaciones cuando productos están por debajo del stock mínimo
-- ✅ **Validación de Stock** - Prevención de ventas con stock insuficiente
-- 📱 **Diseño Responsive** - Interfaz adaptable a dispositivos móviles y tablets
-- 🎨 **UI Moderna** - Componentes UI de shadcn/ui con Tailwind CSS
-- ⚡ **Rendimiento Optimizado** - React Query para manejo eficiente del estado
-
-## 🛠️ Stack Tecnológico
-
-### Frontend
-- **React 18** - Biblioteca de UI
-- **TypeScript** - Tipado estático
-- **Vite** - Build tool y dev server
-- **TanStack Query** - Gestión de estado del servidor
-- **Wouter** - Enrutamiento ligero
-- **shadcn/ui** - Componentes UI
-- **Tailwind CSS** - Framework CSS utility-first
-- **Recharts** - Gráficos y visualización de datos
-
-### Backend
-- **Express 5** - Framework web de Node.js
-- **TypeScript** - Tipado estático
-- **Supabase Client** - Cliente REST API para PostgreSQL
-- **Zod** - Validación de esquemas
-- **dotenv** - Gestión de variables de entorno
-
-### Base de Datos
-- **Supabase** - PostgreSQL como servicio (BaaS)
-- **PostgreSQL** - Base de datos relacional
-
-## 🚀 Inicio Rápido
-
-### Prerequisitos
-
-- Node.js 18+ instalado
-- Una cuenta en [Supabase](https://supabase.com) (plan gratuito disponible)
-
-### 1. Clonar el Repositorio
-
-```bash
-git clone https://github.com/Angel17jc/Inventario.git
-cd Inventory-Dashboard
-```
-
-### 2. Instalar Dependencias
-
-```bash
-npm install
-```
-
-### 3. Configurar Supabase
-
-1. **Crea una cuenta en [Supabase](https://supabase.com)**
-
-2. **Crea un nuevo proyecto** en el dashboard de Supabase
-
-3. **Ejecuta los scripts SQL:**
-   - Ve a SQL Editor en Supabase
-   - Ejecuta `database/schema.sql` (estructura de tablas)
-   - Ejecuta `database/credits.sql` (tablas de fiados)
-   - (Opcional) Ejecuta `database/seed.sql` (datos de prueba)
-
-4. **Obtén tus credenciales:**
-   - Ve a Settings > API en tu proyecto
-   - Copia la `URL` y el `anon public` key
-
-5. **Configura las variables de entorno:**
-   ```bash
-   # Crea el archivo .env
-   cp .env.example .env
-   ```
-   
-   Edita `.env` y agrega:
-   ```env
-   SUPABASE_URL=tu_supabase_url
-   SUPABASE_ANON_KEY=tu_supabase_anon_key
-   ```
-
-📚 **Para una guía detallada, consulta:**
-- [SUPABASE_SETUP.md](SUPABASE_SETUP.md) - Configuración completa de Supabase
-- [FIADOS_SETUP.md](FIADOS_SETUP.md) - Guía del sistema de fiados
-- [SCHEMAS.md](SCHEMAS.md) - Documentación de la base de datos
-
-### 4. Iniciar el Proyecto
-
-```bash
-npm run dev
-```
-
-La aplicación estará disponible en [http://localhost:5000](http://localhost:5000)
-
-## 📁 Estructura del Proyecto
-
-```
-Inventory-Dashboard/
-├── frontend/               # Frontend React
-│   ├── src/
-│   │   ├── components/    # Componentes React
-│   │   │   ├── layout/    # Componentes de layout (Sidebar)
-│   │   │   ├── modals/    # Modales (ProductModal)
-│   │   │   └── ui/        # Componentes UI de shadcn
-│   │   ├── hooks/         # Custom React hooks
-│   │   │   ├── use-categories.ts
-│   │   │   ├── use-credits.ts
-│   │   │   ├── use-movements.ts
-│   │   │   ├── use-products.ts
-│   │   │   └── use-suppliers.ts
-│   │   ├── lib/           # Utilidades y configuración
-│   │   ├── pages/         # Páginas de la aplicación
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── Inventory.tsx
-│   │   │   ├── Categories.tsx
-│   │   │   ├── Suppliers.tsx
-│   │   │   ├── Movements.tsx
-│   │   │   └── Credits.tsx
-│   │   └── main.tsx       # Punto de entrada
-│   └── index.html
-│
-├── backend/               # Backend Express
-│   ├── db.ts             # Configuración de Supabase
-│   ├── storage.ts        # Capa de acceso a datos
-│   ├── index.ts          # Servidor Express
-│   ├── routes.ts         # Definición de rutas API
-│   └── vite.ts           # Integración Vite
-│
-├── shared/               # Código compartido
-│   ├── routes.ts        # Contrato de API
-│   └── schema.ts        # Schemas TypeScript + Zod
-│
-├── database/            # Scripts SQL para Supabase
-│   ├── schema.sql      # Tablas principales
-│   ├── credits.sql     # Sistema de fiados
-│   └── seed.sql        # Datos de prueba
-│
-├── SUPABASE_SETUP.md   # Guía de configuración Supabase
-├── FIADOS_SETUP.md     # Guía del sistema de fiados
-├── SCHEMAS.md          # Documentación de esquemas
-└── package.json
-```
-
-## 📚 Scripts Disponibles
-
-```bash
-# Desarrollo
-npm run dev          # Inicia el servidor de desarrollo en http://localhost:5000
-
-# Build
-npm run build        # Compila el proyecto para producción
-
-# Producción
-npm start            # Ejecuta el servidor en modo producción
-
-# Verificación
-npm run check        # Verifica tipos de TypeScript sin compilar
-```
-
-## 🔌 API Endpoints
-
-### Categorías
-- `GET /api/categories` - Listar todas las categorías
-- `GET /api/categories/:id` - Obtener una categoría
-- `POST /api/categories` - Crear categoría
-- `PUT /api/categories/:id` - Actualizar categoría
-- `DELETE /api/categories/:id` - Eliminar categoría
-
-### Proveedores
-- `GET /api/suppliers` - Listar todos los proveedores
-- `GET /api/suppliers/:id` - Obtener un proveedor
-- `POST /api/suppliers` - Crear proveedor
-- `PUT /api/suppliers/:id` - Actualizar proveedor
-- `DELETE /api/suppliers/:id` - Eliminar proveedor
-
-### Productos
-- `GET /api/products` - Listar todos los productos
-- `GET /api/products/:id` - Obtener un producto
-- `POST /api/products` - Crear producto
-- `PUT /api/products/:id` - Actualizar producto
-- `DELETE /api/products/:id` - Eliminar producto
-
-### Movimientos
-- `GET /api/movements` - Listar todos los movimientos
-- `POST /api/movements` - Registrar un movimiento (IN, OUT, ADJUSTMENT)
-
-### Fiados (Créditos)
-- `GET /api/credits` - Listar todas las cuentas de crédito
-- `GET /api/credits/customer/:name` - Obtener cuentas por cliente
-- `GET /api/credits/stats` - Estadísticas de fiados
-- `POST /api/credits` - Crear nuevo fiado (descuenta inventario automáticamente)
-- `POST /api/credits/payment` - Registrar un pago
-
-### Estadísticas
-- `GET /api/stats` - Obtener estadísticas del dashboard
-
-## 🎨 Características de UI
-
-- **Tema Oscuro** - Diseño moderno con paleta oscura
-- **Animaciones Suaves** - Transiciones y efectos con Framer Motion
-- **Componentes Accesibles** - Basados en Radix UI
-- **Responsive Design** - Adaptable a todos los tamaños de pantalla
-- **Toasts Notificaciones** - Feedback visual de acciones
-
-## 🔐 Seguridad
-
-- Variables de entorno para configuración sensible
-- `.env` excluido del control de versiones con `.gitignore`
-- Validación de datos con Zod en frontend y backend
-- Manejo de errores robusto con try-catch
-- Validación de stock antes de operaciones críticas
-- Type-safe con TypeScript en todo el stack
-- Constraints a nivel de base de datos (PostgreSQL)
-- Supabase Row Level Security (RLS) disponible
-
-## 📊 Modelo de Datos
-
-### Categorías
-- `id` - ID único (autoincremental)
-- `name` - Nombre de la categoría
-- `description` - Descripción opcional
-
-### Proveedores
-- `id` - ID único (autoincremental)
-- `name` - Nombre del proveedor
-- `contact_info` - Información de contacto
-- `address` - Dirección
-
-### Productos
-- `id` - ID único (autoincremental)
-- `name` - Nombre del producto
-- `description` - Descripción
-- `sku` - Código único del producto
-- `quantity` - Cantidad en stock (con constraint >= 0)
-- `cost_price` - Precio de costo
-- `selling_price` - Precio de venta
-- `category_id` - Relación con categoría (FK)
-- `supplier_id` - Relación con proveedor (FK)
-- `min_stock_level` - Nivel mínimo de stock (default: 5)
-- `image_url` - URL de imagen
-
-### Movimientos
-- `id` - ID único (autoincremental)
-- `product_id` - Relación con producto (FK)
-- `type` - Tipo: `IN` (entrada), `OUT` (salida), `ADJUSTMENT` (ajuste)
-- `quantity` - Cantidad movida
-- `reason` - Razón del movimiento
-- `created_at` - Fecha y hora (timestamp)
-- `user_id` - Usuario que realizó el movimiento
-
-### Cuentas de Crédito (Fiados)
-- `id` - ID único (autoincremental)
-- `customer_name` - Nombre del cliente
-- `product_id` - Relación con producto (FK)
-- `movement_id` - Relación con movimiento OUT (FK)
-- `quantity` - Cantidad fiada
-- `unit_price` - Precio unitario
-- `total_amount` - Monto total (unitario × cantidad)
-- `paid_amount` - Monto pagado (default: 0)
-- `remaining_amount` - Deuda restante
-- `status` - Estado: `pending`, `partial`, `paid`
-- `notes` - Notas opcionales
-- `created_at` - Fecha de creación
-- `updated_at` - Última actualización (trigger automático)
-
-### Pagos de Crédito
-- `id` - ID único (autoincremental)
-- `credit_account_id` - Relación con cuenta de crédito (FK)
-- `amount` - Monto del pago
-- `payment_method` - Método de pago (Efectivo, Transferencia, etc.)
-- `notes` - Notas opcionales
-- `created_at` - Fecha del pago
-
-### Constraints y Validaciones
-- ✅ Stock no puede ser negativo (`positive_quantity`)
-- ✅ Montos de crédito deben ser positivos
-- ✅ Pago no puede exceder deuda restante
-- ✅ `total_amount = unit_price × quantity`
-- ✅ Cascadas automáticas en eliminaciones
-
-## 🤝 Contribuir
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Haz fork del proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## 📝 Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
-
-## 🆘 Soporte
-
-Si encuentras algún problema o tienes preguntas:
-
-1. **Documentación:**
-   - [SUPABASE_SETUP.md](SUPABASE_SETUP.md) - Configuración de Supabase
-   - [FIADOS_SETUP.md](FIADOS_SETUP.md) - Sistema de fiados
-   - [SCHEMAS.md](SCHEMAS.md) - Esquemas de base de datos
-
-2. **Issues:** Consulta la sección de [Issues](https://github.com/Angel17jc/Inventario/issues) del repositorio
-
-3. **Verificaciones comunes:**
-   - Todas las dependencias instaladas (`npm install`)
-   - Variables de entorno configuradas en `.env`
-   - Tablas creadas en Supabase (ejecutar SQLs)
-   - Puerto 5000 disponible
-
-## ⚙️ Configuración de Producción
-
-Para desplegar en producción:
-
-1. **Variables de entorno:**
-   ```env
-   NODE_ENV=production
-   SUPABASE_URL=tu_url_produccion
-   SUPABASE_ANON_KEY=tu_key_produccion
-   ```
-
-2. **Build:**
-   ```bash
-   npm run build
-   ```
-
-3. **Despliegue recomendado:**
-   - **Frontend + Backend:** Vercel, Railway, Render
-   - **Base de datos:** Supabase (ya incluido)
-   - **Assets estáticos:** Cloudflare, Vercel Edge
-
-## 🎯 Roadmap
-
-### En Desarrollo
-- [x] Sistema de fiados/créditos
-- [x] Validación de stock en tiempo real
-- [x] Migración a Supabase REST API
-
-### Planificado
-- [ ] Autenticación de usuarios con Supabase Auth
-- [ ] Sistema de roles y permisos
-- [ ] Reportes y analytics avanzados
-- [ ] Exportación de reportes (PDF, Excel)
-- [ ] Códigos de barras / QR
-- [ ] Notificaciones push
-- [ ] Integración con APIs de proveedores
-- [ ] Aplicación móvil nativa
-- [ ] Modo multi-tienda
-- [ ] Análisis predictivo de inventario
-- [ ] Sincronización offline
-- [ ] Dashboard personalizable
-
-## 🙏 Agradecimientos
-
-- [Supabase](https://supabase.com/) por la infraestructura de base de datos
-- [shadcn/ui](https://ui.shadcn.com/) por los componentes UI
-- [Radix UI](https://www.radix-ui.com/) por los primitivos accesibles
-- [Tailwind CSS](https://tailwindcss.com/) por el framework CSS
-- [TanStack Query](https://tanstack.com/query) por el manejo del estado
-- [Vite](https://vitejs.dev/) por el tooling de desarrollo
+Cada negocio (organización) ve únicamente sus propios datos. Un administrador de plataforma da de alta las empresas y sus usuarios; dentro de cada empresa los permisos se reparten entre propietario, encargado y cajero.
 
 ---
 
-Desarrollado con ❤️ y ☕ por [Angel17jc](https://github.com/Angel17jc)
+## Qué hace
+
+- **Inventario** — productos con costo, precio de venta, categoría, proveedor y nivel mínimo de stock, con alertas cuando algo baja del mínimo.
+- **Movimientos** — entradas, salidas y ajustes. Cada movimiento ajusta el stock y queda registrado con su motivo y su fecha.
+- **Fiados** — cuentas de crédito por cliente. Cada abono descuenta del saldo y la cuenta pasa a `partial` o `paid` sola.
+- **Catálogo** — categorías y proveedores, propios de cada empresa.
+- **Panel** — total de productos, valor del inventario, alertas de stock bajo y actividad de los últimos 7 días.
+- **Clientes** — alta de empresas y usuarios, reservado al administrador de plataforma.
+
+---
+
+## Stack
+
+| Capa | Tecnología |
+|---|---|
+| Frontend | React 18, TypeScript, Vite 7, Tailwind CSS 3, wouter, TanStack Query |
+| Componentes | shadcn/ui sobre Radix, lucide-react, Recharts |
+| Backend | Express 5 sobre Node, desplegado como función serverless |
+| Datos | Supabase (PostgreSQL) con Row Level Security |
+| Autenticación | Supabase Auth (JWT), validado en el servidor |
+| Validación | Zod, con esquemas compartidos entre cliente y servidor |
+| Despliegue | Vercel — estáticos y API en el mismo proyecto |
+| CI/CD | GitHub Actions |
+
+---
+
+## Arquitectura
+
+El frontend y el backend se organizan por **módulo de negocio**, no por tipo de archivo. Cada módulo agrupa lo suyo: rutas, esquemas y consultas.
+
+```
+api/
+  index.ts                  Punto de entrada serverless en Vercel
+
+backend/
+  app.ts                    Construye la app Express (compartida por el servidor local y Vercel)
+  index.ts                  Servidor local con Vite en desarrollo
+  auth.ts                   Autenticación y contexto de organización
+  authorization.ts          Guardas por rol
+  db.ts                     Cliente Supabase con la clave secreta
+  errors.ts                 Traducción de errores a respuestas HTTP
+  storage.ts                Acceso a datos, siempre acotado a una organización
+  platform-service.ts       Alta de empresas y usuarios
+  modules/
+    catalog/                Categorías y proveedores
+    credits/                Fiados
+    inventory/              Productos y movimientos
+    platform/               Administración de la plataforma
+
+frontend/src/
+  App.tsx                   Rutas y guardas de sesión
+  lib/                      Cliente Supabase, sesión, cliente HTTP
+  pages/                    Login (landing), nueva contraseña, panel, 404
+  modules/                  Una carpeta por módulo, con su página y sus consultas
+  components/ui/            Componentes de interfaz
+  components/layout/        Barra lateral
+
+shared/
+  schema.ts                 Tablas, esquemas Zod y reglas compartidas
+  routes.ts                 Contrato de la API
+  tenancy.ts                Tipos de rol
+
+database/
+  schema.sql                Tablas base
+  credits.sql               Tablas de fiados
+  migrations/               Migraciones numeradas, se aplican en orden
+```
+
+### Un solo despliegue
+
+Vercel sirve el frontend compilado como estáticos y ejecuta la misma app Express como función serverless en `/api/*`. No hace falta alojar el backend aparte.
+
+Dos detalles que conviene conocer antes de tocar el backend:
+
+- Vercel ejecuta la función con el **resolvedor ESM nativo de Node**. Todo import relativo necesita extensión `.js` y los alias de `tsconfig` no se resuelven. El CI falla si aparece un import relativo sin extensión.
+- Las variables `VITE_*` se **incrustan en el bundle del navegador** al compilar. El build aborta si `VITE_SUPABASE_ANON_KEY` contiene una clave secreta.
+
+---
+
+## Seguridad
+
+El modelo parte de una idea: **el navegador no toca la base de datos**. El bundle solo usa Supabase para autenticarse; cualquier lectura o escritura pasa por la API de Express, que valida el token, resuelve la organización y aplica el rol.
+
+**Aislamiento entre empresas.** Cada tabla lleva `organization_id`. `storage.ts` acota todas las consultas a la organización del contexto, y claves foráneas compuestas `(id, organization_id)` impiden a nivel de base de datos que una fila apunte a otra de una empresa distinta.
+
+**Row Level Security.** Activo en las nueve tablas y vistas. Los privilegios de tabla están revocados para `anon` y `authenticated`, así que la clave publicable no puede leer nada aunque quede expuesta — que es su naturaleza, va dentro del bundle.
+
+**Autenticación.** El token se valida en el servidor contra Supabase en cada petición. La pertenencia a la organización se comprueba en la base de datos, nunca a partir de un claim del token. Una organización suspendida queda sin acceso a la API.
+
+**Roles.**
+
+| Rol | Puede |
+|---|---|
+| `platform_admin` | Todo, en cualquier empresa |
+| `owner` / `manager` | Leer y escribir productos, categorías, proveedores, movimientos y fiados |
+| `cashier` | Leer, registrar movimientos y cobrar fiados |
+
+**Operaciones atómicas.** Crear un movimiento, vender fiado y registrar un abono se ejecutan en funciones PostgreSQL con bloqueo de fila, así que dos cajas simultáneas no pueden dejar el stock inconsistente. Esas funciones solo son ejecutables por el rol de servicio.
+
+**Sesiones.** Viven en `sessionStorage`: se cierran al cerrar la pestaña y tras 30 minutos sin actividad. La caja suele ser una máquina compartida.
+
+**Respuestas y registros.** Los errores internos no se devuelven al cliente. Los registros contienen la línea de la petición, nunca el cuerpo de la respuesta. Las respuestas de la API llevan `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` y `Cache-Control: no-store`; el HTML añade una Content Security Policy desde `vercel.json`.
+
+**Claves.** `SUPABASE_SERVICE_ROLE_KEY` es una clave secreta (`sb_secret_…`) y solo existe en el servidor. `VITE_SUPABASE_ANON_KEY` es publicable (`sb_publishable_…`) y es pública por diseño.
+
+---
+
+## Puesta en marcha
+
+Necesitas Node 20 o superior y un proyecto de Supabase.
+
+```bash
+npm install
+cp .env.example .env      # y rellena los cuatro valores
+npm run dev               # http://localhost:5000
+```
+
+### Variables de entorno
+
+```
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_...        # solo servidor
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_...      # va al navegador
+```
+
+Las encuentras en Supabase → Settings → API Keys.
+
+### Base de datos
+
+En el SQL Editor de Supabase, en este orden:
+
+1. `database/schema.sql`
+2. `database/credits.sql`
+3. `database/migrations/001` … `007`, por número
+
+Las migraciones asumen la anterior aplicada. Haz copia de seguridad antes de las que mueven datos.
+
+### Autenticación en Supabase
+
+En **Authentication → URL Configuration**:
+
+- **Site URL** — la URL de tu despliegue
+- **Redirect URLs** — esa misma URL con `/**`
+
+Sin esto, el enlace de recuperación de contraseña lleva al sitio equivocado y Supabase **no avisa**: acepta el `redirect_to` y cae en silencio al Site URL.
+
+El servicio de correo integrado de Supabase está limitado a unos pocos envíos por hora y es para pruebas. Para producción, configura SMTP propio en **Authentication → SMTP Settings**.
+
+---
+
+## Scripts
+
+```bash
+npm run dev       # Servidor de desarrollo con Vite, puerto 5000
+npm run build     # Compila frontend y backend a dist/
+npm start         # Ejecuta el build de producción
+npm run check     # Comprueba tipos
+npm test          # Ejecuta los tests
+npm run db:push   # Sincroniza el esquema con Drizzle
+```
+
+---
+
+## API
+
+Todas las rutas bajo `/api` exigen `Authorization: Bearer <token>`, salvo las de salud. Las que operan sobre datos de una empresa exigen además la cabecera `X-Organization-Id`.
+
+| Método | Ruta | Rol mínimo |
+|---|---|---|
+| GET | `/api/health`, `/api/health/database` | público |
+| GET | `/api/organizations/me` | autenticado |
+| POST | `/api/account/password` | autenticado |
+| GET | `/api/products`, `/api/products/:id` | miembro |
+| POST, PUT, DELETE | `/api/products`, `/api/products/:id` | encargado |
+| GET | `/api/movements` | miembro |
+| POST | `/api/movements` | cajero |
+| GET | `/api/categories`, `/api/suppliers` (y `/:id`) | miembro |
+| POST, PUT, DELETE | `/api/categories`, `/api/suppliers` | encargado |
+| GET | `/api/credits`, `/api/credits/stats`, `/api/credits/customer/:nombre` | miembro |
+| POST | `/api/credits`, `/api/credits/payment` | cajero |
+| GET | `/api/stats` | miembro |
+| — | `/api/platform/*` | administrador de plataforma |
+
+---
+
+## Despliegue
+
+El proyecto está configurado para Vercel mediante `vercel.json`:
+
+- **Build** `vite build` · **Salida** `dist/public` · **Framework** Other
+- `/api/*` se reescribe a la función serverless; el resto sirve el SPA
+
+Configura las cuatro variables de entorno en el proyecto de Vercel **antes** del primer build: las `VITE_*` se incrustan al compilar, no se leen en tiempo de ejecución.
+
+### Integración continua
+
+`.github/workflows/ci-cd.yml` ejecuta en cada push y cada pull request: instalación, comprobación de tipos, tests y build. Además falla si:
+
+- la hoja de estilos generada baja de 20 kB, señal de que Tailwind no encuentra los archivos fuente;
+- aparece un import relativo sin extensión `.js`, que rompería la función en Vercel.
+
+Los tres guards nacieron de fallos reales que pasaban tipos, tests y build sin quejarse y solo se manifestaban en producción.
+
+El job de despliegue está inactivo salvo que definas la variable de repositorio `DEPLOY_VIA_ACTIONS` a `true`. Por defecto despliega la integración de Git de Vercel; activar ambos duplicaría los despliegues.
+
+`.github/workflows/supabase-keepalive.yml` llama a diario al endpoint de salud para que el proyecto de Supabase no se pause por inactividad. Usa la variable `APP_URL` y no necesita credenciales.
+
+---
+
+## Documentación adicional
+
+| Archivo | Contenido |
+|---|---|
+| `MODULAR_ARCHITECTURE.md` | Límites entre módulos |
+| `SAAS_ARCHITECTURE.md` | Modelo multi-empresa |
+| `SUPABASE_SETUP.md` | Configuración de Supabase paso a paso |
+| `SCHEMAS.md` | Esquemas de datos |
+| `AUTH_SETUP.md` | Autenticación y roles |
+| `FIADOS_SETUP.md` | Sistema de fiados |
+| `DEPLOYMENT.md` | Notas de despliegue |
+| `TESTING.md` | Estrategia de pruebas |
+
+---
+
+## Licencia
+
+MIT
