@@ -4,6 +4,7 @@ import { api } from "../../../shared/routes.js";
 import { createMovementRequestSchema } from "../../../shared/schema.js";
 import { DatabaseStorage } from "../../storage.js";
 import { createProductSchema, updateProductSchema } from "./inventory-schemas.js";
+import { sendApiError } from "../../errors.js";
 
 type ScopedStorage = (request: Request) => DatabaseStorage;
 interface InventoryRouteDependencies { requireManager: RequestHandler; requireOperator: RequestHandler; scopedStorage: ScopedStorage; }
@@ -29,7 +30,7 @@ export function registerInventoryRoutes(app: Express, { requireManager, requireO
     } catch (error) { if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message }); throw error; }
   });
 
-  app.delete(api.products.delete.path, requireManager, async (req, res) => { try { await scopedStorage(req).deleteProduct(Number(req.params.id)); return res.status(204).send(); } catch (error: any) { return res.status(400).json({ message: error.message || "Error al eliminar el producto" }); } });
+  app.delete(api.products.delete.path, requireManager, async (req, res) => { try { await scopedStorage(req).deleteProduct(Number(req.params.id)); return res.status(204).send(); } catch (error) { return sendApiError(res, error); } });
   app.get(api.movements.list.path, async (req, res) => res.json(await scopedStorage(req).getMovements()));
-  app.post(api.movements.create.path, requireOperator, async (req, res) => { try { return res.status(201).json(await scopedStorage(req).createMovement(createMovementRequestSchema.parse(req.body))); } catch (error: any) { if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message }); return res.status(400).json({ message: error.message }); } });
+  app.post(api.movements.create.path, requireOperator, async (req, res) => { try { return res.status(201).json(await scopedStorage(req).createMovement(createMovementRequestSchema.parse(req.body))); } catch (error) { if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message }); return sendApiError(res, error); } });
 }

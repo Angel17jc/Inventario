@@ -65,15 +65,21 @@ export async function requireOrganizationContext(req: Request, res: Response, ne
     return next();
   }
 
+  // The organization's own status is read alongside the membership: suspending
+  // a tenant has to cut off its API access, and filtering by status in the
+  // browser only hides the data from the interface.
   const { data, error } = await (supabase as any)
     .from("organization_memberships")
-    .select("role")
+    .select("role, organization:organizations(status)")
     .eq("organization_id", organizationId)
     .eq("user_id", req.user.id)
     .eq("status", "active")
     .maybeSingle();
   if (error) return next(error);
   if (!data || !isOrganizationRole(data.role)) return res.status(403).json({ message: "No access to this organization" });
+  if (data.organization?.status !== "active") {
+    return res.status(403).json({ message: "This organization is suspended" });
+  }
 
   req.organization = { id: organizationId, role: data.role };
   return next();

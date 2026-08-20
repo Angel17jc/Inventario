@@ -25,6 +25,19 @@ export function log(message: string, source = "express") {
 export async function createApp(httpServer: Server) {
   const app = express();
 
+  // Express advertises itself by default, which only helps someone matching
+  // known vulnerabilities to the stack.
+  app.disable("x-powered-by");
+
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    // API responses are private to the caller and must not be cached anywhere.
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
+
   app.use(
     express.json({
       verify: (req, _res, buf) => {
@@ -35,29 +48,16 @@ export async function createApp(httpServer: Server) {
 
   app.use(express.urlencoded({ extended: false }));
 
+  // Only the request line is logged. Response bodies used to be written here,
+  // which sent customer names, balances and stock figures to the platform's log
+  // storage on every call.
   app.use((req, res, next) => {
     const start = Date.now();
-    const path = req.path;
-    let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-    const originalResJson = res.json;
-    res.json = function (bodyJson, ...args) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.apply(res, [bodyJson, ...args]);
-    };
-
     res.on("finish", () => {
-      const duration = Date.now() - start;
-      if (path.startsWith("/api")) {
-        let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-        if (capturedJsonResponse) {
-          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-        }
-
-        log(logLine);
+      if (req.path.startsWith("/api")) {
+        log(`${req.method} ${req.path} ${res.statusCode} in ${Date.now() - start}ms`);
       }
     });
-
     next();
   });
 
