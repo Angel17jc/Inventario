@@ -1,23 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest } from "@shared/schema";
 import { authenticatedFetch } from "@/lib/auth";
-import { getApiErrorMessage } from "@/lib/api-errors";
+import { throwApiError } from "@/lib/api-errors";
 
 async function fetchCredits(): Promise<CreditAccountWithDetails[]> {
   const response = await authenticatedFetch("/api/credits");
-  if (!response.ok) throw new Error(await getApiErrorMessage(response, "No se pudieron cargar los fiados."));
+  if (!response.ok) await throwApiError(response, "No se pudieron cargar los fiados.");
   return response.json();
 }
 
 async function fetchCreditsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]> {
   const response = await authenticatedFetch(`/api/credits/customer/${encodeURIComponent(customerName)}`);
-  if (!response.ok) throw new Error(await getApiErrorMessage(response, "No se pudieron cargar los fiados del cliente."));
+  if (!response.ok) await throwApiError(response, "No se pudieron cargar los fiados del cliente.");
   return response.json();
 }
 
 async function fetchCreditsStats(): Promise<CreditsStats> {
   const response = await authenticatedFetch("/api/credits/stats");
-  if (!response.ok) throw new Error(await getApiErrorMessage(response, "No se pudieron cargar las estadísticas de fiados."));
+  if (!response.ok) await throwApiError(response, "No se pudieron cargar las estadísticas de fiados.");
   return response.json();
 }
 
@@ -27,7 +27,7 @@ async function createCredit(credit: CreateCreditAccountRequest) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(credit),
   });
-  if (!response.ok) throw new Error(await getApiErrorMessage(response, "No se pudo registrar el fiado."));
+  if (!response.ok) await throwApiError(response, "No se pudo registrar el fiado.");
   return response.json();
 }
 
@@ -37,7 +37,7 @@ async function createPayment(payment: CreateCreditPaymentRequest) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payment),
   });
-  if (!response.ok) throw new Error(await getApiErrorMessage(response, "No se pudo registrar el pago."));
+  if (!response.ok) await throwApiError(response, "No se pudo registrar el pago.");
   return response.json();
 }
 

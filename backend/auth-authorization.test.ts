@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { NextFunction, Request, Response } from "express";
 import { requireOrganizationRole } from "./authorization.js";
+import { errorCodes } from "../shared/errors.js";
 
 function createResponse() {
   const result = { statusCode: 200, body: undefined as unknown };
@@ -36,7 +37,7 @@ test("allows owners and managers to use manager operations", () => {
 test("denies cashiers from manager operations", () => {
   const { nextCalled, result } = runRoleGuard("cashier", ["owner", "manager"]);
   assert.equal(nextCalled, false);
-  assert.deepEqual(result, { statusCode: 403, body: { message: "Insufficient permissions" } });
+  assert.deepEqual(result, { statusCode: 403, body: { code: errorCodes.forbidden, message: "Tu rol no permite realizar esta acción." } });
 });
 
 test("allows the platform administrator through organization role guards", () => {
@@ -49,5 +50,5 @@ test("requires an organization context before role validation", () => {
   let nextCalled = false;
   requireOrganizationRole("owner")({} as Request, response, (() => { nextCalled = true; }) as NextFunction);
   assert.equal(nextCalled, false);
-  assert.deepEqual(result, { statusCode: 401, body: { message: "Organization context required" } });
+  assert.deepEqual(result, { statusCode: 401, body: { code: errorCodes.organizationRequired, message: "No hay una empresa seleccionada." } });
 });

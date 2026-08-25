@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { supabase } from "./db.js";
+import { fail } from "./errors.js";
+import { errorCodes } from "../shared/errors.js";
 import type { OrganizationRole } from "../shared/tenancy.js";
 export { requireOrganizationRole } from "./authorization.js";
 
@@ -38,10 +40,10 @@ function isOrganizationRole(role: unknown): role is OrganizationRole {
 
 export async function requireAuthenticatedUser(req: Request, res: Response, next: NextFunction) {
   const token = getBearerToken(req);
-  if (!token) return res.status(401).json({ message: "Authentication required" });
+  if (!token) return fail(res, 401, errorCodes.unauthenticated, "Inicia sesión para continuar.");
 
   const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) return res.status(401).json({ message: "Invalid or expired session" });
+  if (error || !user) return fail(res, 401, errorCodes.sessionExpired, "Tu sesión caducó. Vuelve a iniciar sesión.");
 
   // `role: admin` is accepted only during the migration from the legacy release.
   const isPlatformAdmin = user.app_metadata.platform_role === "platform_admin" || user.app_metadata.role === "admin";
@@ -50,17 +52,17 @@ export async function requireAuthenticatedUser(req: Request, res: Response, next
 }
 
 export async function requireOrganizationContext(req: Request, res: Response, next: NextFunction) {
-  if (!req.user) return res.status(401).json({ message: "Authentication required" });
+  if (!req.user) return fail(res, 401, errorCodes.unauthenticated, "Inicia sesión para continuar.");
 
   const organizationId = req.header("x-organization-id");
   if (!organizationId || !uuidPattern.test(organizationId)) {
-    return res.status(400).json({ message: "A valid X-Organization-Id header is required" });
+    return fail(res, 400, errorCodes.organizationRequired, "No hay una empresa seleccionada. Vuelve a entrar y elige una.");
   }
 
   if (req.user.isPlatformAdmin) {
     const { data, error } = await (supabase as any).from("organizations").select("id").eq("id", organizationId).maybeSingle();
     if (error) return next(error);
-    if (!data) return res.status(404).json({ message: "Organization not found" });
+    if (!data) return fail(res, 404, errorCodes.notFound, "No encontramos esa empresa.");
     req.organization = { id: organizationId, role: "platform_admin" };
     return next();
   }
@@ -76,9 +78,9 @@ export async function requireOrganizationContext(req: Request, res: Response, ne
     .eq("status", "active")
     .maybeSingle();
   if (error) return next(error);
-  if (!data || !isOrganizationRole(data.role)) return res.status(403).json({ message: "No access to this organization" });
+  if (!data || !isOrganizationRole(data.role)) return fail(res, 403, errorCodes.forbidden, "No tienes acceso a esta empresa.");
   if (data.organization?.status !== "active") {
-    return res.status(403).json({ message: "This organization is suspended" });
+    return fail(res, 403, errorCodes.organizationSuspended, "Esta empresa está suspendida. Contacta al administrador.");
   }
 
   req.organization = { id: organizationId, role: data.role };
@@ -86,7 +88,7 @@ export async function requireOrganizationContext(req: Request, res: Response, ne
 }
 
 export function requirePlatformAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!req.user?.isPlatformAdmin) return res.status(403).json({ message: "Platform administrator permissions required" });
+  if (!req.user?.isPlatformAdmin) return fail(res, 403, errorCodes.forbidden, "Necesitas permisos de administrador de plataforma.");
   return next();
 }
 

@@ -2,6 +2,8 @@ import type { Express, Request, RequestHandler } from "express";
 import { z } from "zod";
 import { api } from "../../../shared/routes.js";
 import { DatabaseStorage } from "../../storage.js";
+import { fail } from "../../errors.js";
+import { errorCodes } from "../../../shared/errors.js";
 
 type ScopedStorage = (request: Request) => DatabaseStorage;
 
@@ -17,7 +19,7 @@ export function registerCatalogRoutes(app: Express, { requireManager, scopedStor
 
   app.get(api.categories.get.path, async (req, res) => {
     const category = await scopedStorage(req).getCategory(Number(req.params.id));
-    if (!category) return res.status(404).json({ message: "Category not found" });
+    if (!category) return fail(res, 404, errorCodes.notFound, "No encontramos esa categoría.");
     return res.json(category);
   });
 
@@ -52,7 +54,7 @@ export function registerCatalogRoutes(app: Express, { requireManager, scopedStor
 
   app.get(api.suppliers.get.path, async (req, res) => {
     const supplier = await scopedStorage(req).getSupplier(Number(req.params.id));
-    if (!supplier) return res.status(404).json({ message: "Supplier not found" });
+    if (!supplier) return fail(res, 404, errorCodes.notFound, "No encontramos ese proveedor.");
     return res.json(supplier);
   });
 

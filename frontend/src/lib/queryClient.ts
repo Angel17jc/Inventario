@@ -1,5 +1,8 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryFunction } from "@tanstack/react-query";
 import { authenticatedFetch } from "./auth";
+import { isSessionExpired } from "./api-errors";
+import { supabase } from "./supabase";
+import { toast } from "@/hooks/use-toast";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -39,7 +42,30 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+/**
+ * A rejected token means the person has to sign in again, and every screen
+ * would otherwise report it in its own words. Handling it once, where every
+ * query and mutation passes through, keeps that out of the pages: signing out
+ * lets the router return them to the sign-in screen on its own.
+ */
+let signingOut = false;
+
+function handleExpiredSession(error: unknown) {
+  if (!isSessionExpired(error) || signingOut) return;
+  signingOut = true;
+  toast({
+    title: "Tu sesión caducó",
+    description: "Vuelve a iniciar sesión para continuar. Lo que estabas escribiendo se conservó.",
+    variant: "destructive",
+  });
+  void supabase.auth.signOut().finally(() => {
+    signingOut = false;
+  });
+}
+
 export const queryClient = new QueryClient({
+  queryCache: new QueryCache({ onError: handleExpiredSession }),
+  mutationCache: new MutationCache({ onError: handleExpiredSession }),
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),

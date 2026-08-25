@@ -1,5 +1,5 @@
 import { authenticatedFetch } from "@/lib/auth";
-import { getApiErrorMessage } from "@/lib/api-errors";
+import { throwApiError } from "@/lib/api-errors";
 
 export type OrganizationStaffMember = {
   id: string;
@@ -25,7 +25,7 @@ type CreateOrganizationUserInput = {
 };
 
 async function parseResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
-  if (!response.ok) throw new Error(await getApiErrorMessage(response, fallbackMessage));
+  if (!response.ok) await throwApiError(response, fallbackMessage);
   return response.json() as Promise<T>;
 }
 

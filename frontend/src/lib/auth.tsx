@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { arrivedFromRecoveryLink, supabase } from "./supabase";
+import { NetworkError, describeNetworkFailure } from "./api-errors";
 
 export type Role = "platform_admin" | "owner" | "manager" | "cashier";
 
@@ -173,5 +174,13 @@ export async function authenticatedFetch(input: RequestInfo | URL, init: Request
   if (session?.access_token) headers.set("Authorization", `Bearer ${session.access_token}`);
   const organizationId = sessionStorage.getItem("activeOrganizationId");
   if (organizationId) headers.set("X-Organization-Id", organizationId);
-  return fetch(input, { ...init, headers });
+
+  try {
+    return await fetch(input, { ...init, headers });
+  } catch {
+    // fetch only rejects when the request never reached the server: no
+    // connection, DNS failure, the request cancelled. Callers deal in
+    // responses, so this becomes an error they can describe to a person.
+    throw new NetworkError(describeNetworkFailure());
+  }
 }

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { authenticatedFetch } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
+import { describeError } from "@/lib/api-errors";
 import {
   createOrganization,
   createOrganizationUser,
@@ -33,7 +34,7 @@ export default function Platform() {
       await updateOrganizationStaffMember(userId, userForm.organizationId, changes);
       setStaff(await listOrganizationStaff(userForm.organizationId));
     } catch (error) {
-      toast({ title: "Error", description: error instanceof Error ? error.message : "No fue posible actualizar el usuario", variant: "destructive" });
+      toast({ title: "Error", description: describeError(error, "No fue posible actualizar el usuario"), variant: "destructive" });
     }
   }
 
@@ -54,7 +55,7 @@ export default function Platform() {
       setForm({ name: "", slug: "", ownerEmail: "", ownerPassword: "" });
       toast({ title: "Cliente creado", description: `Se creó ${body.organization.name} y su usuario propietario.` });
     } catch (error) {
-      toast({ title: "Error", description: error instanceof Error ? error.message : "No fue posible crear el cliente", variant: "destructive" });
+      toast({ title: "Error", description: describeError(error, "No fue posible crear el cliente"), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -68,7 +69,7 @@ export default function Platform() {
       setUserForm({ organizationId: userForm.organizationId, email: "", password: "", role: "cashier" });
       toast({ title: "Usuario creado", description: `${body.email} fue agregado como ${body.role}.` });
     } catch (error) {
-      toast({ title: "Error", description: error instanceof Error ? error.message : "No fue posible crear el usuario", variant: "destructive" });
+      toast({ title: "Error", description: describeError(error, "No fue posible crear el usuario"), variant: "destructive" });
     } finally {
       setIsUserSubmitting(false);
     }

@@ -12,12 +12,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { discardDraft, useDraft } from "@/lib/use-draft";
+import { DataLoadError } from "@/components/ui/data-load-error";
+import { describeError } from "@/lib/api-errors";
 import { DollarSign, Users, AlertCircle, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { CreditAccountWithDetails } from "@shared/schema";
 
 export default function Credits() {
-  const { data: credits = [], isLoading } = useCredits();
+  const { data: credits = [], isLoading, isError, error, refetch, isFetching } = useCredits();
   const { data: stats } = useCreditsStats();
   const { data: products = [] } = useProducts();
   const createCredit = useCreateCredit();
@@ -62,8 +64,8 @@ export default function Credits() {
       if (creditDraftKey) discardDraft(creditDraftKey);
       setIsCreateOpen(false);
       setFormData({ customerName: "", productId: "", quantity: "", notes: "" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "No se pudo registrar el fiado", description: describeError(error, "Vuelve a intentarlo en unos momentos."), variant: "destructive" });
     }
   };
 
@@ -83,8 +85,8 @@ export default function Credits() {
       setIsPaymentOpen(false);
       setSelectedCredit(null);
       setPaymentData({ amount: "", paymentMethod: "", notes: "" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "No se pudo registrar el abono", description: describeError(error, "Vuelve a intentarlo en unos momentos."), variant: "destructive" });
     }
   };
 
@@ -230,7 +232,17 @@ export default function Credits() {
 
       {/* Lista de créditos agrupada por cliente */}
       <div className="space-y-4">
-        {Object.entries(creditsByCustomer).length === 0 ? (
+        {isError ? (
+          <Card>
+            <CardContent className="p-0">
+              <DataLoadError
+                message={describeError(error, "No se pudieron cargar los fiados.")}
+                onRetry={() => refetch()}
+                isRetrying={isFetching}
+              />
+            </CardContent>
+          </Card>
+        ) : Object.entries(creditsByCustomer).length === 0 ? (
           <Card>
             <CardContent className="flex items-center justify-center h-32">
               <p className="text-muted-foreground">No hay cuentas de crédito registradas</p>

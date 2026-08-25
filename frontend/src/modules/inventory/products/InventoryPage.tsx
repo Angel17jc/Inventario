@@ -4,6 +4,8 @@ import { useProducts, useDeleteProduct } from "@/modules/inventory/products/prod
 import { ProductModal } from "./components/ProductModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DataLoadError } from "@/components/ui/data-load-error";
+import { describeError } from "@/lib/api-errors";
 import { Search, Plus, Edit2, Trash2, Package } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import {
@@ -27,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function Inventory() {
-  const { data: products, isLoading } = useProducts();
+  const { data: products, isLoading, isError, error, refetch, isFetching } = useProducts();
   const deleteProduct = useDeleteProduct();
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -81,6 +83,12 @@ export default function Inventory() {
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
               </div>
+            ) : isError ? (
+              <DataLoadError
+                message={describeError(error, "No se pudieron cargar los productos.")}
+                onRetry={() => refetch()}
+                isRetrying={isFetching}
+              />
             ) : (
               <div className="rounded-xl border border-border overflow-hidden">
                 <Table>

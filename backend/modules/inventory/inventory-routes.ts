@@ -4,19 +4,20 @@ import { api } from "../../../shared/routes.js";
 import { createMovementRequestSchema } from "../../../shared/schema.js";
 import { DatabaseStorage } from "../../storage.js";
 import { createProductSchema, updateProductSchema } from "./inventory-schemas.js";
-import { sendApiError } from "../../errors.js";
+import { fail, sendApiError } from "../../errors.js";
+import { errorCodes } from "../../../shared/errors.js";
 
 type ScopedStorage = (request: Request) => DatabaseStorage;
 interface InventoryRouteDependencies { requireManager: RequestHandler; requireOperator: RequestHandler; scopedStorage: ScopedStorage; }
 
 export function registerInventoryRoutes(app: Express, { requireManager, requireOperator, scopedStorage }: InventoryRouteDependencies) {
   app.get(api.products.list.path, async (req, res) => res.json(await scopedStorage(req).getProducts()));
-  app.get(api.products.get.path, async (req, res) => { const product = await scopedStorage(req).getProduct(Number(req.params.id)); return product ? res.json(product) : res.status(404).json({ message: "Product not found" }); });
+  app.get(api.products.get.path, async (req, res) => { const product = await scopedStorage(req).getProduct(Number(req.params.id)); return product ? res.json(product) : fail(res, 404, errorCodes.notFound, "No encontramos ese producto."); });
 
   app.post(api.products.create.path, requireManager, async (req, res) => {
     try {
       const input = createProductSchema.parse(req.body);
-      if (input.sku && await scopedStorage(req).getProductBySku(String(input.sku))) return res.status(409).json({ message: "SKU already exists" });
+      if (input.sku && await scopedStorage(req).getProductBySku(String(input.sku))) return fail(res, 409, errorCodes.conflict, "Ya existe un producto con ese código SKU.");
       return res.status(201).json(await scopedStorage(req).createProduct(input as any));
     } catch (error) { if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message }); throw error; }
   });
@@ -25,7 +26,7 @@ export function registerInventoryRoutes(app: Express, { requireManager, requireO
     try {
       const input = updateProductSchema.parse(req.body); const productId = Number(req.params.id);
       const existing = input.sku ? await scopedStorage(req).getProductBySku(String(input.sku)) : undefined;
-      if (existing && existing.id !== productId) return res.status(409).json({ message: "SKU already exists" });
+      if (existing && existing.id !== productId) return fail(res, 409, errorCodes.conflict, "Ya existe un producto con ese código SKU.");
       return res.json(await scopedStorage(req).updateProduct(productId, input as any));
     } catch (error) { if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message }); throw error; }
   });

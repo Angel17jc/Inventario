@@ -3,6 +3,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { useMovements, useCreateMovement } from "@/modules/inventory/movements/movement-queries";
 import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
+import { DataLoadError } from "@/components/ui/data-load-error";
+import { describeError } from "@/lib/api-errors";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +28,7 @@ const formSchema = insertMovementSchema.extend({
 type MovementFormValues = z.infer<typeof formSchema>;
 
 export default function Movements() {
-  const { data: movements, isLoading } = useMovements();
+  const { data: movements, isLoading, isError, error, refetch, isFetching } = useMovements();
   const { data: products } = useProducts();
   const createMovement = useCreateMovement();
 
@@ -164,6 +166,12 @@ export default function Movements() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                   </div>
+                ) : isError ? (
+                  <DataLoadError
+                    message={describeError(error, "No se pudieron cargar los movimientos.")}
+                    onRetry={() => refetch()}
+                    isRetrying={isFetching}
+                  />
                 ) : movements?.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">No hay movimientos registrados.</p>
                 ) : (
