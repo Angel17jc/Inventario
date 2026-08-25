@@ -10,8 +10,9 @@ import { insertProductSchema } from "@shared/schema";
 import { useCreateProduct, useUpdateProduct } from "@/hooks/use-products";
 import { useCategories } from "@/hooks/use-categories";
 import { useSuppliers } from "@/hooks/use-suppliers";
+import { discardDraft, useDraft } from "@/lib/use-draft";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 // Extend schema for form validation to handle string inputs for numbers
 const formSchema = insertProductSchema.extend({
@@ -82,6 +83,16 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
     }
   }, [product, form]);
 
+  const draftKey = open ? `product:${product?.id ?? "new"}` : null;
+  const restoreDraft = useCallback((draft: ProductFormValues) => form.reset(draft), [form]);
+  useDraft(draftKey, form.watch(), restoreDraft);
+
+  // Closing on purpose abandons the draft; the tab going away does not.
+  function closeAndDiscard() {
+    if (draftKey) discardDraft(draftKey);
+    onOpenChange(false);
+  }
+
   function onSubmit(data: ProductFormValues) {
     // Convert numeric decimal values to strings as expected by schema
     const submitData = {
@@ -92,17 +103,17 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
 
     if (isEditing) {
       updateProduct.mutate({ id: product.id, ...submitData }, {
-        onSuccess: () => onOpenChange(false),
+        onSuccess: closeAndDiscard,
       });
     } else {
       createProduct.mutate(submitData, {
-        onSuccess: () => onOpenChange(false),
+        onSuccess: closeAndDiscard,
       });
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : closeAndDiscard())}>
       <DialogContent className="sm:max-w-2xl bg-card border-border shadow-2xl">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl text-primary">

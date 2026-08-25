@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
+import { discardDraft, useDraft } from "@/lib/use-draft";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Edit2, Loader2, Plus, Tag, Trash2 } from "lucide-react";
 import { createCategoryRequestSchema } from "@shared/schema";
@@ -24,7 +25,12 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<EditableCategory | null>(null);
   const form = useForm<CategoryFormValues>({ resolver: zodResolver(createCategoryRequestSchema), defaultValues: { name: "", description: "" } });
 
+  const draftKey = isModalOpen ? `category:${editingCategory?.id ?? "new"}` : null;
+  const restoreDraft = useCallback((draft: CategoryFormValues) => form.reset(draft), [form]);
+  useDraft(draftKey, form.watch(), restoreDraft);
+
   function closeModal() {
+    if (draftKey) discardDraft(draftKey);
     setIsModalOpen(false);
     setEditingCategory(null);
     form.reset();

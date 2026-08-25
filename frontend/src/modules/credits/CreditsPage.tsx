@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useCredits, useCreditsStats, useCreateCredit, useCreatePayment } from "./credit-queries";
 import { useProducts } from "@/modules/inventory/products/product-queries";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { discardDraft, useDraft } from "@/lib/use-draft";
 import { DollarSign, Users, AlertCircle, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { CreditAccountWithDetails } from "@shared/schema";
@@ -40,6 +41,14 @@ export default function Credits() {
     notes: "",
   });
 
+  const creditDraftKey = isCreateOpen ? "credit:new" : null;
+  const restoreCreditDraft = useCallback((draft: typeof formData) => setFormData(draft), []);
+  useDraft(creditDraftKey, formData, restoreCreditDraft);
+
+  const paymentDraftKey = isPaymentOpen && selectedCredit ? `credit-payment:${selectedCredit.id}` : null;
+  const restorePaymentDraft = useCallback((draft: typeof paymentData) => setPaymentData(draft), []);
+  useDraft(paymentDraftKey, paymentData, restorePaymentDraft);
+
   const handleCreateCredit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -50,6 +59,7 @@ export default function Credits() {
         notes: formData.notes || undefined,
       });
       toast({ title: "Crédito registrado exitosamente" });
+      if (creditDraftKey) discardDraft(creditDraftKey);
       setIsCreateOpen(false);
       setFormData({ customerName: "", productId: "", quantity: "", notes: "" });
     } catch (error: any) {
@@ -69,6 +79,7 @@ export default function Credits() {
         notes: paymentData.notes || undefined,
       });
       toast({ title: "Pago registrado exitosamente" });
+      if (paymentDraftKey) discardDraft(paymentDraftKey);
       setIsPaymentOpen(false);
       setSelectedCredit(null);
       setPaymentData({ amount: "", paymentMethod: "", notes: "" });
