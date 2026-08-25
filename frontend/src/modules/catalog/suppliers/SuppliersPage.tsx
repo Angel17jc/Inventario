@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
+import { discardDraft, useDraft } from "@/lib/use-draft";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Edit2, Loader2, Plus, Trash2, Truck } from "lucide-react";
 import { createSupplierRequestSchema } from "@shared/schema";
@@ -22,7 +23,17 @@ export default function SuppliersPage() {
   const [editingSupplier, setEditingSupplier] = useState<EditableSupplier | null>(null);
   const form = useForm<SupplierFormValues>({ resolver: zodResolver(createSupplierRequestSchema), defaultValues: { name: "", contactInfo: "", address: "" } });
 
-  function closeModal() { setIsModalOpen(false); setEditingSupplier(null); form.reset(); }
+  // Distinct per record, so editing one supplier never restores another draft.
+  const draftKey = isModalOpen ? `supplier:${editingSupplier?.id ?? "new"}` : null;
+  const restoreDraft = useCallback((draft: SupplierFormValues) => form.reset(draft), [form]);
+  useDraft(draftKey, form.watch(), restoreDraft);
+
+  function closeModal() {
+    if (draftKey) discardDraft(draftKey);
+    setIsModalOpen(false);
+    setEditingSupplier(null);
+    form.reset();
+  }
   function openNewSupplier() { setEditingSupplier(null); form.reset({ name: "", contactInfo: "", address: "" }); setIsModalOpen(true); }
   function editSupplier(supplier: EditableSupplier) { setEditingSupplier(supplier); form.reset({ name: supplier.name, contactInfo: supplier.contactInfo ?? "", address: supplier.address ?? "" }); setIsModalOpen(true); }
   function submitSupplier(data: SupplierFormValues) {
