@@ -48,19 +48,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isOrganizationsLoading, setIsOrganizationsLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(arrivedFromRecoveryLink);
 
+  // Keyed on who is signed in, not on the session object. Returning to the tab
+  // makes supabase-js re-emit the session, and a new object identity used to
+  // re-run this effect, raise the loading flag and blank the whole interface —
+  // taking any half-filled form down with it. The organizations a user belongs
+  // to do not change because their token was renewed.
+  const userId = session?.user.id ?? null;
+  const hasLoadedOrganizations = useRef(false);
+
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setOrganizations([]);
       setIsOrganizationsLoading(false);
+      hasLoadedOrganizations.current = false;
       return;
     }
-    setIsOrganizationsLoading(true);
+    // Only the first load may block the interface; later refreshes happen in
+    // the background.
+    if (!hasLoadedOrganizations.current) setIsOrganizationsLoading(true);
     authenticatedFetch("/api/organizations/me")
       .then(async (response) => response.ok ? response.json() : [])
       .then((data: Organization[]) => {
         const activeOrganizations = data.filter((organization) => organization.status === "active");
-        const nextOrganizationId = activeOrganizationId && activeOrganizations.some((organization) => organization.id === activeOrganizationId)
-          ? activeOrganizationId
+        const storedOrganizationId = sessionStorage.getItem("activeOrganizationId");
+        const nextOrganizationId = storedOrganizationId && activeOrganizations.some((organization) => organization.id === storedOrganizationId)
+          ? storedOrganizationId
           : activeOrganizations[0]?.id ?? null;
 
         setOrganizations(activeOrganizations);
@@ -72,8 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           sessionStorage.removeItem("activeOrganizationId");
         }
       })
-      .finally(() => setIsOrganizationsLoading(false));
-  }, [session]);
+      .finally(() => {
+        hasLoadedOrganizations.current = true;
+        setIsOrganizationsLoading(false);
+      });
+  }, [userId]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
