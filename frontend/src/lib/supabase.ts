@@ -19,6 +19,22 @@ function cameFromRecoveryLink() {
 
 export const arrivedFromRecoveryLink = cameFromRecoveryLink();
 
+// A recovery link is single use, and any GET consumes it: mail providers and
+// security scanners that prefetch links in messages burn the token before the
+// recipient clicks. Supabase then redirects with the failure in the fragment
+// instead of the tokens, and without reading it the app would show a form that
+// cannot possibly work.
+function readRecoveryLinkError() {
+  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+  const code = fragment.get("error_code") ?? query.get("error_code");
+  const reason = fragment.get("error") ?? query.get("error");
+  if (!code && !reason) return null;
+  return code === "otp_expired" ? "expired" : "invalid";
+}
+
+export const recoveryLinkError = readRecoveryLinkError();
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // The till is a shared machine: the session must not outlive the tab, so it

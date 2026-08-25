@@ -1,8 +1,8 @@
 import { useId, useMemo, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
-import { Check, Eye, EyeOff, Loader2, ShieldCheck, X } from "lucide-react";
+import { Check, Eye, EyeOff, Loader2, MailWarning, ShieldCheck, X } from "lucide-react";
 import { passwordRules } from "@shared/schema";
-import { supabase } from "@/lib/supabase";
+import { recoveryLinkError, supabase } from "@/lib/supabase";
 import { authenticatedFetch, useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +63,32 @@ function Requirement({ isMet, children }: { isMet: boolean; children: string }) 
   );
 }
 
+function ExpiredLink({ onRequestNew }: { onRequestNew: () => void }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-background p-6">
+      <div className="w-full max-w-md space-y-6 rounded-2xl border border-border bg-card p-8 text-center shadow-2xl">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-destructive/15 text-destructive">
+          <MailWarning />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-white">Este enlace ya no sirve</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {recoveryLinkError === "expired"
+              ? "Los enlaces de recuperación caducan y solo se pueden usar una vez. El tuyo ya fue abierto o pasó su tiempo de validez."
+              : "El enlace no es válido. Puede que se haya cortado al copiarlo o que ya se haya usado."}
+          </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Pide uno nuevo y ábrelo cuanto antes, desde el mismo dispositivo donde vas a entrar.
+          </p>
+        </div>
+        <Button className="w-full" type="button" onClick={onRequestNew}>
+          Pedir un enlace nuevo
+        </Button>
+      </div>
+    </main>
+  );
+}
+
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
   const { completePasswordRecovery } = useAuth();
@@ -102,6 +128,19 @@ export default function ResetPassword() {
     completePasswordRecovery();
     await supabase.auth.signOut();
     setLocation("/iniciar-sesion", { replace: true });
+  }
+
+  if (recoveryLinkError) {
+    // Clearing the flag matters: the router keeps rendering this screen while
+    // a recovery is considered in progress.
+    return (
+      <ExpiredLink
+        onRequestNew={() => {
+          completePasswordRecovery();
+          setLocation("/recuperar-acceso", { replace: true });
+        }}
+      />
+    );
   }
 
   return (
