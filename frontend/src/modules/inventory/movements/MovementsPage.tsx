@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { PresentationPicker } from "@/modules/inventory/presentations/PresentationPicker";
+import { usePresentations } from "@/modules/inventory/presentations/presentation-queries";
+import { useToast } from "@/hooks/use-toast";
+import { toBaseUnits } from "@shared/schema";
 import { useMovements, useCreateMovement } from "@/modules/inventory/movements/movement-queries";
 import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
@@ -20,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 // Schema for the movement form
 const formSchema = insertMovementSchema.extend({
+  packId: z.coerce.number().int().positive().nullable().optional(),
   quantity: z.coerce.number().min(1, "La cantidad debe ser al menos 1"),
   productId: z.coerce.number().min(1, "Selecciona un producto"),
   type: z.enum(["IN", "OUT", "ADJUSTMENT"]),
@@ -31,6 +36,7 @@ export default function Movements() {
   const { data: movements, isLoading, isError, error, refetch, isFetching } = useMovements();
   const { data: products } = useProducts();
   const createMovement = useCreateMovement();
+  const { toast } = useToast();
 
   const form = useForm<MovementFormValues>({
     resolver: zodResolver(formSchema),
@@ -38,16 +44,37 @@ export default function Movements() {
       type: "IN",
       quantity: 1,
       reason: "",
+      packId: null,
     },
   });
 
+  const selectedProductId = Number(form.watch("productId")) || undefined;
+  const presentations = usePresentations(selectedProductId).data ?? [];
+
   function onSubmit(data: MovementFormValues) {
+    const product = products?.find((candidate) => candidate.id === Number(data.productId));
+    const presentation = presentations.find((candidate) => candidate.id === data.packId) ?? null;
+    const leaving = data.type === "OUT" ? toBaseUnits(Number(data.quantity), presentation) : 0;
+    const remaining = (product?.quantity ?? 0) - leaving;
+
     createMovement.mutate(data, {
       onSuccess: () => {
+        // Registering the sale is never refused, so the person is told what it
+        // left behind rather than being stopped beforehand.
+        if (data.type === "OUT" && remaining <= 0 && product) {
+          toast({
+            title: remaining < 0 ? `${product.name} quedó en negativo` : `${product.name} se agotó`,
+            description: remaining < 0
+              ? `El registro dice ${remaining} ${product.unitLabel ?? "unidad"}: se vendió más de lo que había contado. Ajusta el inventario cuando puedas.`
+              : "No queda nada en el registro. Repón antes de la próxima venta.",
+            variant: "destructive",
+          });
+        }
         form.reset({
           type: "IN",
           quantity: 1,
           reason: "",
+          packId: null,
         });
       },
     });
@@ -134,6 +161,16 @@ export default function Movements() {
                       )}
                     />
 
+                    <PresentationPicker
+                      productId={form.watch("productId") || undefined}
+                      unitLabel={
+                        products?.find((product) => product.id === Number(form.watch("productId")))?.unitLabel ?? "unidad"
+                      }
+                      value={form.watch("packId") ?? null}
+                      onChange={(packId) => form.setValue("packId", packId)}
+                      quantity={Number(form.watch("quantity")) || 0}
+                    />
+
                     <FormField
                       control={form.control}
                       name="reason"
@@ -191,6 +228,11 @@ export default function Movements() {
                         <h4 className="font-semibold text-white">{move.product?.name}</h4>
                         <div className="flex gap-3 text-xs text-muted-foreground mt-1">
                           {move.createdAt && <span>{format(new Date(move.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</span>}
+                          {(move as any).pack && (
+                            <span className="rounded bg-white/5 px-1.5 py-0.5">
+                              {(move as any).enteredQuantity ?? move.quantity} × {(move as any).pack.label}
+                            </span>
+                          )}
                           {move.reason && (
                             <>
                               <span>•</span>
