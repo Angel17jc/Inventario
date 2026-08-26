@@ -58,9 +58,10 @@ function ProtectedRouter() {
       return;
     }
 
-    // The platform administrator runs no shop of its own, so the operational
-    // screens have nothing to show it.
-    if (session && role === "platform_admin" && !isPasswordReset && location !== "/clientes") {
+    // Administering the platform and running a shop are separate things: the
+    // administrator is sent to the client list only when it has no shop of its
+    // own to open.
+    if (session && role === "platform_admin" && !activeOrganization && !isPasswordReset && location !== "/clientes") {
       setLocation("/clientes", { replace: true });
       return;
     }
@@ -68,19 +69,20 @@ function ProtectedRouter() {
     if (session && role && !isPasswordReset && isPublicAuthRoute) {
       setLocation("/panel", { replace: true });
     }
-  }, [isLoading, isOrganizationsLoading, isPasswordReset, isPublicAuthRoute, location, role, session, setLocation]);
+  }, [activeOrganization, isLoading, isOrganizationsLoading, isPasswordReset, isPublicAuthRoute, location, role, session, setLocation]);
 
   if (isLoading || isOrganizationsLoading) return <div className="min-h-screen bg-background" />;
   if (isPasswordReset) return <ResetPassword />;
   if (!session || !role) return <Login />;
-  // Its shell is the client list: it never belongs to an organization, so the
-  // active-organization check below does not apply to it.
-  if (role === "platform_admin") return <Platform />;
+  // Without a shop of its own the client list is all it has; with one it uses
+  // the application like any other owner and reaches /clientes from the menu.
+  if (role === "platform_admin" && !activeOrganization) return <Platform />;
   if (!activeOrganization) return <main className="grid min-h-screen place-items-center bg-background p-6 text-center text-muted-foreground">No tienes una empresa activa asignada.</main>;
   return <Router />;
 }
 
 function Router() {
+  const { role } = useAuth();
   return (
     <Switch>
       <Route path="/panel" component={Dashboard} />
@@ -89,6 +91,7 @@ function Router() {
       <Route path="/categorias" component={Categories} />
       <Route path="/proveedores" component={Suppliers} />
       <Route path="/fiados" component={Credits} />
+      {role === "platform_admin" && <Route path="/clientes" component={Platform} />}
       <Route component={NotFound} />
     </Switch>
   );

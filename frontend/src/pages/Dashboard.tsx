@@ -7,8 +7,10 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 export default function Dashboard() {
+  const { activeOrganization } = useAuth();
   const { data: stats, isLoading } = useStats();
 
   const chartData = stats?.weeklyActivity ?? [];
@@ -41,7 +43,9 @@ export default function Dashboard() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-4xl font-bold text-white font-display mb-2">Panel de Control</h1>
-              <p className="text-muted-foreground">Bienvenido de nuevo, resumen de tu negocio.</p>
+              <p className="text-muted-foreground">
+                Bienvenido de nuevo{activeOrganization ? <> a <span className="font-medium text-foreground">{activeOrganization.name}</span></> : ""}. Este es el resumen de hoy.
+              </p>
             </div>
             <div className="px-4 py-2 bg-primary/10 rounded-full text-primary border border-primary/20 text-sm font-medium">
               {format(new Date(), "dd 'de' MMMM, yyyy", { locale: es })}
