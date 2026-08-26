@@ -12,6 +12,7 @@ import Categories from "@/modules/catalog/categories/CategoriesPage";
 import Suppliers from "@/modules/catalog/suppliers/SuppliersPage";
 import Credits from "@/modules/credits/CreditsPage";
 import Platform from "@/modules/platform/PlatformPage";
+import Settings from "@/modules/organization/SettingsPage";
 import Login from "@/pages/Login";
 import ResetPassword from "@/pages/ResetPassword";
 import { AuthProvider, useAuth } from "@/lib/auth";
@@ -91,6 +92,7 @@ function Router() {
       <Route path="/categorias" component={Categories} />
       <Route path="/proveedores" component={Suppliers} />
       <Route path="/fiados" component={Credits} />
+      <Route path="/mi-licoreria" component={Settings} />
       {role === "platform_admin" && <Route path="/clientes" component={Platform} />}
       <Route component={NotFound} />
     </Switch>

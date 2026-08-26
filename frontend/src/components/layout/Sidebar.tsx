@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Package, Tag, Truck, ArrowRightLeft, Wine, CreditCard, Building2, LogOut } from "lucide-react";
+import { LayoutDashboard, Package, Tag, Truck, ArrowRightLeft, Wine, CreditCard, Building2, LogOut, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -11,6 +11,9 @@ const menuItems = [
   { icon: ArrowRightLeft, label: "Movimientos", href: "/movimientos" },
   { icon: CreditCard, label: "Fiados", href: "/fiados" },
 ];
+
+// Changing the shop's own identity belongs to whoever owns it.
+const ownerItem = { icon: Settings, label: "Mi licorería", href: "/mi-licoreria" };
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -51,7 +54,7 @@ export function Sidebar() {
         {isPlatformAdmin && (
           <Link href="/clientes"><button className={cn("w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all", location === "/clientes" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5 hover:text-white")}><Building2 className="w-5 h-5" /><span className="font-medium text-sm">Clientes</span></button></Link>
         )}
-        {hasShop && menuItems.map((item) => {
+        {hasShop && [...menuItems, ...(activeOrganization?.role === "owner" ? [ownerItem] : [])].map((item) => {
           const isActive = location === item.href;
           return (
             <Link key={item.href} href={item.href}>

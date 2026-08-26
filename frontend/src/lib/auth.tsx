@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { arrivedFromRecoveryLink, supabase } from "./supabase";
 import { NetworkError, describeNetworkFailure } from "./api-errors";
@@ -29,6 +29,8 @@ type AuthContextValue = {
    * shop" in that gap sends it to the wrong screen.
    */
   areOrganizationsResolved: boolean;
+  /** Re-reads the shops after one of them changed. */
+  refreshOrganizations: () => Promise<void>;
   isLoading: boolean;
   isPasswordRecovery: boolean;
   completePasswordRecovery: () => void;
@@ -66,18 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userId = session?.user.id ?? null;
   const hasLoadedOrganizations = useRef(false);
 
-  useEffect(() => {
-    if (!userId) {
-      setOrganizations([]);
-      setIsOrganizationsLoading(false);
-      setResolvedForUserId(null);
-      hasLoadedOrganizations.current = false;
-      return;
-    }
-    // Only the first load may block the interface; later refreshes happen in
-    // the background.
+  // Exposed so a screen that changes the shop — its name, its logo — can pull
+  // the new values without reloading the page.
+  const loadOrganizations = useCallback(async (currentUserId: string) => {
     if (!hasLoadedOrganizations.current) setIsOrganizationsLoading(true);
-    authenticatedFetch("/api/organizations/me")
+    return authenticatedFetch("/api/organizations/me")
       .then(async (response) => response.ok ? response.json() : [])
       .then((data: Organization[]) => {
         const activeOrganizations = data.filter((organization) => organization.status === "active");
@@ -97,10 +92,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => {
         hasLoadedOrganizations.current = true;
-        setResolvedForUserId(userId);
+        setResolvedForUserId(currentUserId);
         setIsOrganizationsLoading(false);
       });
-  }, [userId]);
+  }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      setOrganizations([]);
+      setIsOrganizationsLoading(false);
+      setResolvedForUserId(null);
+      hasLoadedOrganizations.current = false;
+      return;
+    }
+    void loadOrganizations(userId);
+  }, [userId, loadOrganizations]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -162,6 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     isOrganizationsLoading,
     areOrganizationsResolved: userId === null || resolvedForUserId === userId,
+    refreshOrganizations: async () => {
+      if (userId) await loadOrganizations(userId);
+    },
     isLoading,
     isPasswordRecovery,
     completePasswordRecovery: () => setIsPasswordRecovery(false),
@@ -169,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.removeItem("activeOrganizationId");
       await supabase.auth.signOut();
     },
-  }), [session, organizations, activeOrganizationId, isLoading, isOrganizationsLoading, isPasswordRecovery, resolvedForUserId, userId]);
+  }), [session, organizations, activeOrganizationId, isLoading, isOrganizationsLoading, isPasswordRecovery, resolvedForUserId, userId, loadOrganizations]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

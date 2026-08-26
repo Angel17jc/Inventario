@@ -41,7 +41,9 @@ async function updateOrganization(organizationId: string, changes: Record<string
     .select(organizationColumns)
     .single();
   if (error) throw error;
-  return data;
+  // camelCase on the way out, matching what /api/organizations/me returns.
+  const { logo_url: logoUrl, ...rest } = data ?? {};
+  return { ...rest, logoUrl: logoUrl ?? null };
 }
 
 interface OrganizationRouteDependencies {
