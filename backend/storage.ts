@@ -201,6 +201,44 @@ export class DatabaseStorage implements IStorage {
     return (data || []).map(toCamelCase);
   }
 
+  // ---- Presentaciones -------------------------------------------------
+
+  async getProductPacks(productId: number) {
+    const { data, error } = await (supabase as any)
+      .from("product_packs")
+      .select("id, label, units, price")
+      .eq("product_id", productId)
+      .eq("organization_id", this.organizationScope)
+      .order("units");
+    if (error) throw error;
+    return (data ?? []).map(toCamelCase);
+  }
+
+  async createProductPack(productId: number, pack: { label: string; units: number; price: string | null }) {
+    const { data, error } = await (supabase as any)
+      .from("product_packs")
+      .insert({
+        organization_id: this.organizationScope,
+        product_id: productId,
+        label: pack.label,
+        units: pack.units,
+        price: pack.price,
+      })
+      .select("id, label, units, price")
+      .single();
+    if (error) throw error;
+    return toCamelCase(data);
+  }
+
+  async deleteProductPack(packId: number) {
+    const { error } = await (supabase as any)
+      .from("product_packs")
+      .delete()
+      .eq("id", packId)
+      .eq("organization_id", this.organizationScope);
+    if (error) throw error;
+  }
+
   async createMovement(movement: InsertMovement): Promise<Movement> {
     const { data, error } = await (supabase as any).rpc('create_inventory_movement', {
       p_organization_id: this.organizationScope,
