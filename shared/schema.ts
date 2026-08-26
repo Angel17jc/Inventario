@@ -52,12 +52,19 @@ export const products = pgTable("products", {
   supplierId: integer("supplier_id").references(() => suppliers.id),
   imageUrl: text("image_url"),
   minStockLevel: integer("min_stock_level").default(5),
-  // Stock is always counted in the base unit. A pack is an equivalence applied
-  // when a movement is registered, never a second stock to keep in step.
+  // Stock is always counted in this unit. Presentations live in their own
+  // table because one product has several: cases of 6 and of 12.
   unitLabel: text("unit_label").notNull().default("unidad"),
-  unitsPerPack: integer("units_per_pack"),
-  packLabel: text("pack_label"),
-  packPrice: decimal("pack_price", { precision: 10, scale: 2 }),
+});
+
+export const productPacks = pgTable("product_packs", {
+  id: serial("id").primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  productId: integer("product_id").notNull().references(() => products.id),
+  label: text("label").notNull(),
+  units: integer("units").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const movements = pgTable("movements", {
@@ -215,11 +222,49 @@ export type UpdateProductRequest = Partial<InsertProduct>;
 
 export type CreateMovementRequest = InsertMovement;
 
+// ============================================
+// PRESENTACIONES
+// ============================================
+
+/** One way a product leaves the counter: a case of 12, a six pack. */
+export interface Presentation {
+  id: number;
+  label: string;
+  units: number;
+  price: string | null;
+}
+
+/** Base units taken by `quantity` of `presentation`, or of loose units. */
+export function toBaseUnits(quantity: number, presentation: Presentation | null): number {
+  return presentation ? quantity * presentation.units : quantity;
+}
+
+/**
+ * What one of these costs. A presentation without its own price is charged at
+ * its size times the unit price, so a shop that does not discount by the case
+ * has nothing to fill in.
+ */
+export function priceOf(presentation: Presentation | null, unitPrice: string | number): number {
+  const perUnit = Number(unitPrice);
+  if (!presentation) return perUnit;
+  if (presentation.price !== null) return Number(presentation.price);
+  return perUnit * presentation.units;
+}
+
+/** The words to put beside a figure: "2 Caja de 12", "6 botellas". */
+export function describeQuantity(quantity: number, presentation: Presentation | null, unitLabel: string): string {
+  if (presentation) return `${quantity} × ${presentation.label}`;
+  return `${quantity} ${quantity === 1 ? unitLabel : `${unitLabel}s`}`;
+}
+
 export const createMovementRequestSchema = z.object({
   productId: z.coerce.number().int().positive(),
   type: z.enum(["IN", "OUT", "ADJUSTMENT"]),
   quantity: z.coerce.number().int().positive(),
   reason: z.string().trim().max(500).nullable().optional(),
+  // Absent means loose units, which is what every movement before
+  // presentations existed meant.
+  packId: z.coerce.number().int().positive().nullable().optional(),
 });
 
 export const createCreditAccountRequestSchema = z.object({
@@ -227,6 +272,7 @@ export const createCreditAccountRequestSchema = z.object({
   productId: z.coerce.number().int().positive(),
   quantity: z.coerce.number().int().positive(),
   notes: z.string().trim().max(500).nullable().optional(),
+  packId: z.coerce.number().int().positive().nullable().optional(),
 });
 
 export const createCreditPaymentRequestSchema = z.object({
@@ -283,42 +329,3 @@ export type UpdateOrganizationRequest = z.infer<typeof updateOrganizationRequest
 /** Bounded so a logo stays something the interface can load quickly. */
 export const LOGO_MAX_BYTES = 512 * 1024;
 export const LOGO_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
-
-// ============================================
-// PACKAGING
-// ============================================
-
-/** How a quantity was entered: loose units, or whole packs. */
-export const soldAsValues = ["unit", "pack"] as const;
-export type SoldAs = (typeof soldAsValues)[number];
-
-export interface ProductPackaging {
-  unitLabel: string;
-  unitsPerPack: number | null;
-  packLabel: string | null;
-  packPrice: string | null;
-  sellingPrice: string;
-}
-
-/** A pack only exists once it has a size. */
-export function hasPack(product: Pick<ProductPackaging, "unitsPerPack">): boolean {
-  return typeof product.unitsPerPack === "number" && product.unitsPerPack > 1;
-}
-
-/** Base units taken by `quantity` entered as `soldAs`. */
-export function toBaseUnits(quantity: number, soldAs: SoldAs, product: Pick<ProductPackaging, "unitsPerPack">): number {
-  if (soldAs === "pack" && hasPack(product)) return quantity * (product.unitsPerPack as number);
-  return quantity;
-}
-
-/** What one pack costs, falling back to its size times the unit price. */
-export function packPriceOf(product: ProductPackaging): number {
-  if (product.packPrice !== null) return Number(product.packPrice);
-  return Number(product.sellingPrice) * (product.unitsPerPack ?? 1);
-}
-
-/** The words to put next to a figure: "3 cajas", "1 unidad". */
-export function describeQuantity(quantity: number, soldAs: SoldAs, product: ProductPackaging): string {
-  const label = soldAs === "pack" ? (product.packLabel ?? "caja") : product.unitLabel;
-  return `${quantity} ${quantity === 1 ? label : `${label}s`}`;
-}
