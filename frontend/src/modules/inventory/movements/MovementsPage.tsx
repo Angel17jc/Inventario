@@ -57,7 +57,9 @@ const formSchema = insertMovementSchema.extend({
   packId: z.coerce.number().int().positive().nullable().optional(),
   quantity: z.coerce.number().min(1, "La cantidad debe ser al menos 1"),
   productId: z.coerce.number().min(1, "Selecciona un producto"),
-  type: z.enum(["IN", "OUT", "ADJUSTMENT"]),
+  // Stock only ever leaves from here. Buying is recorded in the inventory,
+  // where the shop writes down what it now has on the shelf.
+  type: z.literal("OUT"),
 });
 
 type MovementFormValues = z.infer<typeof formSchema>;
@@ -71,9 +73,8 @@ export default function Movements() {
   const form = useForm<MovementFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      type: "IN",
+      type: "OUT",
       quantity: 1,
-      reason: "",
       packId: null,
     },
   });
@@ -84,14 +85,13 @@ export default function Movements() {
   function onSubmit(data: MovementFormValues) {
     const product = products?.find((candidate) => candidate.id === Number(data.productId));
     const presentation = presentations.find((candidate) => candidate.id === data.packId) ?? null;
-    const leaving = data.type === "OUT" ? toBaseUnits(Number(data.quantity), presentation) : 0;
-    const remaining = (product?.quantity ?? 0) - leaving;
+    const remaining = (product?.quantity ?? 0) - toBaseUnits(Number(data.quantity), presentation);
 
     createMovement.mutate(data, {
       onSuccess: () => {
         // Registering the sale is never refused, so the person is told what it
         // left behind rather than being stopped beforehand.
-        if (data.type === "OUT" && remaining <= 0 && product) {
+        if (remaining <= 0 && product) {
           toast({
             title: remaining < 0 ? `${product.name} quedó en negativo` : `${product.name} se agotó`,
             description: remaining < 0
@@ -101,9 +101,8 @@ export default function Movements() {
           });
         }
         form.reset({
-          type: "IN",
+          type: "OUT",
           quantity: 1,
-          reason: "",
           packId: null,
         });
       },
@@ -116,42 +115,19 @@ export default function Movements() {
       <main className="flex-1 overflow-auto">
         <div className="p-8 max-w-7xl mx-auto space-y-8">
           <div>
-            <h1 className="text-3xl font-bold font-display text-white mb-2">Movimientos de Stock</h1>
-            <p className="text-muted-foreground">Registra entradas y salidas de mercancía.</p>
+            <h1 className="text-3xl font-bold font-display text-white mb-2">Ventas y movimientos</h1>
+            <p className="text-muted-foreground">Registra lo que sale del local. Lo que entra se anota al editar el producto en Inventario.</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Form Section */}
             <Card className="bg-card border-border shadow-xl h-fit">
               <CardHeader>
-                <CardTitle className="text-primary font-display">Registrar Movimiento</CardTitle>
+                <CardTitle className="text-primary font-display">Registrar Venta</CardTitle>
               </CardHeader>
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tipo de Movimiento</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar..." />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="IN">Entrada (Compra)</SelectItem>
-                              <SelectItem value="OUT">Salida (Venta)</SelectItem>
-                              <SelectItem value="ADJUSTMENT">Ajuste (Pérdida/Regalo)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
                     <FormField
                       control={form.control}
                       name="productId"
@@ -201,23 +177,9 @@ export default function Movements() {
                       quantity={Number(form.watch("quantity")) || 0}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="reason"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Razón / Nota (Opcional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ej. Factura #1234" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
                     <Button type="submit" disabled={createMovement.isPending} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 mt-4">
                       {createMovement.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      Registrar
+                      Registrar venta
                     </Button>
                   </form>
                 </Form>

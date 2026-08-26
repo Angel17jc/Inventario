@@ -118,16 +118,14 @@ export default function Inventory() {
                           <TableCell className="font-medium">
                             <div>
                               <p className="text-white">{product.name}</p>
-                              {/* Nothing left is a different situation from running
-                                  low, and a negative count means more was sold
-                                  than the shelf was ever recorded as holding. */}
-                              {product.quantity <= 0 ? (
+                              {/* Running out is the only warning the shop asked
+                                  for. A negative count means more was sold than
+                                  the shelf was ever recorded as holding. */}
+                              {product.quantity <= 0 && (
                                 <Badge variant="destructive" className="mt-1 h-auto px-1.5 py-0 text-[10px]">
                                   {product.quantity < 0 ? `Agotado · faltan ${Math.abs(product.quantity)}` : "Agotado"}
                                 </Badge>
-                              ) : product.minStockLevel && product.quantity <= product.minStockLevel ? (
-                                <Badge variant="destructive" className="mt-1 h-auto px-1.5 py-0 text-[10px]">Stock Bajo</Badge>
-                              ) : null}
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>{product.category?.name || <span className="text-muted-foreground italic">Sin categoría</span>}</TableCell>

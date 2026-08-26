@@ -18,7 +18,6 @@ import { useCallback, useEffect, useState } from "react";
 // Extend schema for form validation to handle string inputs for numbers
 const formSchema = insertProductSchema.extend({
   quantity: z.coerce.number().min(0),
-  minStockLevel: z.coerce.number().min(0),
   costPrice: z.coerce.number().min(0),
   sellingPrice: z.coerce.number().min(0),
   categoryId: z.coerce.number().optional(),
@@ -46,9 +45,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
     defaultValues: {
       name: "",
       sku: "",
-      description: "",
       quantity: 0,
-      minStockLevel: 5,
       costPrice: 0,
       sellingPrice: 0,
       imageUrl: "",
@@ -67,9 +64,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
       form.reset({
         name: product.name,
         sku: product.sku || "",
-        description: product.description || "",
         quantity: product.quantity,
-        minStockLevel: product.minStockLevel || 5,
         costPrice: Number(product.costPrice),
         sellingPrice: Number(product.sellingPrice),
         imageUrl: product.imageUrl || "",
@@ -81,9 +76,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
       form.reset({
         name: "",
         sku: "",
-        description: "",
         quantity: 0,
-        minStockLevel: 5,
         costPrice: 0,
         sellingPrice: 0,
         imageUrl: "",
@@ -252,7 +245,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
                   <FormItem>
                     <FormLabel>Stock Actual</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} disabled={isEditing} />
+                      <Input type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -273,34 +266,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="minStockLevel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stock Mínimo</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descripción</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Detalles opcionales..." {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             {productId === undefined ? (
               <p className="rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">

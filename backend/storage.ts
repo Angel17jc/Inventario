@@ -422,10 +422,9 @@ export class DatabaseStorage implements IStorage {
     
     const totalValue = (productsData as any[])?.reduce((sum, p) => sum + (p.quantity * parseFloat(p.cost_price || '0')), 0) || 0;
 
-    const { data: allProducts, error: allError } = await supabase.from('products').select('quantity, min_stock_level').eq('organization_id', this.organizationScope);
-    if (allError) throw allError;
-    
-    const lowStockCount = (allProducts as any[])?.filter(p => p.quantity <= (p.min_stock_level || 5)).length || 0;
+    // Running out is the only stock warning the shop asked for: a minimum to
+    // compare against was one more number to keep up to date for no gain.
+    const lowStockCount = (productsData as any[])?.filter((product) => product.quantity <= 0).length || 0;
 
     const { data: recentMovements, error: movementsError } = await supabase.from('movements').select('*, product:products(*)').eq('organization_id', this.organizationScope).order('created_at', { ascending: false }).limit(5);
     if (movementsError) throw movementsError;

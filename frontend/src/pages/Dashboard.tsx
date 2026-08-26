@@ -66,7 +66,7 @@ export default function Dashboard() {
               colorClass="bg-green-500/20 text-green-400"
             />
             <StatCard 
-              title="Alertas Stock Bajo" 
+              title="Productos agotados" 
               value={stats?.lowStockCount || 0}
               icon={AlertTriangle}
               colorClass="bg-red-500/20 text-red-400"
