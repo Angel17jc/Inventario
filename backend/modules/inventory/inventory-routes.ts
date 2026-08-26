@@ -43,10 +43,13 @@ export function registerInventoryRoutes(app: Express, { requireManager, requireO
   app.post("/api/products/:id/presentaciones", requireManager, async (req, res) => {
     try {
       const input = createProductPackRequestSchema.parse(req.body);
+      const asDecimal = (value: number | null | undefined) =>
+        value === null || value === undefined ? null : String(value);
       const created = await scopedStorage(req).createProductPack(Number(req.params.id), {
         label: input.label,
         units: input.units,
-        price: input.price === null || input.price === undefined ? null : String(input.price),
+        cost: asDecimal(input.cost),
+        price: asDecimal(input.price),
       });
       return res.status(201).json(created);
     } catch (error) { return sendApiError(res, error); }

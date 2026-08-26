@@ -202,7 +202,7 @@ export class DatabaseStorage implements IStorage {
     // instead of the 24 bottles it amounted to.
     const { data, error } = await (supabase as any)
       .from('movements')
-      .select('*, product:products(*), pack:product_packs!movements_pack_organization_fkey(id, label, units, price)')
+      .select('*, product:products(*), pack:product_packs!movements_pack_organization_fkey(id, label, units, cost, price)')
       .eq('organization_id', this.organizationScope)
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -221,7 +221,7 @@ export class DatabaseStorage implements IStorage {
     const [movementsResult, paymentsResult] = await Promise.all([
       (supabase as any)
         .from('movements')
-        .select('id, type, quantity, entered_quantity, reason, created_at, product:products(id, name, unit_label), pack:product_packs!movements_pack_organization_fkey(id, label, units, price)')
+        .select('id, type, quantity, entered_quantity, reason, created_at, product:products(id, name, unit_label), pack:product_packs!movements_pack_organization_fkey(id, label, units, cost, price)')
         .eq('organization_id', this.organizationScope)
         .order('created_at', { ascending: false })
         .limit(limit),
@@ -286,7 +286,7 @@ export class DatabaseStorage implements IStorage {
   async getProductPacks(productId: number) {
     const { data, error } = await (supabase as any)
       .from("product_packs")
-      .select("id, label, units, price")
+      .select("id, label, units, cost, price")
       .eq("product_id", productId)
       .eq("organization_id", this.organizationScope)
       .order("units");
@@ -294,7 +294,7 @@ export class DatabaseStorage implements IStorage {
     return (data ?? []).map(toCamelCase);
   }
 
-  async createProductPack(productId: number, pack: { label: string; units: number; price: string | null }) {
+  async createProductPack(productId: number, pack: { label: string; units: number; cost: string | null; price: string | null }) {
     const { data, error } = await (supabase as any)
       .from("product_packs")
       .insert({
@@ -302,9 +302,10 @@ export class DatabaseStorage implements IStorage {
         product_id: productId,
         label: pack.label,
         units: pack.units,
+        cost: pack.cost,
         price: pack.price,
       })
-      .select("id, label, units, price")
+      .select("id, label, units, cost, price")
       .single();
     if (error) throw error;
     return toCamelCase(data);

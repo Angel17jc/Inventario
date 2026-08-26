@@ -28,7 +28,7 @@ export function useCreatePresentation(productId: number) {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (input: { label: string; units: number; price: number | null }) => {
+    mutationFn: async (input: { label: string; units: number; cost: number | null; price: number | null }) => {
       const response = await authenticatedFetch(`/api/products/${productId}/presentaciones`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

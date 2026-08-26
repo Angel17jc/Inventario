@@ -215,7 +215,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
                 name="costPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Precio Costo</FormLabel>
+                    <FormLabel>Costo por unidad</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" {...field} />
                     </FormControl>
@@ -229,7 +229,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
                 name="sellingPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Precio Venta</FormLabel>
+                    <FormLabel>Precio por unidad</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" {...field} />
                     </FormControl>
@@ -257,7 +257,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
                 name="unitLabel"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Unidad</FormLabel>
+                    <FormLabel>Nombre de la unidad</FormLabel>
                     <FormControl>
                       <Input placeholder="Ej. botella" {...field} value={field.value || ''} />
                     </FormControl>
@@ -277,6 +277,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
                 productId={productId}
                 unitLabel={form.watch("unitLabel") || "unidad"}
                 sellingPrice={Number(form.watch("sellingPrice")) || 0}
+                costPrice={Number(form.watch("costPrice")) || 0}
               />
             )}
 

@@ -62,6 +62,9 @@ export const productPacks = pgTable("product_packs", {
   productId: integer("product_id").notNull().references(() => products.id),
   label: text("label").notNull(),
   units: integer("units").notNull(),
+  // What the case costs the shop and what the shop sells it for. Both are for
+  // the whole case, which is how they appear on the invoice and on the shelf.
+  cost: decimal("cost", { precision: 10, scale: 2 }),
   price: decimal("price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
@@ -192,6 +195,9 @@ export interface Presentation {
   id: number;
   label: string;
   units: number;
+  /** What the whole case costs the shop. Null when only the unit cost is known. */
+  cost: string | null;
+  /** What the whole case sells for. Null charges units × the unit price. */
   price: string | null;
 }
 
@@ -210,6 +216,35 @@ export function priceOf(presentation: Presentation | null, unitPrice: string | n
   if (!presentation) return perUnit;
   if (presentation.price !== null) return Number(presentation.price);
   return perUnit * presentation.units;
+}
+
+/**
+ * What one unit of this presentation costs the shop. A case of twelve at
+ * 17.00 puts each bottle at 1.42, which is what the stock is valued at.
+ * Falls back to the product's own unit cost when the case cost is unknown.
+ */
+export function unitCostOf(presentation: Presentation | null, unitCost: string | number): number {
+  const perUnit = Number(unitCost);
+  if (!presentation || presentation.cost === null) return perUnit;
+  return Number(presentation.cost) / presentation.units;
+}
+
+/**
+ * What a sale of whole cases plus loose units comes to.
+ *
+ * The two are charged differently on purpose: six bottles bought loose cost
+ * six times the unit price, while a case costs whatever the shop charges for
+ * the case, which is normally less.
+ */
+export function chargeFor(
+  packQuantity: number,
+  looseQuantity: number,
+  presentation: Presentation | null,
+  unitPrice: string | number,
+): number {
+  const perUnit = Number(unitPrice);
+  const packs = presentation ? packQuantity * priceOf(presentation, perUnit) : 0;
+  return packs + looseQuantity * perUnit;
 }
 
 /** The words to put beside a figure: "2 Caja de 12", "6 botellas". */
@@ -330,6 +365,7 @@ export type LedgerEntry = LedgerMovementEntry | LedgerPaymentEntry;
 export const createProductPackRequestSchema = z.object({
   label: z.string().trim().min(2, "Ponle un nombre a la presentación.").max(60),
   units: z.coerce.number().int().min(2, "Una presentación agrupa al menos 2 unidades.").max(10_000),
+  cost: z.coerce.number().min(0).max(1_000_000).nullable().optional(),
   price: z.coerce.number().min(0).max(1_000_000).nullable().optional(),
 });
 
