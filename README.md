@@ -69,9 +69,8 @@ shared/
   tenancy.ts                Tipos de rol
 
 database/
-  schema.sql                Tablas base
-  credits.sql               Tablas de fiados
   migrations/               Migraciones numeradas, se aplican en orden
+  tests/                    Comprobaciones sobre las funciones transaccionales
 ```
 
 ### Un solo despliegue
@@ -138,13 +137,13 @@ Las encuentras en Supabase → Settings → API Keys.
 
 ### Base de datos
 
-En el SQL Editor de Supabase, en este orden:
+En el SQL Editor de Supabase, ejecuta `database/migrations/` **por número**, de la
+`001` a la última. No hay un volcado del esquema aparte: las migraciones son la
+única descripción de la base, y una segunda copia solo serviría para desviarse de
+ella sin que nadie lo note.
 
-1. `database/schema.sql`
-2. `database/credits.sql`
-3. `database/migrations/001` … `008`, por número
-
-Las migraciones asumen la anterior aplicada. Haz copia de seguridad antes de las que mueven datos.
+Cada migración asume aplicada la anterior. Haz copia de seguridad antes de las que
+mueven datos.
 
 ### Autenticación en Supabase
 
@@ -225,10 +224,7 @@ El job de despliegue está inactivo salvo que definas la variable de repositorio
 |---|---|
 | `MODULAR_ARCHITECTURE.md` | Límites entre módulos |
 | `SAAS_ARCHITECTURE.md` | Modelo multi-empresa |
-| `SUPABASE_SETUP.md` | Configuración de Supabase paso a paso |
-| `SCHEMAS.md` | Esquemas de datos |
 | `AUTH_SETUP.md` | Autenticación y roles |
-| `FIADOS_SETUP.md` | Sistema de fiados |
 | `DEPLOYMENT.md` | Notas de despliegue |
 | `TESTING.md` | Estrategia de pruebas |
 
