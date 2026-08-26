@@ -64,7 +64,7 @@ export const productPacks = pgTable("product_packs", {
   label: text("label").notNull(),
   units: integer("units").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 export const movements = pgTable("movements", {
@@ -72,9 +72,15 @@ export const movements = pgTable("movements", {
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   productId: integer("product_id").references(() => products.id).notNull(),
   type: varchar("type", { length: 20 }).notNull(), // 'IN', 'OUT', 'ADJUSTMENT'
+  // Stock is always counted in base units, whatever left the counter.
   quantity: integer("quantity").notNull(),
+  // The presentation it was registered with, and what the person actually
+  // typed: 2 against a quantity of 24 when the case holds twelve. NULL means
+  // loose units, which is what every movement before presentations meant.
+  packId: integer("pack_id").references(() => productPacks.id),
+  enteredQuantity: integer("entered_quantity"),
   reason: text("reason"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   userId: varchar("user_id"), // Optional linkage to auth user
 });
 
@@ -91,8 +97,8 @@ export const creditAccounts = pgTable("credit_accounts", {
   remainingAmount: decimal("remaining_amount", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default('pending'), // 'pending', 'partial', 'paid'
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const creditPayments = pgTable("credit_payments", {
@@ -102,7 +108,7 @@ export const creditPayments = pgTable("credit_payments", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   paymentMethod: varchar("payment_method", { length: 50 }),
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 // === RELATIONS ===
@@ -157,7 +163,9 @@ export const creditPaymentsRelations = relations(creditPayments, ({ one }) => ({
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true, organizationId: true });
 export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true, organizationId: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, organizationId: true });
-export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, organizationId: true, createdAt: true });
+// entered_quantity is derived by the database from the presentation. A caller
+// able to set it could make the history disagree with the stock it moved.
+export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, organizationId: true, createdAt: true, enteredQuantity: true });
 export const insertCreditAccountSchema = createInsertSchema(creditAccounts).omit({ id: true, organizationId: true, createdAt: true, updatedAt: true });
 export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({ id: true, organizationId: true, createdAt: true });
 
@@ -203,6 +211,8 @@ export type ProductWithDetails = Product & {
 
 export type MovementWithProduct = Movement & {
   product?: Product | null;
+  /** The presentation it was registered with, absent when sold loose. */
+  pack?: Presentation | null;
 };
 
 export type CreditAccountWithDetails = CreditAccount & {
@@ -220,7 +230,6 @@ export type UpdateSupplierRequest = z.infer<typeof updateSupplierRequestSchema>;
 export type CreateProductRequest = InsertProduct;
 export type UpdateProductRequest = Partial<InsertProduct>;
 
-export type CreateMovementRequest = InsertMovement;
 
 // ============================================
 // PRESENTACIONES
@@ -282,6 +291,7 @@ export const createCreditPaymentRequestSchema = z.object({
   notes: z.string().trim().max(500).nullable().optional(),
 });
 
+export type CreateMovementRequest = z.infer<typeof createMovementRequestSchema>;
 export type CreateCreditAccountRequest = z.infer<typeof createCreditAccountRequestSchema>;
 export type CreateCreditPaymentRequest = z.infer<typeof createCreditPaymentRequestSchema>;
 

@@ -228,9 +228,9 @@ export default function Movements() {
                         <h4 className="font-semibold text-white">{move.product?.name}</h4>
                         <div className="flex gap-3 text-xs text-muted-foreground mt-1">
                           {move.createdAt && <span>{format(new Date(move.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</span>}
-                          {(move as any).pack && (
+                          {move.pack && (
                             <span className="rounded bg-white/5 px-1.5 py-0.5">
-                              {(move as any).enteredQuantity ?? move.quantity} × {(move as any).pack.label}
+                              {move.enteredQuantity ?? move.quantity} × {move.pack.label}
                             </span>
                           )}
                           {move.reason && (

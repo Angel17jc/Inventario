@@ -1,7 +1,7 @@
 import { supabase } from "./db.js";
 import type {
   Category, Supplier, Product, Movement, CreditAccount, CreditPayment,
-  InsertCategory, InsertSupplier, InsertProduct, InsertMovement, InsertCreditAccount, InsertCreditPayment,
+  InsertCategory, InsertSupplier, InsertProduct, CreateMovementRequest, InsertCreditAccount, InsertCreditPayment,
   UpdateCategoryRequest, UpdateSupplierRequest, UpdateProductRequest,
   DashboardStats, CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest
 } from "../shared/schema.js";
@@ -50,7 +50,7 @@ export interface IStorage {
   deleteProduct(id: number): Promise<void>;
   
   getMovements(): Promise<(Movement & { product: Product | null })[]>;
-  createMovement(movement: InsertMovement): Promise<Movement>;
+  createMovement(movement: CreateMovementRequest): Promise<Movement>;
   
   getCreditAccounts(): Promise<CreditAccountWithDetails[]>;
   getCreditAccountsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]>;
@@ -245,7 +245,10 @@ export class DatabaseStorage implements IStorage {
     if (error) throw error;
   }
 
-  async createMovement(movement: InsertMovement): Promise<Movement> {
+  async createMovement(movement: CreateMovementRequest): Promise<Movement> {
+    // The quantity travels as the person typed it and the presentation goes
+    // with it. The function multiplies with the product row locked, so the
+    // size cannot change between reading it and moving the stock.
     const { data, error } = await (supabase as any).rpc('create_inventory_movement', {
       p_organization_id: this.organizationScope,
       p_product_id: movement.productId,
@@ -253,6 +256,7 @@ export class DatabaseStorage implements IStorage {
       p_quantity: movement.quantity,
       p_reason: movement.reason ?? null,
       p_user_id: this.actorId ?? null,
+      p_pack_id: movement.packId ?? null,
     });
     if (error) throw error;
     return toCamelCase(data[0]);
@@ -299,6 +303,7 @@ export class DatabaseStorage implements IStorage {
       p_quantity: credit.quantity,
       p_notes: credit.notes ?? null,
       p_user_id: this.actorId ?? null,
+      p_pack_id: credit.packId ?? null,
     });
     if (error) throw error;
     return toCamelCase(data[0]);

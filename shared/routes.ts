@@ -5,12 +5,13 @@ import {
   updateCategoryRequestSchema,
   updateSupplierRequestSchema,
   insertProductSchema, 
-  insertMovementSchema,
+  createMovementRequestSchema,
   products,
   categories,
   suppliers,
   movements
 } from './schema.js';
+import type { MovementWithProduct } from './schema.js';
 
 // ============================================
 // SHARED ERROR SCHEMAS
@@ -169,13 +170,13 @@ export const api = {
       method: 'GET' as const,
       path: '/api/movements',
       responses: {
-        200: z.array(z.custom<typeof movements.$inferSelect & { product: typeof products.$inferSelect | null }>()),
+        200: z.array(z.custom<MovementWithProduct>()),
       },
     },
     create: {
       method: 'POST' as const,
       path: '/api/movements',
-      input: insertMovementSchema,
+      input: createMovementRequestSchema,
       responses: {
         201: z.custom<typeof movements.$inferSelect>(),
         400: errorSchemas.validation,
@@ -191,7 +192,7 @@ export const api = {
           totalProducts: z.number(),
           totalValue: z.number(),
           lowStockCount: z.number(),
-          recentMovements: z.array(z.custom<typeof movements.$inferSelect & { product: typeof products.$inferSelect | null }>()),
+          recentMovements: z.array(z.custom<MovementWithProduct>()),
           weeklyActivity: z.array(z.object({ date: z.string(), label: z.string(), inbound: z.number(), outbound: z.number() })),
         }),
       },
