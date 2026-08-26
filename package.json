@@ -41,16 +41,10 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@tailwindcss/typography": "^0.5.15",
-    "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "^5.0.0",
-    "@types/express-session": "^1.18.2",
     "@types/node": "20.19.27",
-    "@types/passport": "^1.0.17",
-    "@types/passport-local": "^1.0.38",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
-    "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "cross-env": "^10.1.0",
