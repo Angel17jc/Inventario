@@ -162,8 +162,7 @@ El servicio de correo integrado de Supabase está limitado a unos pocos envíos 
 
 ```bash
 npm run dev       # Servidor de desarrollo con Vite, puerto 5000
-npm run build     # Compila frontend y backend a dist/
-npm start         # Ejecuta el build de producción
+npm run build     # Compila el frontend a dist/public
 npm run check     # Comprueba tipos
 npm test          # Ejecuta los tests
 ```
