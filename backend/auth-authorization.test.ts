@@ -20,7 +20,7 @@ function createResponse() {
   return { response, result };
 }
 
-function runRoleGuard(role: "owner" | "manager" | "cashier" | "platform_admin", allowedRoles: Array<"owner" | "manager" | "cashier">) {
+function runRoleGuard(role: "owner" | "manager" | "cashier", allowedRoles: Array<"owner" | "manager" | "cashier">) {
   const request = { organization: { id: "3a6d6b1c-8519-4be9-990d-f5f6d0eea733", role } } as Request;
   const { response, result } = createResponse();
   let nextCalled = false;
@@ -40,9 +40,15 @@ test("denies cashiers from manager operations", () => {
   assert.deepEqual(result, { statusCode: 403, body: { code: errorCodes.forbidden, message: "Tu rol no permite realizar esta acción." } });
 });
 
-test("allows the platform administrator through organization role guards", () => {
-  const { nextCalled } = runRoleGuard("platform_admin", ["owner"]);
-  assert.equal(nextCalled, true);
+test("only a membership role reaches an organization's data", () => {
+  // A platform administrator holds no membership, so requireOrganizationContext
+  // never builds a context for it and the guard below is never reached. The
+  // context type no longer admits "platform_admin" at all, which is what keeps
+  // that path from being reintroduced by accident.
+  const roles: Array<"owner" | "manager" | "cashier"> = ["owner", "manager", "cashier"];
+  for (const role of roles) {
+    assert.equal(runRoleGuard(role, [role]).nextCalled, true, `${role} debería pasar su propia guarda`);
+  }
 });
 
 test("requires an organization context before role validation", () => {

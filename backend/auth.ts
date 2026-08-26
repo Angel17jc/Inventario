@@ -16,7 +16,7 @@ export interface AuthenticatedUser {
 
 export interface OrganizationContext {
   id: string;
-  role: OrganizationRole | "platform_admin";
+  role: OrganizationRole;
 }
 
 declare global {
@@ -59,14 +59,6 @@ export async function requireOrganizationContext(req: Request, res: Response, ne
     return fail(res, 400, errorCodes.organizationRequired, "No hay una empresa seleccionada. Vuelve a entrar y elige una.");
   }
 
-  if (req.user.isPlatformAdmin) {
-    const { data, error } = await (supabase as any).from("organizations").select("id").eq("id", organizationId).maybeSingle();
-    if (error) return next(error);
-    if (!data) return fail(res, 404, errorCodes.notFound, "No encontramos esa empresa.");
-    req.organization = { id: organizationId, role: "platform_admin" };
-    return next();
-  }
-
   // The organization's own status is read alongside the membership: suspending
   // a tenant has to cut off its API access, and filtering by status in the
   // browser only hides the data from the interface.
@@ -93,11 +85,10 @@ export function requirePlatformAdmin(req: Request, res: Response, next: NextFunc
 }
 
 export async function getAccessibleOrganizations(user: AuthenticatedUser) {
-  if (user.isPlatformAdmin) {
-    const { data, error } = await (supabase as any).from("organizations").select("id, name, slug, status").order("name");
-    if (error) throw error;
-    return data ?? [];
-  }
+  // A platform administrator belongs to no shop. It administers the accounts
+  // from its own screen and has no business reading what any of them sell,
+  // owe or hold in stock.
+  if (user.isPlatformAdmin) return [];
 
   const { data, error } = await (supabase as any)
     .from("organization_memberships")

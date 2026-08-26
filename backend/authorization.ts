@@ -6,7 +6,7 @@ import { fail } from "./errors.js";
 export function requireOrganizationRole(...allowedRoles: OrganizationRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.organization) return fail(res, 401, errorCodes.organizationRequired, "No hay una empresa seleccionada.");
-    if (req.organization.role !== "platform_admin" && !allowedRoles.includes(req.organization.role)) {
+    if (!allowedRoles.includes(req.organization.role)) {
       return fail(res, 403, errorCodes.forbidden, "Tu rol no permite realizar esta acción.");
     }
     return next();
