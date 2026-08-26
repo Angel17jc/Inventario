@@ -22,3 +22,25 @@ export async function createOrganization(input: CreateOrganizationInput) {
   return parseResponse<{ organization: { id: string; name: string } }>(response, "No fue posible crear el cliente.");
 }
 
+
+export type PlatformClient = {
+  id: string;
+  name: string;
+  slug: string;
+  status: "active" | "suspended";
+  ownerEmail: string | null;
+};
+
+export async function listClients() {
+  const response = await authenticatedFetch("/api/platform/organizations");
+  return parseResponse<PlatformClient[]>(response, "No se pudo cargar la lista de clientes.");
+}
+
+export async function setClientStatus(organizationId: string, status: PlatformClient["status"]) {
+  const response = await authenticatedFetch(`/api/platform/organizations/${organizationId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  return parseResponse<PlatformClient>(response, "No se pudo cambiar el estado del cliente.");
+}

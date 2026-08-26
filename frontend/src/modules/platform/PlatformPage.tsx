@@ -1,17 +1,42 @@
 import { useState, type FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Store } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { describeError } from "@/lib/api-errors";
-import { createOrganization } from "./platform-api";
+import { DataLoadError } from "@/components/ui/data-load-error";
+import { createOrganization, listClients, setClientStatus, type PlatformClient } from "./platform-api";
 
 const emptyForm = { name: "", slug: "", ownerEmail: "", ownerPassword: "" };
 
 export default function Platform() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  const clientsKey = ["/api/platform/organizations"] as const;
+  const clients = useQuery({ queryKey: clientsKey, queryFn: listClients });
+
+  const changeStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: PlatformClient["status"] }) => setClientStatus(id, status),
+    onSuccess: (_result, { status }) => {
+      void queryClient.invalidateQueries({ queryKey: clientsKey });
+      toast({
+        title: status === "suspended" ? "Cliente suspendido" : "Cliente reactivado",
+        description: status === "suspended"
+          ? "Su personal ya no puede entrar hasta que lo reactives."
+          : "Su personal puede volver a entrar.",
+      });
+    },
+    onError: (error) => toast({
+      title: "No se pudo cambiar el estado",
+      description: describeError(error, "Vuelve a intentarlo en unos momentos."),
+      variant: "destructive",
+    }),
+  });
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -19,6 +44,7 @@ export default function Platform() {
     try {
       const body = await createOrganization(form);
       setForm(emptyForm);
+      void queryClient.invalidateQueries({ queryKey: clientsKey });
       toast({
         title: "Cliente creado",
         description: `Se creó ${body.organization.name} y su usuario propietario. Entrégale la contraseña de forma segura.`,
@@ -103,6 +129,57 @@ export default function Platform() {
               {isSubmitting ? "Creando cliente…" : "Crear cliente y propietario"}
             </Button>
           </form>
+
+          <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Licorerías cliente</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Suspender una corta el acceso de su personal sin borrar nada.
+              </p>
+            </div>
+
+            {clients.isLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : clients.isError ? (
+              <DataLoadError
+                message={describeError(clients.error, "No se pudo cargar la lista de clientes.")}
+                onRetry={() => void clients.refetch()}
+                isRetrying={clients.isFetching}
+              />
+            ) : clients.data?.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Todavía no has creado ninguna licorería.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {clients.data?.map((client) => (
+                  <li key={client.id} className="flex flex-wrap items-center gap-3 py-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <Store className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-48 flex-1">
+                      <p className="font-medium text-foreground">{client.name}</p>
+                      <p className="text-xs text-muted-foreground">{client.ownerEmail ?? "Sin propietario asignado"}</p>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      client.status === "active" ? "bg-green-500/15 text-green-400" : "bg-destructive/15 text-destructive"
+                    }`}>
+                      {client.status === "active" ? "Activa" : "Suspendida"}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={changeStatus.isPending}
+                      onClick={() => changeStatus.mutate({
+                        id: client.id,
+                        status: client.status === "active" ? "suspended" : "active",
+                      })}
+                    >
+                      {client.status === "active" ? "Suspender" : "Reactivar"}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
       </main>
     </div>

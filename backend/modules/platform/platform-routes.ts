@@ -11,6 +11,10 @@ interface PlatformRouteDependencies {
 }
 
 export function registerPlatformRoutes(app: Express, { requirePlatformAdmin }: PlatformRouteDependencies) {
+  app.get("/api/platform/organizations", requirePlatformAdmin, async (_req, res) => {
+    res.json(await platformService.listOrganizations());
+  });
+
   app.post("/api/platform/organizations", requirePlatformAdmin, async (req, res) => {
     const organization = await platformService.createOrganizationWithOwner(createOrganizationSchema.parse(req.body));
     res.status(201).json(organization);

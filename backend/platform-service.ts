@@ -18,6 +18,42 @@ function normalizeSlug(value: string): string {
 }
 
 export class PlatformService {
+  /**
+   * The client accounts, with the owner that administers each one. The
+   * platform administrator holds no membership, so this is the only view it
+   * has of them: names and status, never what they sell or are owed.
+   */
+  async listOrganizations() {
+    // The generated Database type does not describe the tenancy tables, which
+    // is why every caller in this file reaches them the same way.
+    const { data: organizations, error } = await (supabase as any)
+      .from("organizations")
+      .select("id, name, slug, status, created_at")
+      .order("name");
+    if (error) throw error;
+
+    const { data: owners, error: ownersError } = await (supabase as any)
+      .from("organization_memberships")
+      .select("organization_id, user_id")
+      .eq("role", "owner")
+      .eq("status", "active");
+    if (ownersError) throw ownersError;
+
+    const { data: users } = await supabase.auth.admin.listUsers();
+    const emailByUserId = new Map(users.users.map((user) => [user.id, user.email ?? ""]));
+    const ownerEmailByOrganization = new Map(
+      (owners ?? []).map((owner: { organization_id: string; user_id: string }) => [
+        owner.organization_id,
+        emailByUserId.get(owner.user_id) ?? "",
+      ]),
+    );
+
+    return (organizations ?? []).map((organization: { id: string }) => ({
+      ...organization,
+      ownerEmail: ownerEmailByOrganization.get(organization.id) ?? null,
+    }));
+  }
+
   async updateOrganizationStatus(organizationId: string, status: "active" | "suspended") {
     const { data, error } = await (supabase as any).from("organizations").update({ status }).eq("id", organizationId).select("id, name, status").single();
     if (error) throw error;
