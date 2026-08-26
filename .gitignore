@@ -6,6 +6,9 @@ server/public
 vite.config.ts.*
 *.tar.gz
 
+# Memoria de trabajo local, no forma parte del proyecto
+CLAUDE.md
+
 # Environment variables
 .env
 .env.local
