@@ -8,6 +8,12 @@ export { requireOrganizationRole } from "./authorization.js";
 
 const organizationRoles = ["owner", "manager", "cashier"] as const;
 const DEFAULT_ADMINISTRATOR_SHOP_NAME = "Mi Licorería";
+
+/** The browser speaks camelCase; the column is logo_url. */
+function toOrganizationSummary(organization: any, role: string) {
+  const { logo_url: logoUrl, ...rest } = organization ?? {};
+  return { ...rest, logoUrl: logoUrl ?? null, role };
+}
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface AuthenticatedUser {
@@ -99,14 +105,14 @@ export async function getAccessibleOrganizations(user: AuthenticatedUser) {
       name: DEFAULT_ADMINISTRATOR_SHOP_NAME,
       slug: "",
     });
-    return [{ ...organization, role: "owner" as const }];
+    return [toOrganizationSummary(organization, "owner")];
   }
 
   const { data, error } = await (supabase as any)
     .from("organization_memberships")
-    .select("role, organization:organizations(id, name, slug, status)")
+    .select("role, organization:organizations(id, name, slug, status, logo_url)")
     .eq("user_id", user.id)
     .eq("status", "active");
   if (error) throw error;
-  return (data ?? []).map((membership: any) => ({ ...membership.organization, role: membership.role }));
+  return (data ?? []).map((membership: any) => toOrganizationSummary(membership.organization, membership.role));
 }

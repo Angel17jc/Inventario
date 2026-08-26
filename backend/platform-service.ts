@@ -81,11 +81,14 @@ export class PlatformService {
   async findOwnedOrganizations(userId: string) {
     const { data, error } = await (supabase as any)
       .from("organization_memberships")
-      .select("role, organization:organizations(id, name, slug, status)")
+      .select("role, organization:organizations(id, name, slug, status, logo_url)")
       .eq("user_id", userId)
       .eq("status", "active");
     if (error) throw error;
-    return (data ?? []).map((membership: any) => ({ ...membership.organization, role: membership.role }));
+    return (data ?? []).map((membership: any) => {
+      const { logo_url: logoUrl, ...rest } = membership.organization ?? {};
+      return { ...rest, logoUrl: logoUrl ?? null, role: membership.role };
+    });
   }
 
   async createOwnOrganization(userId: string, input: { name: string; slug: string }) {

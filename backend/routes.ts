@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage.js";
 import { supabase } from "./db.js";
@@ -6,6 +6,7 @@ import { getAccessibleOrganizations, requireAuthenticatedUser, requireOrganizati
 import { registerCatalogRoutes } from "./modules/catalog/catalog-routes.js";
 import { registerInventoryRoutes } from "./modules/inventory/inventory-routes.js";
 import { registerCreditRoutes } from "./modules/credits/credit-routes.js";
+import { registerOrganizationRoutes } from "./modules/organization/organization-routes.js";
 import { registerPlatformRoutes } from "./modules/platform/platform-routes.js";
 import { api } from "../shared/routes.js";
 import { updatePasswordRequestSchema } from "../shared/schema.js";
@@ -52,6 +53,13 @@ export async function registerRoutes(
   const requireManager = requireOrganizationRole("owner", "manager");
   const requireOperator = requireOrganizationRole("owner", "manager", "cashier");
   const scopedStorage = (req: Express.Request) => storage.forOrganization(req.organization!.id, req.user!.id);
+
+  // Only the owner changes the shop's own identity.
+  const requireOwner = requireOrganizationRole("owner");
+  // A logo arrives as raw image bytes, so it bypasses the JSON parser. The
+  // limit is enforced again in the handler against the shared constant.
+  const readLogoUpload = express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: "1mb" });
+  registerOrganizationRoutes(app, { requireOwner, readLogoUpload });
 
   registerCatalogRoutes(app, { requireManager, scopedStorage });
   registerInventoryRoutes(app, { requireManager, requireOperator, scopedStorage });

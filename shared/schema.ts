@@ -266,3 +266,14 @@ export const updatePasswordRequestSchema = z.object({
 });
 
 export type UpdatePasswordRequest = z.infer<typeof updatePasswordRequestSchema>;
+
+// Shop identity, editable by its owner.
+export const updateOrganizationRequestSchema = z.object({
+  name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres.").max(120, "El nombre no puede superar los 120 caracteres."),
+});
+
+export type UpdateOrganizationRequest = z.infer<typeof updateOrganizationRequestSchema>;
+
+/** Bounded so a logo stays something the interface can load quickly. */
+export const LOGO_MAX_BYTES = 512 * 1024;
+export const LOGO_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;

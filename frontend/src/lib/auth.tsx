@@ -10,6 +10,7 @@ export type Organization = {
   name: string;
   slug: string;
   status: "active" | "suspended";
+  logoUrl: string | null;
   role?: "owner" | "manager" | "cashier";
 };
 
