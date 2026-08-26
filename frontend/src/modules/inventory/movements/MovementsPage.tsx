@@ -1,10 +1,9 @@
-import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PresentationPicker } from "@/modules/inventory/presentations/PresentationPicker";
 import { usePresentations } from "@/modules/inventory/presentations/presentation-queries";
 import { useToast } from "@/hooks/use-toast";
-import { toBaseUnits } from "@shared/schema";
-import { useMovements, useCreateMovement } from "@/modules/inventory/movements/movement-queries";
+import { describeQuantity, toBaseUnits, type LedgerEntry } from "@shared/schema";
+import { useCreateMovement, useLedger } from "@/modules/inventory/movements/movement-queries";
 import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
 import { DataLoadError } from "@/components/ui/data-load-error";
@@ -19,8 +18,39 @@ import { insertMovementSchema } from "@shared/schema";
 import { z } from "zod";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowDown, ArrowUp, Loader2, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, HandCoins, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/** How each line of the day reads: its mark, its colour and its figure. */
+function describeEntry(entry: LedgerEntry) {
+  if (entry.kind === "payment") {
+    return {
+      icon: <HandCoins className="w-5 h-5" />,
+      tone: "bg-amber-500/10 text-amber-400",
+      title: `Abono de ${entry.customerName}`,
+      amount: `+${Number(entry.amount).toFixed(2)}`,
+      amountTone: "text-amber-400",
+      note: entry.paymentMethod,
+    };
+  }
+
+  const unitLabel = entry.product?.unitLabel ?? "unidad";
+  const figure = describeQuantity(entry.enteredQuantity ?? entry.quantity, entry.pack, unitLabel);
+  return {
+    icon: entry.type === "IN" ? <ArrowUp className="w-5 h-5" />
+      : entry.type === "OUT" ? <ArrowDown className="w-5 h-5" />
+      : <RefreshCw className="w-5 h-5" />,
+    tone: entry.type === "IN" ? "bg-green-500/10 text-green-400"
+      : entry.type === "OUT" ? "bg-red-500/10 text-red-400"
+      : "bg-blue-500/10 text-blue-400",
+    title: entry.product?.name ?? "Producto eliminado",
+    amount: `${entry.type === "IN" ? "+" : "-"}${entry.quantity}`,
+    amountTone: entry.type === "IN" ? "text-green-400" : "text-red-400",
+    // The presentation only earns a chip when it says something the figure
+    // does not: "2 × Caja de 12" against the 24 that left the shelf.
+    note: entry.pack ? figure : null,
+  };
+}
 
 // Schema for the movement form
 const formSchema = insertMovementSchema.extend({
@@ -33,7 +63,7 @@ const formSchema = insertMovementSchema.extend({
 type MovementFormValues = z.infer<typeof formSchema>;
 
 export default function Movements() {
-  const { data: movements, isLoading, isError, error, refetch, isFetching } = useMovements();
+  const { data: entries, isLoading, isError, error, refetch, isFetching } = useLedger();
   const { data: products } = useProducts();
   const createMovement = useCreateMovement();
   const { toast } = useToast();
@@ -196,7 +226,10 @@ export default function Movements() {
 
             {/* History Section */}
             <div className="lg:col-span-2 glass-panel p-6 rounded-2xl">
-              <h3 className="text-xl font-bold font-display text-white mb-6">Historial Reciente</h3>
+              <h3 className="text-xl font-bold font-display text-white mb-1">Historial Reciente</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Todo lo que entra y sale, incluidos los fiados y sus abonos.
+              </p>
               
               <div className="space-y-4">
                 {isLoading ? (
@@ -209,49 +242,36 @@ export default function Movements() {
                     onRetry={() => refetch()}
                     isRetrying={isFetching}
                   />
-                ) : movements?.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">No hay movimientos registrados.</p>
+                ) : entries?.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Todavía no hay nada registrado.</p>
                 ) : (
-                  movements?.map((move) => (
-                    <div key={move.id} className="flex items-center gap-4 p-4 rounded-xl bg-background/30 border border-white/5 hover:border-white/10 transition-colors">
-                      <div className={cn(
-                        "p-3 rounded-xl shrink-0",
-                        move.type === 'IN' ? "bg-green-500/10 text-green-400" : 
-                        move.type === 'OUT' ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400"
-                      )}>
-                        {move.type === 'IN' ? <ArrowUp className="w-5 h-5" /> : 
-                         move.type === 'OUT' ? <ArrowDown className="w-5 h-5" /> : 
-                         <RefreshCw className="w-5 h-5" />}
-                      </div>
-                      
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-white">{move.product?.name}</h4>
-                        <div className="flex gap-3 text-xs text-muted-foreground mt-1">
-                          {move.createdAt && <span>{format(new Date(move.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</span>}
-                          {move.pack && (
-                            <span className="rounded bg-white/5 px-1.5 py-0.5">
-                              {move.enteredQuantity ?? move.quantity} × {move.pack.label}
-                            </span>
-                          )}
-                          {move.reason && (
-                            <>
-                              <span>•</span>
-                              <span>{move.reason}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                  entries?.map((entry) => {
+                    const line = describeEntry(entry);
+                    const detail = entry.kind === "payment" ? entry.notes : entry.reason;
+                    return (
+                      <div key={`${entry.kind}-${entry.id}`} className="flex items-center gap-4 p-4 rounded-xl bg-background/30 border border-white/5 hover:border-white/10 transition-colors">
+                        <div className={cn("p-3 rounded-xl shrink-0", line.tone)}>{line.icon}</div>
 
-                      <div className="text-right">
-                        <span className={cn(
-                          "text-lg font-bold font-mono",
-                          move.type === 'IN' ? "text-green-400" : "text-red-400"
-                        )}>
-                          {move.type === 'IN' ? '+' : '-'}{move.quantity}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-white truncate">{line.title}</h4>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                            <span>{format(new Date(entry.at), "dd MMM yyyy, HH:mm", { locale: es })}</span>
+                            {line.note && <span className="rounded bg-white/5 px-1.5 py-0.5">{line.note}</span>}
+                            {detail && (
+                              <>
+                                <span>•</span>
+                                <span className="truncate">{detail}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <span className={cn("text-lg font-bold font-mono shrink-0", line.amountTone)}>
+                          {line.amount}
                         </span>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

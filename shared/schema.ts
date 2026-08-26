@@ -340,6 +340,41 @@ export type UpdateOrganizationRequest = z.infer<typeof updateOrganizationRequest
 export const LOGO_MAX_BYTES = 512 * 1024;
 export const LOGO_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 
+// ============================================
+// HISTORIAL
+// ============================================
+
+/**
+ * One line of the shop's day. Stock and money are kept in separate tables —
+ * a payment has no product and movements.product_id is not nullable — so they
+ * are brought together for reading and nowhere else.
+ */
+export interface LedgerMovementEntry {
+  kind: "movement";
+  id: number;
+  at: string;
+  type: "IN" | "OUT" | "ADJUSTMENT";
+  /** Always in base units, whatever presentation was used. */
+  quantity: number;
+  /** What the person typed: 2, when the case holds twelve. */
+  enteredQuantity: number | null;
+  pack: Presentation | null;
+  product: { id: number; name: string; unitLabel: string } | null;
+  reason: string | null;
+}
+
+export interface LedgerPaymentEntry {
+  kind: "payment";
+  id: number;
+  at: string;
+  amount: string;
+  paymentMethod: string | null;
+  customerName: string;
+  notes: string | null;
+}
+
+export type LedgerEntry = LedgerMovementEntry | LedgerPaymentEntry;
+
 export const createProductPackRequestSchema = z.object({
   label: z.string().trim().min(2, "Ponle un nombre a la presentación.").max(60),
   units: z.coerce.number().int().min(2, "Una presentación agrupa al menos 2 unidades.").max(10_000),

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest } from "@shared/schema";
 import { authenticatedFetch } from "@/lib/auth";
+import { ledgerKey } from "@/modules/inventory/movements/movement-queries";
 import { throwApiError } from "@/lib/api-errors";
 
 async function fetchCredits(): Promise<CreditAccountWithDetails[]> {
@@ -71,6 +72,7 @@ export function useCreateCredit() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["credits"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ledgerKey });
     },
   });
 }
@@ -82,6 +84,8 @@ export function useCreatePayment() {
     mutationFn: createPayment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["credits"] });
+      // The payment belongs to the shop's day as much as a sale does.
+      queryClient.invalidateQueries({ queryKey: ledgerKey });
     },
   });
 }

@@ -3,7 +3,8 @@ import type {
   Category, Supplier, Product, Movement, CreditAccount, CreditPayment,
   InsertCategory, InsertSupplier, InsertProduct, CreateMovementRequest, InsertCreditAccount, InsertCreditPayment,
   UpdateCategoryRequest, UpdateSupplierRequest, UpdateProductRequest,
-  DashboardStats, CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest
+  DashboardStats, CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest,
+  LedgerEntry
 } from "../shared/schema.js";
 
 // Helper functions to convert between camelCase and snake_case
@@ -50,6 +51,7 @@ export interface IStorage {
   deleteProduct(id: number): Promise<void>;
   
   getMovements(): Promise<(Movement & { product: Product | null })[]>;
+  getLedger(limit: number): Promise<LedgerEntry[]>;
   createMovement(movement: CreateMovementRequest): Promise<Movement>;
   
   getCreditAccounts(): Promise<CreditAccountWithDetails[]>;
@@ -205,6 +207,78 @@ export class DatabaseStorage implements IStorage {
       .order('created_at', { ascending: false });
     if (error) throw error;
     return (data || []).map(toCamelCase);
+  }
+
+  /**
+   * Everything that happened, stock and money on one line of time.
+   *
+   * The two tables stay apart: a movement always has a product and a payment
+   * never does, so merging them in the database would mean a column that is
+   * empty half the time. They are read separately and interleaved here, each
+   * side asked for at most as many rows as the answer can hold.
+   */
+  async getLedger(limit: number): Promise<LedgerEntry[]> {
+    const [movementsResult, paymentsResult] = await Promise.all([
+      (supabase as any)
+        .from('movements')
+        .select('id, type, quantity, entered_quantity, reason, created_at, product:products(id, name, unit_label), pack:product_packs!movements_pack_organization_fkey(id, label, units, price)')
+        .eq('organization_id', this.organizationScope)
+        .order('created_at', { ascending: false })
+        .limit(limit),
+      (supabase as any)
+        .from('credit_payments')
+        .select('id, credit_account_id, amount, payment_method, notes, created_at')
+        .eq('organization_id', this.organizationScope)
+        .order('created_at', { ascending: false })
+        .limit(limit),
+    ]);
+    if (movementsResult.error) throw movementsResult.error;
+    if (paymentsResult.error) throw paymentsResult.error;
+
+    const payments = (paymentsResult.data ?? []) as any[];
+    // Whose debt was paid. Looked up rather than embedded so the reading does
+    // not depend on which foreign keys PostgREST can see between the two.
+    const customerByAccount = new Map<number, string>();
+    const accountIds = Array.from(new Set<number>(payments.map((payment) => payment.credit_account_id)));
+    if (accountIds.length > 0) {
+      const { data, error } = await (supabase as any)
+        .from('credit_accounts')
+        .select('id, customer_name')
+        .in('id', accountIds)
+        .eq('organization_id', this.organizationScope);
+      if (error) throw error;
+      for (const account of (data ?? []) as any[]) customerByAccount.set(account.id, account.customer_name);
+    }
+
+    const entries: LedgerEntry[] = [
+      ...((movementsResult.data ?? []) as any[]).map((movement): LedgerEntry => ({
+        kind: 'movement',
+        id: movement.id,
+        at: movement.created_at,
+        type: movement.type,
+        quantity: movement.quantity,
+        enteredQuantity: movement.entered_quantity ?? null,
+        pack: movement.pack ? toCamelCase(movement.pack) : null,
+        product: movement.product
+          ? { id: movement.product.id, name: movement.product.name, unitLabel: movement.product.unit_label ?? 'unidad' }
+          : null,
+        reason: movement.reason ?? null,
+      })),
+      ...payments.map((payment): LedgerEntry => ({
+        kind: 'payment',
+        id: payment.id,
+        at: payment.created_at,
+        amount: String(payment.amount),
+        paymentMethod: payment.payment_method ?? null,
+        customerName: customerByAccount.get(payment.credit_account_id) ?? 'Cliente',
+        notes: payment.notes ?? null,
+      })),
+    ];
+
+    // Compared as instants, not as text: the two tables can word the same
+    // moment differently.
+    entries.sort((first, second) => Date.parse(second.at) - Date.parse(first.at));
+    return entries.slice(0, limit);
   }
 
   // ---- Presentaciones -------------------------------------------------
