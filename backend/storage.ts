@@ -214,38 +214,6 @@ export class DatabaseStorage implements IStorage {
     return toCamelCase(data[0]);
   }
 
-  /** @deprecated Replaced by the atomic PostgreSQL function. */
-  private async createMovementLegacy(movement: InsertMovement): Promise<Movement> {
-    // Verificar stock disponible antes de procesar el movimiento
-    const { data: product, error: productError } = await supabase.from('products').select('quantity').eq('id', movement.productId).eq('organization_id', this.organizationScope).single();
-    if (productError) throw productError;
-
-    const currentQuantity = (product as any).quantity;
-    let newQuantity = currentQuantity;
-    
-    if (movement.type === 'IN') {
-      newQuantity += movement.quantity;
-    } else if (movement.type === 'OUT') {
-      newQuantity -= movement.quantity;
-      // Validar que hay suficiente stock para la salida
-      if (newQuantity < 0) {
-        throw new Error(`Stock insuficiente. Disponible: ${currentQuantity}, Solicitado: ${movement.quantity}`);
-      }
-    } else if (movement.type === 'ADJUSTMENT') {
-      newQuantity = movement.quantity;
-    }
-
-    // Crear el movimiento solo si la validación pasó
-    const { data: newMovement, error: movementError } = await (supabase as any).from('movements').insert({ ...toSnakeCase(movement), organization_id: this.organizationScope }).select().single();
-    if (movementError) throw movementError;
-
-    // Actualizar la cantidad del producto
-    // @ts-expect-error - Supabase types don't infer quantity update correctly
-    const { error: updateError } = await supabase.from('products').update({ quantity: newQuantity }).eq('id', movement.productId).eq('organization_id', this.organizationScope);
-    if (updateError) throw updateError;
-
-    return toCamelCase(newMovement);
-  }
 
   async getCreditAccounts(): Promise<CreditAccountWithDetails[]> {
     const { data, error } = await supabase
@@ -292,111 +260,6 @@ export class DatabaseStorage implements IStorage {
     return toCamelCase(data[0]);
   }
 
-  /** @deprecated Replaced by the atomic PostgreSQL function. */
-  private async createCreditAccountLegacy(credit: CreateCreditAccountRequest): Promise<CreditAccount> {
-    // Implementación con manejo de compensación para asegurar consistencia
-    // Pasos:
-    // 1. Validar stock
-    // 2. Crear movimiento
-    // 3. Actualizar stock
-    // 4. Crear cuenta de crédito
-    // Si falla la creación de la cuenta, intentar revertir (restaurar stock y borrar movimiento)
-
-    // Verificar stock disponible y obtener precio
-    const { data: product, error: productError } = await supabase
-      .from('products')
-      .select('quantity, selling_price')
-      .eq('id', credit.productId)
-      .eq('organization_id', this.organizationScope)
-      .single();
-    if (productError) throw productError;
-
-    const currentQuantity = (product as any).quantity;
-    const newQuantity = currentQuantity - credit.quantity;
-    if (newQuantity < 0) {
-      throw new Error(`Stock insuficiente. Disponible: ${currentQuantity}, Solicitado: ${credit.quantity}`);
-    }
-
-    // Preparar movimiento
-    const movement: InsertMovement = {
-      productId: credit.productId,
-      type: 'OUT',
-      quantity: credit.quantity,
-      reason: `Fiado a: ${credit.customerName}`,
-    };
-
-    // Variables para rollback
-    let createdMovementId: number | null = null;
-    let stockUpdated = false;
-
-    try {
-      // Crear movimiento
-      const { data: newMovement, error: movementError } = await (supabase as any)
-        .from('movements')
-        .insert({ ...toSnakeCase(movement), organization_id: this.organizationScope })
-        .select()
-        .single();
-      if (movementError) throw movementError;
-      createdMovementId = (newMovement as any).id;
-
-      // Actualizar stock
-      const { error: updateError } = await (supabase as any)
-        .from('products')
-        .update({ quantity: newQuantity })
-        .eq('id', credit.productId)
-        .eq('organization_id', this.organizationScope);
-      if (updateError) throw updateError;
-      stockUpdated = true;
-
-      // Calcular montos
-      const unitPrice = parseFloat((product as any).selling_price);
-      const totalAmount = unitPrice * credit.quantity;
-
-      // Crear cuenta de crédito
-      const creditData: InsertCreditAccount = {
-        customerName: credit.customerName,
-        productId: credit.productId,
-        movementId: createdMovementId,
-        quantity: credit.quantity,
-        unitPrice: unitPrice.toFixed(2),
-        totalAmount: totalAmount.toFixed(2),
-        paidAmount: '0',
-        remainingAmount: totalAmount.toFixed(2),
-        status: 'pending',
-        notes: credit.notes || null,
-      };
-
-      const { data: newCredit, error: creditError } = await (supabase as any)
-        .from('credit_accounts')
-        .insert({ ...toSnakeCase(creditData), organization_id: this.organizationScope })
-        .select()
-        .single();
-      if (creditError) throw creditError;
-
-      return toCamelCase(newCredit);
-    } catch (err) {
-      // Intentar revertir cambios si fue creado movimiento o actualizado stock
-      try {
-        if (stockUpdated) {
-          // Restaurar cantidad original
-          await (supabase as any)
-            .from('products')
-            .update({ quantity: currentQuantity })
-            .eq('id', credit.productId)
-            .eq('organization_id', this.organizationScope);
-        }
-        if (createdMovementId) {
-          await supabase.from('movements').delete().eq('id', createdMovementId).eq('organization_id', this.organizationScope);
-        }
-      } catch (revertErr) {
-        // Si el revert falla, lo registramos y seguimos lanzando el error original
-        // eslint-disable-next-line no-console
-        console.error('Error during compensating rollback:', revertErr);
-      }
-
-      throw err;
-    }
-  }
 
   async createCreditPayment(payment: CreateCreditPaymentRequest): Promise<CreditPayment> {
     const { data, error } = await (supabase as any).rpc('register_credit_payment', {
@@ -410,51 +273,6 @@ export class DatabaseStorage implements IStorage {
     return toCamelCase(data[0]);
   }
 
-  /** @deprecated Replaced by the atomic PostgreSQL function. */
-  private async createCreditPaymentLegacy(payment: CreateCreditPaymentRequest): Promise<CreditPayment> {
-    // Obtener cuenta de crédito actual
-    const { data: credit, error: creditError } = await supabase
-      .from('credit_accounts')
-      .select('*')
-      .eq('id', payment.creditAccountId)
-      .eq('organization_id', this.organizationScope)
-      .single();
-    if (creditError) throw creditError;
-
-    const creditData = credit as any;
-    const currentRemaining = parseFloat(creditData.remaining_amount);
-    const paymentAmount = parseFloat(payment.amount);
-
-    if (paymentAmount > currentRemaining) {
-      throw new Error(`El pago ($${paymentAmount}) excede la deuda restante ($${currentRemaining})`);
-    }
-
-    // Crear el pago
-    const { data: newPayment, error: paymentError } = await (supabase as any)
-      .from('credit_payments')
-      .insert({ ...toSnakeCase(payment), organization_id: this.organizationScope })
-      .select()
-      .single();
-    if (paymentError) throw paymentError;
-
-    // Actualizar cuenta de crédito
-    const newPaidAmount = parseFloat(creditData.paid_amount) + paymentAmount;
-    const newRemainingAmount = currentRemaining - paymentAmount;
-    const newStatus = newRemainingAmount === 0 ? 'paid' : 'partial';
-
-    const { error: updateError } = await (supabase as any)
-      .from('credit_accounts')
-      .update({
-        paid_amount: newPaidAmount.toFixed(2),
-        remaining_amount: newRemainingAmount.toFixed(2),
-        status: newStatus,
-      })
-      .eq('id', payment.creditAccountId)
-      .eq('organization_id', this.organizationScope);
-    if (updateError) throw updateError;
-
-    return toCamelCase(newPayment);
-  }
 
   async getCreditsStats(): Promise<CreditsStats> {
     const { data: accounts, error } = await supabase.from('credit_accounts').select('*').eq('organization_id', this.organizationScope);
