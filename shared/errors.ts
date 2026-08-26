@@ -22,8 +22,6 @@ export const errorCodes = {
   conflict: "conflict",
   /** The submitted values did not pass validation. */
   validation: "validation",
-  /** The movement or sale would leave the stock below zero. */
-  insufficientStock: "insufficient_stock",
   /** Anything the server did not anticipate. */
   unexpected: "unexpected",
 } as const;

@@ -27,17 +27,11 @@ test("does not expose unexpected error details", () => {
   assert.ok(!mapped.message.includes("database host"));
 });
 
-test("reports how much stock was available when the operation was refused", () => {
+test("refuses an operation the database rejected without repeating its wording", () => {
   const mapped = getApiError({ code: "22000", message: "Insufficient stock. Available: 3, requested: 10" });
   assert.equal(mapped.status, 400);
-  assert.equal(mapped.code, errorCodes.insufficientStock);
-  assert.equal(mapped.message, "No hay existencias suficientes: quedan 3 unidades y se pidieron 10.");
-});
-
-test("falls back to a general sentence when the stock message changes shape", () => {
-  const mapped = getApiError({ code: "22000", message: "algo distinto" });
-  assert.equal(mapped.code, errorCodes.insufficientStock);
-  assert.equal(mapped.message, "No hay existencias suficientes para completar la operación.");
+  assert.equal(mapped.code, errorCodes.validation);
+  assert.ok(!mapped.message.includes("Insufficient"));
 });
 
 test("surfaces the first validation problem to the caller", () => {

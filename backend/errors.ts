@@ -26,18 +26,6 @@ const postgresStates = {
   invalidParameter: "22023",
 } as const;
 
-/**
- * The transactional functions report the two figures that make the message
- * useful. Reading them back is a deliberate coupling with
- * database/migrations/005_atomic_inventory_operations.sql: if that wording
- * changes, the generic sentence below still applies and nothing breaks.
- */
-function describeInsufficientStock(message: string | undefined) {
-  const figures = message?.match(/Available:\s*(\d+),\s*requested:\s*(\d+)/i);
-  if (!figures) return "No hay existencias suficientes para completar la operación.";
-  return `No hay existencias suficientes: quedan ${figures[1]} unidades y se pidieron ${figures[2]}.`;
-}
-
 export function getApiError(error: unknown): ApiError {
   if (error instanceof z.ZodError) {
     return {
@@ -69,10 +57,13 @@ export function getApiError(error: unknown): ApiError {
         message: "No encontramos el registro solicitado.",
       };
     case postgresStates.raisedException:
+      // Raised by the transactional functions for a rule they enforce
+      // themselves. The wording is not shown, only that the operation was
+      // refused.
       return {
         status: 400,
-        code: errorCodes.insufficientStock,
-        message: describeInsufficientStock(databaseError.message),
+        code: errorCodes.validation,
+        message: "No se pudo completar la operación con los datos indicados.",
       };
     case postgresStates.invalidParameter:
       return {
