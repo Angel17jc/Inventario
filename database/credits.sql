@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS credit_accounts (
   remaining_amount DECIMAL(10, 2) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'partial', 'paid')),
   notes TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT positive_quantity CHECK (quantity > 0),
   CONSTRAINT positive_amounts CHECK (
     unit_price >= 0 AND 
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS credit_payments (
   amount DECIMAL(10, 2) NOT NULL,
   payment_method VARCHAR(50),
   notes TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT positive_payment CHECK (amount > 0)
 );
 

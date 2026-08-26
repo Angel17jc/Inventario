@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS movements (
     type VARCHAR(20) NOT NULL CHECK (type IN ('IN', 'OUT', 'ADJUSTMENT')),
     quantity INTEGER NOT NULL,
     reason TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     user_id VARCHAR(255),
     
     -- Constraints
