@@ -81,6 +81,7 @@ export const movements = pgTable("movements", {
   // loose units, which is what every movement before presentations meant.
   packId: integer("pack_id").references(() => productPacks.id),
   enteredQuantity: integer("entered_quantity"),
+  looseQuantity: integer("loose_quantity"),
   reason: text("reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   userId: varchar("user_id"), // Optional linkage to auth user
@@ -120,7 +121,7 @@ export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: tru
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, organizationId: true });
 // entered_quantity is derived by the database from the presentation. A caller
 // able to set it could make the history disagree with the stock it moved.
-export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, organizationId: true, createdAt: true, enteredQuantity: true });
+export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, organizationId: true, createdAt: true, enteredQuantity: true, looseQuantity: true });
 export const insertCreditAccountSchema = createInsertSchema(creditAccounts).omit({ id: true, organizationId: true, createdAt: true, updatedAt: true });
 export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({ id: true, organizationId: true, createdAt: true });
 
@@ -248,28 +249,61 @@ export function chargeFor(
 }
 
 /** The words to put beside a figure: "2 Caja de 12", "6 botellas". */
+
+/**
+ * How a sale of cases plus loose units reads back: "1 × Caja de 12 + 6
+ * botellas". Whichever side is zero is left out, so a plain sale of six
+ * bottles does not read as a sale of no cases.
+ */
+export function describeSale(
+  packQuantity: number,
+  looseQuantity: number,
+  presentation: Presentation | null,
+  unitLabel: string,
+): string {
+  const parts: string[] = [];
+  if (presentation && packQuantity > 0) parts.push(`${packQuantity} × ${presentation.label}`);
+  if (looseQuantity > 0) parts.push(describeQuantity(looseQuantity, null, unitLabel));
+  if (parts.length === 0) return describeQuantity(0, null, unitLabel);
+  return parts.join(" + ");
+}
+
+/** The words to put beside a figure: "2 Caja de 12", "6 botellas". */
 export function describeQuantity(quantity: number, presentation: Presentation | null, unitLabel: string): string {
   if (presentation) return `${quantity} × ${presentation.label}`;
   return `${quantity} ${quantity === 1 ? unitLabel : `${unitLabel}s`}`;
 }
 
-export const createMovementRequestSchema = z.object({
-  productId: z.coerce.number().int().positive(),
-  type: z.enum(["IN", "OUT", "ADJUSTMENT"]),
-  quantity: z.coerce.number().int().positive(),
-  reason: z.string().trim().max(500).nullable().optional(),
-  // Absent means loose units, which is what every movement before
-  // presentations existed meant.
+const mixedQuantities = {
+  // Whole cases of the chosen presentation, and units sold loose beside them.
+  // A shop hands over one case and six beers in a single sale, so either may
+  // be zero but not both.
+  quantity: z.coerce.number().int().min(0).max(1_000_000),
+  looseQuantity: z.coerce.number().int().min(0).max(1_000_000).default(0),
   packId: z.coerce.number().int().positive().nullable().optional(),
-});
+};
 
-export const createCreditAccountRequestSchema = z.object({
-  customerName: z.string().trim().min(2).max(120),
-  productId: z.coerce.number().int().positive(),
-  quantity: z.coerce.number().int().positive(),
-  notes: z.string().trim().max(500).nullable().optional(),
-  packId: z.coerce.number().int().positive().nullable().optional(),
-});
+const atLeastOneQuantity = (value: { quantity: number; looseQuantity: number }) =>
+  value.quantity > 0 || value.looseQuantity > 0;
+const nothingToRegister = { message: "Registra al menos una caja o una unidad." };
+
+export const createMovementRequestSchema = z
+  .object({
+    productId: z.coerce.number().int().positive(),
+    type: z.enum(["IN", "OUT", "ADJUSTMENT"]),
+    reason: z.string().trim().max(500).nullable().optional(),
+    ...mixedQuantities,
+  })
+  .refine(atLeastOneQuantity, nothingToRegister);
+
+export const createCreditAccountRequestSchema = z
+  .object({
+    customerName: z.string().trim().min(2).max(120),
+    productId: z.coerce.number().int().positive(),
+    notes: z.string().trim().max(500).nullable().optional(),
+    ...mixedQuantities,
+  })
+  .refine(atLeastOneQuantity, nothingToRegister);
 
 export const createCreditPaymentRequestSchema = z.object({
   creditAccountId: z.coerce.number().int().positive(),
@@ -343,8 +377,10 @@ export interface LedgerMovementEntry {
   type: "IN" | "OUT" | "ADJUSTMENT";
   /** Always in base units, whatever presentation was used. */
   quantity: number;
-  /** What the person typed: 2, when the case holds twelve. */
+  /** Whole cases the person typed: 2, when the case holds twelve. */
   enteredQuantity: number | null;
+  /** Units sold loose beside those cases. */
+  looseQuantity: number | null;
   pack: Presentation | null;
   product: { id: number; name: string; unitLabel: string } | null;
   reason: string | null;

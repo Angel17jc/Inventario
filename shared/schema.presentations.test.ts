@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chargeFor, describeQuantity, priceOf, toBaseUnits, unitCostOf, type Presentation } from "./schema.js";
+import { chargeFor, describeQuantity, describeSale, priceOf, toBaseUnits, unitCostOf, type Presentation } from "./schema.js";
 
 const caseOfTwelve: Presentation = { id: 1, label: "Caja de 12", units: 12, cost: "17.00", price: null };
 const caseOfSix: Presentation = { id: 2, label: "Caja de 6", units: 6, cost: null, price: "95.00" };
@@ -55,4 +55,20 @@ test("a sale of cases and loose units charges each at its own price", () => {
 test("a sale with no case is charged entirely by the unit", () => {
   assert.equal(chargeFor(0, 6, null, "2.00"), 12);
   assert.equal(chargeFor(3, 0, null, "2.00"), 0);
+});
+
+test("a sale of cases and loose units reads as both", () => {
+  assert.equal(describeSale(1, 6, caseOfTwelve, "botella"), "1 × Caja de 12 + 6 botellas");
+  assert.equal(describeSale(2, 2, caseOfTwelve, "botella"), "2 × Caja de 12 + 2 botellas");
+});
+
+test("whichever side of a sale is zero is left out", () => {
+  assert.equal(describeSale(2, 0, caseOfTwelve, "botella"), "2 × Caja de 12");
+  assert.equal(describeSale(0, 6, caseOfTwelve, "botella"), "6 botellas");
+  assert.equal(describeSale(0, 1, null, "botella"), "1 botella");
+});
+
+test("cases and loose units add up in base units", () => {
+  // Two cases of twelve and two loose bottles take twenty-six off the shelf.
+  assert.equal(toBaseUnits(2, caseOfTwelve) + 2, 26);
 });

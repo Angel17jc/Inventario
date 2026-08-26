@@ -1,4 +1,4 @@
-import { describeQuantity, toBaseUnits, type Presentation } from "@shared/schema";
+import type { Presentation } from "@shared/schema";
 import { usePresentations } from "./presentation-queries";
 
 interface PresentationPickerProps {
@@ -7,22 +7,17 @@ interface PresentationPickerProps {
   /** null means loose units. */
   value: number | null;
   onChange: (packId: number | null) => void;
-  /** Shown underneath so the person sees what actually leaves the shelf. */
-  quantity: number;
 }
 
 /**
  * Only appears once the product has a presentation. A shop that sells nothing
  * by the case should not be asked to choose between one option and itself.
  */
-export function PresentationPicker({ productId, unitLabel, value, onChange, quantity }: PresentationPickerProps) {
+export function PresentationPicker({ productId, unitLabel, value, onChange }: PresentationPickerProps) {
   const presentations = usePresentations(productId);
   const options = presentations.data ?? [];
 
   if (!productId || options.length === 0) return null;
-
-  const selected: Presentation | null = options.find((option) => option.id === value) ?? null;
-  const baseUnits = toBaseUnits(quantity, selected);
 
   return (
     <div className="space-y-1.5">
@@ -40,11 +35,6 @@ export function PresentationPicker({ productId, unitLabel, value, onChange, quan
           </option>
         ))}
       </select>
-      {selected && (
-        <p className="text-xs text-muted-foreground">
-          {describeQuantity(quantity, selected, unitLabel)} = <span className="font-medium text-foreground">{baseUnits} {unitLabel}</span> del stock.
-        </p>
-      )}
     </div>
   );
 }

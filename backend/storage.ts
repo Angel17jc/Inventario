@@ -221,7 +221,7 @@ export class DatabaseStorage implements IStorage {
     const [movementsResult, paymentsResult] = await Promise.all([
       (supabase as any)
         .from('movements')
-        .select('id, type, quantity, entered_quantity, reason, created_at, product:products(id, name, unit_label), pack:product_packs!movements_pack_organization_fkey(id, label, units, cost, price)')
+        .select('id, type, quantity, entered_quantity, loose_quantity, reason, created_at, product:products(id, name, unit_label), pack:product_packs!movements_pack_organization_fkey(id, label, units, cost, price)')
         .eq('organization_id', this.organizationScope)
         .order('created_at', { ascending: false })
         .limit(limit),
@@ -258,6 +258,7 @@ export class DatabaseStorage implements IStorage {
         type: movement.type,
         quantity: movement.quantity,
         enteredQuantity: movement.entered_quantity ?? null,
+        looseQuantity: movement.loose_quantity ?? null,
         pack: movement.pack ? toCamelCase(movement.pack) : null,
         product: movement.product
           ? { id: movement.product.id, name: movement.product.name, unitLabel: movement.product.unit_label ?? 'unidad' }
@@ -332,6 +333,7 @@ export class DatabaseStorage implements IStorage {
       p_reason: movement.reason ?? null,
       p_user_id: this.actorId ?? null,
       p_pack_id: movement.packId ?? null,
+      p_loose_quantity: movement.looseQuantity ?? 0,
     });
     if (error) throw error;
     return toCamelCase(data[0]);
@@ -379,6 +381,7 @@ export class DatabaseStorage implements IStorage {
       p_notes: credit.notes ?? null,
       p_user_id: this.actorId ?? null,
       p_pack_id: credit.packId ?? null,
+      p_loose_quantity: credit.looseQuantity ?? 0,
     });
     if (error) throw error;
     return toCamelCase(data[0]);

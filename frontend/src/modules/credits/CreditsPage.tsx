@@ -12,6 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { discardDraft, useDraft } from "@/lib/use-draft";
+import { chargeFor, describeSale, toBaseUnits } from "@shared/schema";
+import { PresentationPicker } from "@/modules/inventory/presentations/PresentationPicker";
+import { usePresentations } from "@/modules/inventory/presentations/presentation-queries";
 import { DataLoadError } from "@/components/ui/data-load-error";
 import { describeError } from "@/lib/api-errors";
 import { DollarSign, Users, AlertCircle, Plus } from "lucide-react";
@@ -34,6 +37,8 @@ export default function Credits() {
     customerName: "",
     productId: "",
     quantity: "",
+    looseQuantity: "",
+    packId: "",
     notes: "",
   });
 
@@ -42,6 +47,19 @@ export default function Credits() {
     paymentMethod: "",
     notes: "",
   });
+
+  // What the fiado comes to, worked out the same way a cash sale is: the
+  // cases at the case price, the loose units at the unit price.
+  const creditProductId = formData.productId === "" ? undefined : Number(formData.productId);
+  const creditProduct = products.find((candidate) => candidate.id === creditProductId);
+  const creditUnitLabel = creditProduct?.unitLabel ?? "unidad";
+  const creditPresentations = usePresentations(creditProductId).data ?? [];
+  const creditPresentation =
+    creditPresentations.find((candidate) => String(candidate.id) === formData.packId) ?? null;
+  const creditPacks = creditPresentation ? Number(formData.quantity) || 0 : 0;
+  const creditLoose = Number(formData.looseQuantity) || 0;
+  const creditUnits = toBaseUnits(creditPacks, creditPresentation) + creditLoose;
+  const creditCharge = chargeFor(creditPacks, creditLoose, creditPresentation, creditProduct?.sellingPrice ?? 0);
 
   const creditDraftKey = isCreateOpen ? "credit:new" : null;
   const restoreCreditDraft = useCallback((draft: typeof formData) => setFormData(draft), []);
@@ -57,13 +75,17 @@ export default function Credits() {
       await createCredit.mutateAsync({
         customerName: formData.customerName,
         productId: parseInt(formData.productId),
-        quantity: parseInt(formData.quantity),
+        // A fiado is sold the same way a cash sale is: whole cases, loose
+        // units, or both. The backend works out what it comes to.
+        packId: formData.packId === "" ? null : parseInt(formData.packId),
+        quantity: formData.packId === "" ? 0 : Number(formData.quantity) || 0,
+        looseQuantity: Number(formData.looseQuantity) || 0,
         notes: formData.notes || undefined,
       });
       toast({ title: "Crédito registrado exitosamente" });
       if (creditDraftKey) discardDraft(creditDraftKey);
       setIsCreateOpen(false);
-      setFormData({ customerName: "", productId: "", quantity: "", notes: "" });
+      setFormData({ customerName: "", productId: "", quantity: "", looseQuantity: "", packId: "", notes: "" });
     } catch (error: unknown) {
       toast({ title: "No se pudo registrar el fiado", description: describeError(error, "Vuelve a intentarlo en unos momentos."), variant: "destructive" });
     }
@@ -172,17 +194,54 @@ export default function Credits() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="quantity">Cantidad</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  required
-                />
+              <PresentationPicker
+                productId={formData.productId === "" ? undefined : Number(formData.productId)}
+                unitLabel={creditUnitLabel}
+                value={formData.packId === "" ? null : Number(formData.packId)}
+                onChange={(packId) =>
+                  setFormData((current) => ({
+                    ...current,
+                    packId: packId === null ? "" : String(packId),
+                    // No presentation means no cases to count.
+                    quantity: packId === null ? "" : current.quantity,
+                  }))
+                }
+              />
+              <div className="grid grid-cols-2 gap-3">
+                {creditPresentation && (
+                  <div>
+                    <Label htmlFor="quantity">{creditPresentation.label}</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="0"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    />
+                  </div>
+                )}
+                <div className={creditPresentation ? undefined : "col-span-2"}>
+                  <Label htmlFor="looseQuantity">
+                    {creditPresentation ? `${creditUnitLabel}s sueltas` : `${creditUnitLabel}s`}
+                  </Label>
+                  <Input
+                    id="looseQuantity"
+                    type="number"
+                    min="0"
+                    value={formData.looseQuantity}
+                    onChange={(e) => setFormData({ ...formData, looseQuantity: e.target.value })}
+                  />
+                </div>
               </div>
+              {creditCharge > 0 && (
+                <div className="rounded-lg border border-border bg-background/40 px-3 py-2 text-xs">
+                  <p className="text-muted-foreground">
+                    {describeSale(creditPacks, creditLoose, creditPresentation, creditUnitLabel)} ={" "}
+                    <span className="font-medium text-foreground">{creditUnits} {creditUnitLabel}s</span> del stock
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-primary">Se fía ${creditCharge.toFixed(2)}</p>
+                </div>
+              )}
               <div>
                 <Label htmlFor="notes">Notas (Opcional)</Label>
                 <Textarea

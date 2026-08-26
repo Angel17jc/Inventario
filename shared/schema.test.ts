@@ -12,18 +12,30 @@ import {
 
 test("accepts a valid stock movement", () => {
   const movement = createMovementRequestSchema.parse({ productId: "7", type: "OUT", quantity: "2", reason: "Venta" });
-  assert.deepEqual(movement, { productId: 7, type: "OUT", quantity: 2, reason: "Venta" });
+  assert.deepEqual(movement, { productId: 7, type: "OUT", quantity: 2, looseQuantity: 0, reason: "Venta" });
+});
+
+test("accepts cases and loose units in the same sale", () => {
+  // Two cases and two bottles is one sale, and so is six bottles on their own.
+  const mixed = createMovementRequestSchema.parse({ productId: 7, type: "OUT", quantity: 2, looseQuantity: 2, packId: 3 });
+  assert.equal(mixed.quantity, 2);
+  assert.equal(mixed.looseQuantity, 2);
+  assert.equal(createMovementRequestSchema.parse({ productId: 7, type: "OUT", quantity: 0, looseQuantity: 6 }).looseQuantity, 6);
 });
 
 test("rejects invalid stock movement quantities and types", () => {
   assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "DELETE", quantity: 1 }));
+  // Nothing on either side is not a sale.
   assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "OUT", quantity: 0 }));
+  assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "OUT", quantity: 0, looseQuantity: 0 }));
+  assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "OUT", quantity: -1, looseQuantity: 2 }));
 });
 
 test("validates credit sales before inventory is affected", () => {
   const credit = createCreditAccountRequestSchema.parse({ customerName: "María Pérez", productId: 4, quantity: 3 });
   assert.equal(credit.customerName, "María Pérez");
   assert.throws(() => createCreditAccountRequestSchema.parse({ customerName: "", productId: 4, quantity: 3 }));
+  assert.throws(() => createCreditAccountRequestSchema.parse({ customerName: "María Pérez", productId: 4, quantity: 0 }));
 });
 
 test("normalizes payment amounts and rejects invalid values", () => {

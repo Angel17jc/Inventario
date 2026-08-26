@@ -2,7 +2,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { PresentationPicker } from "@/modules/inventory/presentations/PresentationPicker";
 import { usePresentations } from "@/modules/inventory/presentations/presentation-queries";
 import { useToast } from "@/hooks/use-toast";
-import { describeQuantity, toBaseUnits, type LedgerEntry } from "@shared/schema";
+import { chargeFor, describeSale, toBaseUnits, type LedgerEntry } from "@shared/schema";
 import { useCreateMovement, useLedger } from "@/modules/inventory/movements/movement-queries";
 import { useProducts } from "@/modules/inventory/products/product-queries";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ function describeEntry(entry: LedgerEntry) {
   }
 
   const unitLabel = entry.product?.unitLabel ?? "unidad";
-  const figure = describeQuantity(entry.enteredQuantity ?? entry.quantity, entry.pack, unitLabel);
+  const figure = describeSale(entry.enteredQuantity ?? 0, entry.looseQuantity ?? 0, entry.pack, unitLabel);
   return {
     icon: entry.type === "IN" ? <ArrowUp className="w-5 h-5" />
       : entry.type === "OUT" ? <ArrowDown className="w-5 h-5" />
@@ -46,21 +46,25 @@ function describeEntry(entry: LedgerEntry) {
     title: entry.product?.name ?? "Producto eliminado",
     amount: `${entry.type === "IN" ? "+" : "-"}${entry.quantity}`,
     amountTone: entry.type === "IN" ? "text-green-400" : "text-red-400",
-    // The presentation only earns a chip when it says something the figure
-    // does not: "2 × Caja de 12" against the 24 that left the shelf.
-    note: entry.pack ? figure : null,
+    // The chip only earns its place when it says something the figure does
+    // not: "1 × Caja de 12 + 6 botellas" against the 18 that left the shelf.
+    note: entry.pack || entry.looseQuantity ? figure : null,
   };
 }
 
-// Schema for the movement form
+// A sale is whole cases plus loose units: one case and six beers is one sale,
+// not two. Either side may be zero, which the submit button enforces.
 const formSchema = insertMovementSchema.extend({
   packId: z.coerce.number().int().positive().nullable().optional(),
-  quantity: z.coerce.number().min(1, "La cantidad debe ser al menos 1"),
+  quantity: z.coerce.number().min(0),
+  looseQuantity: z.coerce.number().min(0),
   productId: z.coerce.number().min(1, "Selecciona un producto"),
   // Stock only ever leaves from here. Buying is recorded in the inventory,
   // where the shop writes down what it now has on the shelf.
   type: z.literal("OUT"),
 });
+
+const emptySale = { type: "OUT", quantity: 0, looseQuantity: 1, packId: null } as const;
 
 type MovementFormValues = z.infer<typeof formSchema>;
 
@@ -72,22 +76,28 @@ export default function Movements() {
 
   const form = useForm<MovementFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      type: "OUT",
-      quantity: 1,
-      packId: null,
-    },
+    defaultValues: { ...emptySale },
   });
 
   const selectedProductId = Number(form.watch("productId")) || undefined;
   const presentations = usePresentations(selectedProductId).data ?? [];
+  const product = products?.find((candidate) => candidate.id === selectedProductId);
+  const unitLabel = product?.unitLabel ?? "unidad";
+
+  const packId = form.watch("packId") ?? null;
+  const presentation = presentations.find((candidate) => candidate.id === packId) ?? null;
+  const packQuantity = presentation ? Number(form.watch("quantity")) || 0 : 0;
+  const looseQuantity = Number(form.watch("looseQuantity")) || 0;
+  const leaving = toBaseUnits(packQuantity, presentation) + looseQuantity;
+  const charge = chargeFor(packQuantity, looseQuantity, presentation, product?.sellingPrice ?? 0);
+  const nothingToRegister = leaving <= 0;
 
   function onSubmit(data: MovementFormValues) {
-    const product = products?.find((candidate) => candidate.id === Number(data.productId));
-    const presentation = presentations.find((candidate) => candidate.id === data.packId) ?? null;
-    const remaining = (product?.quantity ?? 0) - toBaseUnits(Number(data.quantity), presentation);
+    const remaining = (product?.quantity ?? 0) - leaving;
 
-    createMovement.mutate(data, {
+    // Without a presentation there are no cases to count, whatever the field
+    // held before the presentation was cleared.
+    createMovement.mutate({ ...data, quantity: presentation ? data.quantity : 0 }, {
       onSuccess: () => {
         // Registering the sale is never refused, so the person is told what it
         // left behind rather than being stopped beforehand.
@@ -95,16 +105,12 @@ export default function Movements() {
           toast({
             title: remaining < 0 ? `${product.name} quedó en negativo` : `${product.name} se agotó`,
             description: remaining < 0
-              ? `El registro dice ${remaining} ${product.unitLabel ?? "unidad"}: se vendió más de lo que había contado. Ajusta el inventario cuando puedas.`
+              ? `El registro dice ${remaining} ${unitLabel}: se vendió más de lo que había contado. Corrige el stock en Inventario cuando puedas.`
               : "No queda nada en el registro. Repón antes de la próxima venta.",
             variant: "destructive",
           });
         }
-        form.reset({
-          type: "OUT",
-          quantity: 1,
-          packId: null,
-        });
+        form.reset({ ...emptySale });
       },
     });
   }
@@ -153,31 +159,63 @@ export default function Movements() {
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="quantity"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cantidad</FormLabel>
-                          <FormControl>
-                            <Input type="number" min="1" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
                     <PresentationPicker
-                      productId={form.watch("productId") || undefined}
-                      unitLabel={
-                        products?.find((product) => product.id === Number(form.watch("productId")))?.unitLabel ?? "unidad"
-                      }
-                      value={form.watch("packId") ?? null}
-                      onChange={(packId) => form.setValue("packId", packId)}
-                      quantity={Number(form.watch("quantity")) || 0}
+                      productId={selectedProductId}
+                      unitLabel={unitLabel}
+                      value={packId}
+                      onChange={(next) => {
+                        form.setValue("packId", next);
+                        // Clearing the presentation leaves no cases to count.
+                        if (next === null) form.setValue("quantity", 0);
+                      }}
                     />
 
-                    <Button type="submit" disabled={createMovement.isPending} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 mt-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {presentation && (
+                        <FormField
+                          control={form.control}
+                          name="quantity"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{presentation.label}</FormLabel>
+                              <FormControl>
+                                <Input type="number" min="0" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+
+                      <FormField
+                        control={form.control}
+                        name="looseQuantity"
+                        render={({ field }) => (
+                          <FormItem className={presentation ? undefined : "col-span-2"}>
+                            <FormLabel>{presentation ? `${unitLabel}s sueltas` : `${unitLabel}s`}</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* What the sale comes to, before it is registered: the
+                        cases at the case price, the loose units at the unit
+                        price, and the stock counted in base units. */}
+                    {!nothingToRegister && product && (
+                      <div className="rounded-lg border border-border bg-background/40 px-3 py-2 text-xs">
+                        <p className="text-muted-foreground">
+                          {describeSale(packQuantity, looseQuantity, presentation, unitLabel)} ={" "}
+                          <span className="font-medium text-foreground">{leaving} {unitLabel}s</span> del stock
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold text-primary">Total ${charge.toFixed(2)}</p>
+                      </div>
+                    )}
+
+                    <Button type="submit" disabled={createMovement.isPending || nothingToRegister} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 mt-4">
                       {createMovement.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       Registrar venta
                     </Button>
