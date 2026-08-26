@@ -1,5 +1,4 @@
 import { pgTable, text, serial, integer, timestamp, decimal, varchar, uuid } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -110,53 +109,6 @@ export const creditPayments = pgTable("credit_payments", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
-
-// === RELATIONS ===
-export const productsRelations = relations(products, ({ one, many }) => ({
-  category: one(categories, {
-    fields: [products.categoryId],
-    references: [categories.id],
-  }),
-  supplier: one(suppliers, {
-    fields: [products.supplierId],
-    references: [suppliers.id],
-  }),
-  movements: many(movements),
-}));
-
-export const categoriesRelations = relations(categories, ({ many }) => ({
-  products: many(products),
-}));
-
-export const suppliersRelations = relations(suppliers, ({ many }) => ({
-  products: many(products),
-}));
-
-export const movementsRelations = relations(movements, ({ one }) => ({
-  product: one(products, {
-    fields: [movements.productId],
-    references: [products.id],
-  }),
-}));
-
-export const creditAccountsRelations = relations(creditAccounts, ({ one, many }) => ({
-  product: one(products, {
-    fields: [creditAccounts.productId],
-    references: [products.id],
-  }),
-  movement: one(movements, {
-    fields: [creditAccounts.movementId],
-    references: [movements.id],
-  }),
-  payments: many(creditPayments),
-}));
-
-export const creditPaymentsRelations = relations(creditPayments, ({ one }) => ({
-  creditAccount: one(creditAccounts, {
-    fields: [creditPayments.creditAccountId],
-    references: [creditAccounts.id],
-  }),
-}));
 
 // === BASE SCHEMAS ===
 // Tenant identity is resolved exclusively on the server from the authenticated request.
