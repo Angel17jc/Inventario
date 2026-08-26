@@ -21,6 +21,9 @@ const productFields = {
   sellingPrice: z.coerce.number().min(0).max(1_000_000),
   categoryId: optionalReferenceIdSchema,
   supplierId: optionalReferenceIdSchema,
+  // What the shop calls one of these on the shelf. Stock is counted in it and
+  // every presentation is a multiple of it.
+  unitLabel: z.string().trim().min(2).max(40).optional(),
 };
 
 export const createProductSchema = api.products.create.input.extend(productFields);

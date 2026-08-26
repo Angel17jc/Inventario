@@ -11,8 +11,9 @@ import { useCreateProduct, useUpdateProduct } from "@/hooks/use-products";
 import { useCategories } from "@/hooks/use-categories";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { discardDraft, useDraft } from "@/lib/use-draft";
+import { PresentationsManager } from "@/modules/inventory/presentations/PresentationsManager";
 import { Loader2 } from "lucide-react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // Extend schema for form validation to handle string inputs for numbers
 const formSchema = insertProductSchema.extend({
@@ -38,7 +39,6 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
 
-  const isEditing = !!product;
   const isPending = createProduct.isPending || updateProduct.isPending;
 
   const form = useForm<ProductFormValues>({
@@ -52,8 +52,15 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
       costPrice: 0,
       sellingPrice: 0,
       imageUrl: "",
+      unitLabel: "unidad",
     },
   });
+
+  // A product needs an id before it can have presentations. Rather than send
+  // the person away to reopen what they just created, the modal stays on the
+  // product and turns into its editor.
+  const [createdId, setCreatedId] = useState<number | null>(null);
+  const productId = product?.id ?? createdId ?? undefined;
 
   useEffect(() => {
     if (product) {
@@ -66,6 +73,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
         costPrice: Number(product.costPrice),
         sellingPrice: Number(product.sellingPrice),
         imageUrl: product.imageUrl || "",
+        unitLabel: product.unitLabel || "unidad",
         categoryId: product.categoryId,
         supplierId: product.supplierId,
       });
@@ -79,9 +87,16 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
         costPrice: 0,
         sellingPrice: 0,
         imageUrl: "",
+        unitLabel: "unidad",
       });
     }
   }, [product, form]);
+
+  // Reopening the modal must not offer the presentations of the product
+  // created the time before.
+  useEffect(() => {
+    if (!open) setCreatedId(null);
+  }, [open]);
 
   const draftKey = open ? `product:${product?.id ?? "new"}` : null;
   const restoreDraft = useCallback((draft: ProductFormValues) => form.reset(draft), [form]);
@@ -93,6 +108,8 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
     onOpenChange(false);
   }
 
+  const isEditing = productId !== undefined;
+
   function onSubmit(data: ProductFormValues) {
     // Convert numeric decimal values to strings as expected by schema
     const submitData = {
@@ -101,13 +118,16 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
       sellingPrice: String(data.sellingPrice),
     };
 
-    if (isEditing) {
-      updateProduct.mutate({ id: product.id, ...submitData }, {
+    if (productId !== undefined) {
+      updateProduct.mutate({ id: productId, ...submitData }, {
         onSuccess: closeAndDiscard,
       });
     } else {
       createProduct.mutate(submitData, {
-        onSuccess: closeAndDiscard,
+        onSuccess: (created) => {
+          if (draftKey) discardDraft(draftKey);
+          setCreatedId(created.id);
+        },
       });
     }
   }
@@ -241,6 +261,20 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
 
               <FormField
                 control={form.control}
+                name="unitLabel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Unidad</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej. botella" {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="minStockLevel"
                 render={({ field }) => (
                   <FormItem>
@@ -268,9 +302,21 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
               )}
             />
 
+            {productId === undefined ? (
+              <p className="rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
+                Las presentaciones (caja de 6, caja de 12) se agregan en cuanto guardes el producto.
+              </p>
+            ) : (
+              <PresentationsManager
+                productId={productId}
+                unitLabel={form.watch("unitLabel") || "unidad"}
+                sellingPrice={Number(form.watch("sellingPrice")) || 0}
+              />
+            )}
+
             <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+              <Button type="button" variant="outline" onClick={closeAndDiscard}>
+                {createdId !== null ? "Listo" : "Cancelar"}
               </Button>
               <Button type="submit" disabled={isPending} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

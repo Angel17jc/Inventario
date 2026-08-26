@@ -10,7 +10,7 @@ const dashboardKey = [api.stats.get.path] as const;
 export function useProducts() { return useQuery({ queryKey: productsKey, queryFn: async () => { const response = await authenticatedFetch(api.products.list.path); if (!response.ok) await throwApiError(response, "No se pudieron cargar los productos"); return api.products.list.responses[200].parse(await response.json()); } }); }
 export function useProduct(id: number) { return useQuery({ queryKey: [api.products.get.path, id], queryFn: async () => { const response = await authenticatedFetch(buildUrl(api.products.get.path, { id })); if (response.status === 404) return null; if (!response.ok) await throwApiError(response, "No se pudo cargar el producto"); return api.products.get.responses[200].parse(await response.json()); }, enabled: id > 0 }); }
 
-function productMutation<T>(request: (data: T) => Promise<unknown>, successMessage: string) {
+function productMutation<TVariables, TData>(request: (data: TVariables) => Promise<TData>, successMessage: string) {
   const queryClient = useQueryClient(); const { toast } = useToast();
   return useMutation({ mutationFn: request, onSuccess: () => { queryClient.invalidateQueries({ queryKey: productsKey }); queryClient.invalidateQueries({ queryKey: dashboardKey }); toast({ title: "Éxito", description: successMessage }); }, onError: (error) => toast({ title: "No se pudo guardar", description: describeError(error, "No se pudo completar la operación con el producto."), variant: "destructive" }) });
 }
