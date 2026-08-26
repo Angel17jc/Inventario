@@ -9,11 +9,12 @@ El sistema separa la interfaz, la API y el acceso a datos por dominio de negocio
 `frontend/src/modules` contiene los módulos funcionales:
 
 - `catalog`: categorías y proveedores.
-- `inventory`: productos y movimientos.
+- `inventory`: productos, presentaciones y movimientos.
 - `credits`: fiados y pagos.
-- `platform`: administración de clientes SaaS, propietarios y personal.
+- `organization`: identidad de la licorería (nombre y logo).
+- `platform`: administración de clientes SaaS.
 
-Cada módulo es responsable de su página, componentes internos y acceso a su API. `frontend/src/App.tsx` solo registra rutas de pantalla. Las reexportaciones en `frontend/src/pages` y `frontend/src/hooks` son adaptadores temporales de compatibilidad; el código nuevo debe importar desde el módulo dueño.
+Cada módulo es responsable de su página, componentes internos y acceso a su API. `frontend/src/App.tsx` solo registra rutas de pantalla. **Se importa siempre desde el módulo dueño**: los adaptadores de compatibilidad que quedaban en `frontend/src/hooks` ya no existen. `frontend/src/hooks` guarda únicamente hooks de interfaz sin dominio, como `use-toast`.
 
 `frontend/src/components` y `frontend/src/lib` contienen únicamente elementos reutilizables, infraestructura de autenticación, manejo de errores y utilidades compartidas. No deben contener reglas de negocio específicas de inventario, catálogo, fiados o plataforma.
 
@@ -24,6 +25,7 @@ Cada módulo es responsable de su página, componentes internos y acceso a su AP
 - `catalog/catalog-routes.ts`
 - `inventory/inventory-routes.ts`
 - `credits/credit-routes.ts`
+- `organization/organization-routes.ts`
 - `platform/platform-routes.ts`
 
 `backend/routes.ts` es el ensamblador: configura salud, autenticación, contexto de organización y registra cada módulo. No debe acumular reglas de negocio.

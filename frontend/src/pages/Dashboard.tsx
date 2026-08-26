@@ -1,5 +1,5 @@
 import { Sidebar } from "@/components/layout/Sidebar";
-import { useStats } from "@/hooks/use-movements";
+import { useStats } from "@/modules/inventory/movements/movement-queries";
 import { StatCard } from "@/components/ui/StatCard";
 import { Package, DollarSign, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";

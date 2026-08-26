@@ -4,7 +4,7 @@ import { usePresentations } from "@/modules/inventory/presentations/presentation
 import { useToast } from "@/hooks/use-toast";
 import { describeQuantity, toBaseUnits, type LedgerEntry } from "@shared/schema";
 import { useCreateMovement, useLedger } from "@/modules/inventory/movements/movement-queries";
-import { useProducts } from "@/hooks/use-products";
+import { useProducts } from "@/modules/inventory/products/product-queries";
 import { Button } from "@/components/ui/button";
 import { DataLoadError } from "@/components/ui/data-load-error";
 import { describeError } from "@/lib/api-errors";
