@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS products (
     min_stock_level INTEGER DEFAULT 5,
     
     -- Constraints
-    CONSTRAINT positive_quantity CHECK (quantity >= 0),
+    -- El stock puede quedar en negativo: una venta se registra aunque el conteo
+    -- diga menos, y el negativo indica cuánto se ha desviado del inventario real.
     CONSTRAINT positive_cost_price CHECK (cost_price >= 0),
     CONSTRAINT positive_selling_price CHECK (selling_price >= 0),
     CONSTRAINT positive_min_stock CHECK (min_stock_level >= 0)
