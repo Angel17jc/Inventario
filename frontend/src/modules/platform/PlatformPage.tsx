@@ -5,19 +5,15 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { describeError } from "@/lib/api-errors";
 import { DataLoadError } from "@/components/ui/data-load-error";
-import { createOrganization, createOwnShop, listClients, setClientStatus, type PlatformClient } from "./platform-api";
+import { createOrganization, listClients, setClientStatus, type PlatformClient } from "./platform-api";
 
 const emptyForm = { name: "", slug: "", ownerEmail: "", ownerPassword: "" };
 
 export default function Platform() {
   const { toast } = useToast();
-  const { activeOrganization } = useAuth();
   const queryClient = useQueryClient();
-  const [ownShopName, setOwnShopName] = useState("");
-  const [isCreatingOwnShop, setIsCreatingOwnShop] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
@@ -41,24 +37,6 @@ export default function Platform() {
       variant: "destructive",
     }),
   });
-
-  // Creating it grants the membership that opens the operational screens, so
-  // the page reloads onto them rather than leaving the user here.
-  async function createMyShop(event: FormEvent) {
-    event.preventDefault();
-    setIsCreatingOwnShop(true);
-    try {
-      await createOwnShop({ name: ownShopName, slug: "" });
-      window.location.assign("/panel");
-    } catch (error) {
-      toast({
-        title: "No se pudo crear tu licorería",
-        description: describeError(error, "Vuelve a intentarlo en unos momentos."),
-        variant: "destructive",
-      });
-      setIsCreatingOwnShop(false);
-    }
-  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -93,30 +71,6 @@ export default function Platform() {
               Crea una licorería cliente y el usuario propietario que la administrará.
             </p>
           </div>
-
-          {!activeOrganization && (
-            <form onSubmit={createMyShop} className="space-y-4 rounded-2xl border border-primary/30 bg-primary/5 p-6">
-              <div>
-                <h2 className="text-xl font-semibold text-white">Tu propia licorería</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Además de administrar la plataforma puedes llevar tu propio negocio. Se creará a tu nombre y entrarás como propietario.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="own-shop-name" className="block text-sm font-medium">Nombre de tu licorería</label>
-                <Input
-                  id="own-shop-name"
-                  value={ownShopName}
-                  onChange={(event) => setOwnShopName(event.target.value)}
-                  placeholder="Mi Licorería"
-                  required
-                />
-              </div>
-              <Button type="submit" disabled={isCreatingOwnShop} className="w-full">
-                {isCreatingOwnShop ? "Creando…" : "Crear mi licorería"}
-              </Button>
-            </form>
-          )}
 
           <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-xl">
             <div className="space-y-1.5">

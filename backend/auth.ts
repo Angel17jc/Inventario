@@ -1,11 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import { supabase } from "./db.js";
 import { fail } from "./errors.js";
+import { platformService } from "./platform-service.js";
 import { errorCodes } from "../shared/errors.js";
 import type { OrganizationRole } from "../shared/tenancy.js";
 export { requireOrganizationRole } from "./authorization.js";
 
 const organizationRoles = ["owner", "manager", "cashier"] as const;
+const DEFAULT_ADMINISTRATOR_SHOP_NAME = "Mi Licorería";
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface AuthenticatedUser {
@@ -85,10 +87,20 @@ export function requirePlatformAdmin(req: Request, res: Response, next: NextFunc
 }
 
 export async function getAccessibleOrganizations(user: AuthenticatedUser) {
-  // A platform administrator belongs to no shop. It administers the accounts
-  // from its own screen and has no business reading what any of them sell,
-  // owe or hold in stock.
-  if (user.isPlatformAdmin) return [];
+  // A platform administrator reads nothing from its clients, but it does run a
+  // shop of its own. Provisioning it on first sign-in means the account never
+  // meets an empty application asking it to create something before it can
+  // start. The membership is what grants the access; the platform claim grants
+  // only the client screen.
+  if (user.isPlatformAdmin) {
+    const own = await platformService.findOwnedOrganizations(user.id);
+    if (own.length > 0) return own;
+    const { organization } = await platformService.createOwnOrganization(user.id, {
+      name: DEFAULT_ADMINISTRATOR_SHOP_NAME,
+      slug: "",
+    });
+    return [{ ...organization, role: "owner" as const }];
+  }
 
   const { data, error } = await (supabase as any)
     .from("organization_memberships")

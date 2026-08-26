@@ -19,11 +19,11 @@ function normalizeSlug(value: string): string {
 
 export class PlatformService {
   /**
-   * The client accounts, with the owner that administers each one. The
-   * platform administrator holds no membership, so this is the only view it
-   * has of them: names and status, never what they sell or are owed.
+   * The client accounts, with the owner that administers each one: names and
+   * status, never what they sell or are owed. A shop the administrator owns
+   * itself is not a client and is left out.
    */
-  async listOrganizations() {
+  async listOrganizations(administratorId: string) {
     // The generated Database type does not describe the tenancy tables, which
     // is why every caller in this file reaches them the same way.
     const { data: organizations, error } = await (supabase as any)
@@ -48,10 +48,20 @@ export class PlatformService {
       ]),
     );
 
-    return (organizations ?? []).map((organization: { id: string }) => ({
-      ...organization,
-      ownerEmail: ownerEmailByOrganization.get(organization.id) ?? null,
-    }));
+    // The administrator's own shop is not one of its clients: listing it there
+    // would offer to suspend the account it is signed in with.
+    const ownShopIds = new Set(
+      (owners ?? [])
+        .filter((owner: { user_id: string }) => owner.user_id === administratorId)
+        .map((owner: { organization_id: string }) => owner.organization_id),
+    );
+
+    return (organizations ?? [])
+      .filter((organization: { id: string }) => !ownShopIds.has(organization.id))
+      .map((organization: { id: string }) => ({
+        ...organization,
+        ownerEmail: ownerEmailByOrganization.get(organization.id) ?? null,
+      }));
   }
 
   async updateOrganizationStatus(organizationId: string, status: "active" | "suspended") {
@@ -67,6 +77,17 @@ export class PlatformService {
    * the membership that grants access to it. Membership is what opens the
    * operational screens, so this is how a platform account gets one.
    */
+  /** The shops this user owns, in the shape the session endpoint returns. */
+  async findOwnedOrganizations(userId: string) {
+    const { data, error } = await (supabase as any)
+      .from("organization_memberships")
+      .select("role, organization:organizations(id, name, slug, status)")
+      .eq("user_id", userId)
+      .eq("status", "active");
+    if (error) throw error;
+    return (data ?? []).map((membership: any) => ({ ...membership.organization, role: membership.role }));
+  }
+
   async createOwnOrganization(userId: string, input: { name: string; slug: string }) {
     const name = input.name.trim();
     const slug = normalizeSlug(input.slug || name);
