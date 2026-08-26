@@ -166,8 +166,11 @@ npm run build     # Compila frontend y backend a dist/
 npm start         # Ejecuta el build de producción
 npm run check     # Comprueba tipos
 npm test          # Ejecuta los tests
-npm run db:push   # Sincroniza el esquema con Drizzle
 ```
+
+El esquema de la base **no se sincroniza desde código**. Se cambia escribiendo una
+migración en `database/migrations` y ejecutándola. Drizzle está aquí solo para
+declarar las tablas y derivar de ellas los esquemas de Zod; no consulta la base.
 
 ---
 
