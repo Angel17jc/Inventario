@@ -25,19 +25,25 @@ Ejecuta las migraciones SQL en orden numérico antes del despliegue. Conserva un
 Ejecuta antes de desplegar:
 
 ```bash
-npm test
 npm run check
+npm test
 npm run build
 ```
+
+`npm run build` es el mismo comando que ejecuta Vercel (`vercel.json` lo fija), así
+que lo que se comprueba aquí es lo que se publica. La API la compila Vercel por su
+cuenta desde `api/index.ts`, con el resolvedor ESM nativo de Node: todo import
+relativo necesita extensión `.js`. El CI falla si falta alguna.
 
 ## Monitor de disponibilidad para desarrollo
 
 `GET /api/health/database` verifica de forma anónima que Supabase responde. No devuelve datos de organizaciones ni acepta operaciones de escritura.
 
-El workflow `.github/workflows/supabase-keepalive.yml` realiza una consulta de solo lectura cada día directamente a Supabase. Para activarlo, agrega estos secretos en GitHub: **Settings → Secrets and variables → Actions**:
+El workflow `.github/workflows/supabase-keepalive.yml` llama a ese endpoint una vez al día. No necesita credenciales: la consulta la hace el servidor con su clave, no el workflow. Solo requiere una variable en GitHub, **Settings → Secrets and variables → Actions → Variables**:
 
-- `SUPABASE_URL`: URL del proyecto, por ejemplo `https://tu-proyecto.supabase.co`.
-- `SUPABASE_ANON_KEY`: clave **anon/public** del proyecto. No uses ni subas `SUPABASE_SERVICE_ROLE_KEY`.
+- `APP_URL`: la URL del despliegue, por ejemplo `https://tu-app.vercel.app`.
+
+Antes usaba la clave anon directamente contra Supabase. Dejó de funcionar cuando la migración 006 revocó los privilegios de `anon`, que es justamente lo que se buscaba.
 
 El workflow es una ayuda temporal mientras el proyecto está en desarrollo. Para producción, usa Supabase Pro: el plan Free puede pausar proyectos inactivos.
 
