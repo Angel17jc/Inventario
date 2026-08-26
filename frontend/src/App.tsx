@@ -58,6 +58,13 @@ function ProtectedRouter() {
       return;
     }
 
+    // The platform administrator runs no shop of its own, so the operational
+    // screens have nothing to show it.
+    if (session && role === "platform_admin" && !isPasswordReset && location !== "/clientes") {
+      setLocation("/clientes", { replace: true });
+      return;
+    }
+
     if (session && role && !isPasswordReset && isPublicAuthRoute) {
       setLocation("/panel", { replace: true });
     }
@@ -66,12 +73,14 @@ function ProtectedRouter() {
   if (isLoading || isOrganizationsLoading) return <div className="min-h-screen bg-background" />;
   if (isPasswordReset) return <ResetPassword />;
   if (!session || !role) return <Login />;
+  // Its shell is the client list: it never belongs to an organization, so the
+  // active-organization check below does not apply to it.
+  if (role === "platform_admin") return <Platform />;
   if (!activeOrganization) return <main className="grid min-h-screen place-items-center bg-background p-6 text-center text-muted-foreground">No tienes una empresa activa asignada.</main>;
   return <Router />;
 }
 
 function Router() {
-  const { role } = useAuth();
   return (
     <Switch>
       <Route path="/panel" component={Dashboard} />
@@ -80,8 +89,6 @@ function Router() {
       <Route path="/categorias" component={Categories} />
       <Route path="/proveedores" component={Suppliers} />
       <Route path="/fiados" component={Credits} />
-      {role === "platform_admin" && <Route path="/clientes" component={Platform} />}
-
       <Route component={NotFound} />
     </Switch>
   );

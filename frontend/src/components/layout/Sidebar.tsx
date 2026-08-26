@@ -15,6 +15,7 @@ const menuItems = [
 export function Sidebar() {
   const [location] = useLocation();
   const { activeOrganization, organizations, setActiveOrganization, role, signOut, user } = useAuth();
+  const isPlatformAdmin = role === "platform_admin";
 
   return (
     <div className="flex h-screen w-64 flex-col bg-card border-r border-border/50 text-foreground shadow-2xl sticky top-0">
@@ -29,7 +30,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      {organizations.length > 1 && (
+      {!isPlatformAdmin && organizations.length > 1 && (
         <div className="px-4 pt-4">
           <label className="sr-only" htmlFor="organization-selector">Empresa activa</label>
           <select
