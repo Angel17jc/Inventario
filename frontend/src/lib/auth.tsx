@@ -21,6 +21,13 @@ type AuthContextValue = {
   activeOrganization: Organization | null;
   setActiveOrganization: (organizationId: string) => void;
   isOrganizationsLoading: boolean;
+  /**
+   * True once the shops for the signed-in user are known. Distinct from
+   * isOrganizationsLoading, which is false during the gap between a session
+   * arriving and its shops being asked for: deciding "this account has no
+   * shop" in that gap sends it to the wrong screen.
+   */
+  areOrganizationsResolved: boolean;
   isLoading: boolean;
   isPasswordRecovery: boolean;
   completePasswordRecovery: () => void;
@@ -47,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(sessionStorage.getItem("activeOrganizationId"));
   const [isLoading, setIsLoading] = useState(true);
   const [isOrganizationsLoading, setIsOrganizationsLoading] = useState(true);
+  const [resolvedForUserId, setResolvedForUserId] = useState<string | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(arrivedFromRecoveryLink);
 
   // Keyed on who is signed in, not on the session object. Returning to the tab
@@ -61,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!userId) {
       setOrganizations([]);
       setIsOrganizationsLoading(false);
+      setResolvedForUserId(null);
       hasLoadedOrganizations.current = false;
       return;
     }
@@ -87,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => {
         hasLoadedOrganizations.current = true;
+        setResolvedForUserId(userId);
         setIsOrganizationsLoading(false);
       });
   }, [userId]);
@@ -150,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.location.assign("/panel");
     },
     isOrganizationsLoading,
+    areOrganizationsResolved: userId === null || resolvedForUserId === userId,
     isLoading,
     isPasswordRecovery,
     completePasswordRecovery: () => setIsPasswordRecovery(false),
@@ -157,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.removeItem("activeOrganizationId");
       await supabase.auth.signOut();
     },
-  }), [session, organizations, activeOrganizationId, isLoading, isOrganizationsLoading, isPasswordRecovery]);
+  }), [session, organizations, activeOrganizationId, isLoading, isOrganizationsLoading, isPasswordRecovery, resolvedForUserId, userId]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

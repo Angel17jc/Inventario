@@ -40,7 +40,7 @@ function CanonicalPathRedirect() {
 }
 
 function ProtectedRouter() {
-  const { session, role, activeOrganization, isLoading, isOrganizationsLoading, isPasswordRecovery } = useAuth();
+  const { session, role, activeOrganization, isLoading, isOrganizationsLoading, areOrganizationsResolved, isPasswordRecovery } = useAuth();
   const [location, setLocation] = useLocation();
   const isPasswordReset = isPasswordRecovery || window.location.search.includes("reset=1");
   const isPublicAuthRoute = location === "/iniciar-sesion" || location === "/recuperar-acceso" || location === "/restablecer-contrasena";
@@ -61,7 +61,7 @@ function ProtectedRouter() {
     // Administering the platform and running a shop are separate things: the
     // administrator is sent to the client list only when it has no shop of its
     // own to open.
-    if (session && role === "platform_admin" && !activeOrganization && !isPasswordReset && location !== "/clientes") {
+    if (session && role === "platform_admin" && areOrganizationsResolved && !activeOrganization && !isPasswordReset && location !== "/clientes") {
       setLocation("/clientes", { replace: true });
       return;
     }
@@ -69,14 +69,14 @@ function ProtectedRouter() {
     if (session && role && !isPasswordReset && isPublicAuthRoute) {
       setLocation("/panel", { replace: true });
     }
-  }, [activeOrganization, isLoading, isOrganizationsLoading, isPasswordReset, isPublicAuthRoute, location, role, session, setLocation]);
+  }, [activeOrganization, areOrganizationsResolved, isLoading, isOrganizationsLoading, isPasswordReset, isPublicAuthRoute, location, role, session, setLocation]);
 
   if (isLoading || isOrganizationsLoading) return <div className="min-h-screen bg-background" />;
   if (isPasswordReset) return <ResetPassword />;
   if (!session || !role) return <Login />;
   // Without a shop of its own the client list is all it has; with one it uses
   // the application like any other owner and reaches /clientes from the menu.
-  if (role === "platform_admin" && !activeOrganization) return <Platform />;
+  if (role === "platform_admin" && areOrganizationsResolved && !activeOrganization) return <Platform />;
   if (!activeOrganization) return <main className="grid min-h-screen place-items-center bg-background p-6 text-center text-muted-foreground">No tienes una empresa activa asignada.</main>;
   return <Router />;
 }
