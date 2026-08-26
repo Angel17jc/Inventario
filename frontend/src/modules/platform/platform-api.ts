@@ -44,3 +44,12 @@ export async function setClientStatus(organizationId: string, status: PlatformCl
   });
   return parseResponse<PlatformClient>(response, "No se pudo cambiar el estado del cliente.");
 }
+
+export async function createOwnShop(input: { name: string; slug: string }) {
+  const response = await authenticatedFetch("/api/platform/organizations/mine", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseResponse<{ organization: { id: string; name: string } }>(response, "No fue posible crear tu licorería.");
+}

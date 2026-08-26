@@ -61,6 +61,37 @@ export class PlatformService {
   }
 
 
+  /**
+   * A shop for the administrator itself. It already has an account, so unlike
+   * createOrganizationWithOwner there is no user to create: only the shop and
+   * the membership that grants access to it. Membership is what opens the
+   * operational screens, so this is how a platform account gets one.
+   */
+  async createOwnOrganization(userId: string, input: { name: string; slug: string }) {
+    const name = input.name.trim();
+    const slug = normalizeSlug(input.slug || name);
+    if (!slug) throw new Error("Organization slug is required");
+
+    const { data: organization, error } = await (supabase as any)
+      .from("organizations")
+      .insert({ name, slug, status: "active" })
+      .select("id, name, slug, status")
+      .single();
+    if (error) throw error;
+
+    const { error: membershipError } = await (supabase as any)
+      .from("organization_memberships")
+      .insert({ organization_id: organization.id, user_id: userId, role: "owner", status: "active" });
+
+    if (membershipError) {
+      // No transaction spans both statements, so an orphan shop is undone here.
+      await (supabase as any).from("organizations").delete().eq("id", organization.id);
+      throw membershipError;
+    }
+
+    return { organization };
+  }
+
   async createOrganizationWithOwner(input: CreateOrganizationInput) {
     const name = input.name.trim();
     const slug = normalizeSlug(input.slug || name);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { platformService } from "../../platform-service.js";
 import {
   createOrganizationSchema,
+  createOwnOrganizationSchema,
   updateOrganizationStatusSchema,
 } from "./platform-schemas.js";
 
@@ -18,6 +19,11 @@ export function registerPlatformRoutes(app: Express, { requirePlatformAdmin }: P
   app.post("/api/platform/organizations", requirePlatformAdmin, async (req, res) => {
     const organization = await platformService.createOrganizationWithOwner(createOrganizationSchema.parse(req.body));
     res.status(201).json(organization);
+  });
+
+  app.post("/api/platform/organizations/mine", requirePlatformAdmin, async (req, res) => {
+    const input = createOwnOrganizationSchema.parse(req.body);
+    res.status(201).json(await platformService.createOwnOrganization(req.user!.id, input));
   });
 
   app.patch("/api/platform/organizations/:organizationId/status", requirePlatformAdmin, async (req, res) => {

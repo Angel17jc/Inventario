@@ -11,3 +11,8 @@ export const updateOrganizationStatusSchema = z.object({
   status: z.enum(["active", "suspended"]),
 });
 
+
+export const createOwnOrganizationSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  slug: z.string().trim().max(120).optional().default(""),
+});
