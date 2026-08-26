@@ -26,12 +26,30 @@ export function Sidebar() {
     <div className="flex h-screen w-64 flex-col bg-card border-r border-border/50 text-foreground shadow-2xl sticky top-0">
       {/* Brand */}
       <div className="flex items-center gap-3 px-6 py-8 border-b border-border/30">
-        <div className="bg-primary/20 p-2 rounded-xl ring-1 ring-primary/50">
-          <Wine className="w-8 h-8 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold font-display tracking-wide text-white">Licorería</h1>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Manager</p>
+        {activeOrganization?.logoUrl ? (
+          <img
+            src={activeOrganization.logoUrl}
+            alt=""
+            className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-border"
+          />
+        ) : (
+          <div className="shrink-0 rounded-xl bg-primary/20 p-2 ring-1 ring-primary/50">
+            <Wine className="h-8 w-8 text-primary" />
+          </div>
+        )}
+        <div className="min-w-0">
+          {activeOrganization ? (
+            // The shop's own name where the product's used to be: the person
+            // working here cares which till they are standing at.
+            <h1 className="truncate font-display text-lg font-bold tracking-wide text-white" title={activeOrganization.name}>
+              {activeOrganization.name}
+            </h1>
+          ) : (
+            <h1 className="font-display text-xl font-bold tracking-wide text-white">Licorería</h1>
+          )}
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            {activeOrganization ? "Licorería Manager" : "Manager"}
+          </p>
         </div>
       </div>
 
@@ -78,14 +96,16 @@ export function Sidebar() {
       <div className="space-y-3 border-t border-border/30 bg-background/30 p-4 backdrop-blur-sm">
         <div className="rounded-xl bg-white/5 px-3 py-2.5">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            {hasShop ? "Estás en" : "Sesión de"}
+            {hasShop ? "Conectado como" : "Sesión de"}
           </p>
-          <p className="truncate font-semibold text-white" title={activeOrganization?.name ?? user?.email ?? ""}>
-            {activeOrganization?.name ?? "Administración de plataforma"}
+          <p className="truncate font-semibold text-white" title={user?.email ?? ""}>
+            {hasShop ? user?.email : "Administración de plataforma"}
           </p>
-          <p className="truncate text-[11px] text-muted-foreground" title={user?.email ?? ""}>
-            {user?.email}
-          </p>
+          {!hasShop && (
+            <p className="truncate text-[11px] text-muted-foreground" title={user?.email ?? ""}>
+              {user?.email}
+            </p>
+          )}
         </div>
 
         <button
