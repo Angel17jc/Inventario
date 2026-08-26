@@ -16,7 +16,9 @@ Los roles de empresa no se guardan en el JWT. La API resolverá la membresía ac
 
 Todas las tablas de negocio recibirán un `organization_id` obligatorio en la siguiente migración. Las consultas y mutaciones de la API filtrarán por esa organización y las políticas RLS harán cumplir el mismo límite en PostgreSQL.
 
-El usuario de plataforma no debe ser miembro de cada cliente: puede administrar las empresas mediante `platform_role = platform_admin`.
+El usuario de plataforma no es miembro de ningún cliente y **no puede leer ni escribir sus datos**. `requireOrganizationContext` construye el contexto únicamente a partir de una membresía activa, y el tipo `OrganizationContext` solo admite roles de empresa, de modo que la excepción no puede reintroducirse sin que el compilador lo señale.
+
+Su único acceso a los clientes es `GET /api/platform/organizations`: nombres, propietario y estado. Nunca inventario, movimientos ni fiados.
 
 ## Migración de datos actuales
 
@@ -29,4 +31,10 @@ La migración de fundación (`002_saas_foundation.sql`) no toca los datos existe
 
 ## Operación de administración
 
-El panel de plataforma permitirá crear una organización y su propietario. El backend creará el usuario con Supabase Admin API, le asignará una membresía `owner` y nunca expondrá la clave de servicio al navegador.
+El panel de plataforma hace tres cosas y ninguna más:
+
+1. Crear una licorería cliente junto a su usuario propietario.
+2. Listar las licorerías con su propietario y su estado.
+3. Suspender o reactivar una licorería, lo que corta o restaura el acceso de su personal.
+
+Cada cliente tiene un único usuario, el propietario, creado en el mismo acto que la licorería. El backend lo crea con Supabase Admin API, le asigna la membresía `owner` y nunca expone la clave de servicio al navegador. Si el propietario olvida su contraseña, la recupera por correo desde la pantalla de inicio de sesión.

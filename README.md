@@ -2,7 +2,7 @@
 
 Sistema de gestión de inventario y fiados para licorerías, multi-empresa y desplegado como una sola aplicación en Vercel.
 
-Cada negocio (organización) ve únicamente sus propios datos. Un administrador de plataforma da de alta las empresas y sus usuarios; dentro de cada empresa los permisos se reparten entre propietario, encargado y cajero.
+Cada negocio (organización) ve únicamente sus propios datos. Un administrador de plataforma da de alta las licorerías cliente con su propietario, sin acceder a lo que cada una guarda; dentro de cada licorería los permisos se reparten entre propietario, encargado y cajero.
 
 ---
 
@@ -13,7 +13,7 @@ Cada negocio (organización) ve únicamente sus propios datos. Un administrador 
 - **Fiados** — cuentas de crédito por cliente. Cada abono descuenta del saldo y la cuenta pasa a `partial` o `paid` sola.
 - **Catálogo** — categorías y proveedores, propios de cada empresa.
 - **Panel** — total de productos, valor del inventario, alertas de stock bajo y actividad de los últimos 7 días.
-- **Clientes** — alta de empresas y usuarios, reservado al administrador de plataforma.
+- **Clientes** — alta de licorerías cliente con su propietario, y suspenderlas. Reservado al administrador de plataforma, que no ve los datos de ninguna.
 
 ---
 
@@ -48,7 +48,7 @@ backend/
   db.ts                     Cliente Supabase con la clave secreta
   errors.ts                 Traducción de errores a respuestas HTTP
   storage.ts                Acceso a datos, siempre acotado a una organización
-  platform-service.ts       Alta de empresas y usuarios
+  platform-service.ts       Alta de licorerías cliente y su propietario
   modules/
     catalog/                Categorías y proveedores
     credits/                Fiados
@@ -95,11 +95,13 @@ El modelo parte de una idea: **el navegador no toca la base de datos**. El bundl
 
 **Autenticación.** El token se valida en el servidor contra Supabase en cada petición. La pertenencia a la organización se comprueba en la base de datos, nunca a partir de un claim del token. Una organización suspendida queda sin acceso a la API.
 
+**El administrador de plataforma no entra en los datos de nadie.** Solo una membresía activa construye el contexto de organización, y su tipo únicamente admite roles de empresa: el compilador impide reintroducir la excepción. Ese rol crea licorerías, las lista y las suspende, y nada más.
+
 **Roles.**
 
 | Rol | Puede |
 |---|---|
-| `platform_admin` | Todo, en cualquier empresa |
+| `platform_admin` | Crear licorerías cliente con su propietario, listarlas y suspenderlas. No accede a los datos de ninguna |
 | `owner` / `manager` | Leer y escribir productos, categorías, proveedores, movimientos y fiados |
 | `cashier` | Leer, registrar movimientos y cobrar fiados |
 
@@ -140,7 +142,7 @@ En el SQL Editor de Supabase, en este orden:
 
 1. `database/schema.sql`
 2. `database/credits.sql`
-3. `database/migrations/001` … `007`, por número
+3. `database/migrations/001` … `008`, por número
 
 Las migraciones asumen la anterior aplicada. Haz copia de seguridad antes de las que mueven datos.
 
@@ -188,7 +190,8 @@ Todas las rutas bajo `/api` exigen `Authorization: Bearer <token>`, salvo las de
 | GET | `/api/credits`, `/api/credits/stats`, `/api/credits/customer/:nombre` | miembro |
 | POST | `/api/credits`, `/api/credits/payment` | cajero |
 | GET | `/api/stats` | miembro |
-| — | `/api/platform/*` | administrador de plataforma |
+| GET, POST | `/api/platform/organizations` | administrador de plataforma |
+| PATCH | `/api/platform/organizations/:id/status` | administrador de plataforma |
 
 ---
 

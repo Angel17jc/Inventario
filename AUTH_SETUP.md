@@ -11,26 +11,32 @@ Configura las cuatro variables de [`.env.example`](.env.example):
 
 No expongas nunca `SUPABASE_SERVICE_ROLE_KEY` ni la incluyas en variables `VITE_*`.
 
+## Roles
+
+| Rol | Dónde vive | Qué puede hacer |
+| --- | --- | --- |
+| `platform_admin` | `auth.users.raw_app_meta_data.platform_role` | Crear licorerías cliente con su propietario, listarlas y suspenderlas. **No accede a los datos de ninguna.** |
+| `owner` | Membresía en `organization_memberships` | Todo dentro de su licorería |
+| `manager` | Membresía | Todo dentro de su licorería |
+| `cashier` | Membresía | Leer, registrar movimientos y cobrar fiados |
+
+Los roles de empresa no viajan en el JWT: la API resuelve la membresía en cada petición, así que un cambio surte efecto de inmediato.
+
 ## Crear usuarios
 
-1. En Supabase, abre **Authentication → Users** y crea el usuario con correo y contraseña.
-2. En la edición del usuario, añade el rol en **App metadata**. Usa uno de estos valores:
+Los usuarios de una licorería se crean desde el panel de plataforma, no a mano en Supabase. Al crear la licorería se crea también su propietario con la contraseña inicial que indiques; entrégasela por un canal seguro y pídele que la cambie.
+
+El administrador de plataforma sí se marca a mano. En Supabase, **Authentication → Users**, en **App metadata** del usuario:
 
 ```json
-{ "role": "admin" }
+{ "platform_role": "platform_admin" }
 ```
 
-```json
-{ "role": "cashier" }
-```
+Pide a ese usuario cerrar e iniciar sesión de nuevo para recibir un JWT actualizado.
 
-3. Pide al usuario cerrar e iniciar sesión de nuevo para que reciba un JWT actualizado.
+## Permisos por operación
 
-Los roles se guardan en `app_metadata`, no en `user_metadata`, porque solo los administradores de Supabase pueden modificarlos.
-
-## Permisos
-
-| Acción | admin | cashier |
+| Acción | owner / manager | cashier |
 | --- | --- | --- |
 | Consultar inventario, movimientos y fiados | Sí | Sí |
 | Crear, editar o eliminar productos, categorías y proveedores | Sí | No |
