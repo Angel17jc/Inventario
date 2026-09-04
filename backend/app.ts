@@ -2,6 +2,7 @@ import express, { type Request, type Response, type NextFunction } from "express
 import type { Server } from "http";
 import { registerRoutes } from "./routes.js";
 import { getApiError } from "./errors.js";
+import { withoutPersonalData } from "./request-log.js";
 
 declare module "http" {
   interface IncomingMessage {
@@ -51,11 +52,16 @@ export async function createApp(httpServer: Server) {
   // Only the request line is logged. Response bodies used to be written here,
   // which sent customer names, balances and stock figures to the platform's log
   // storage on every call.
+  //
+  // The path itself can carry a name too: /api/credits/customer/:customerName
+  // spells out who owes money. Logging the pattern instead of the filled path
+  // keeps the request line useful without writing a person's name to a store
+  // nobody reads on purpose.
   app.use((req, res, next) => {
     const start = Date.now();
     res.on("finish", () => {
       if (req.path.startsWith("/api")) {
-        log(`${req.method} ${req.path} ${res.statusCode} in ${Date.now() - start}ms`);
+        log(`${req.method} ${withoutPersonalData(req.path)} ${res.statusCode} in ${Date.now() - start}ms`);
       }
     });
     next();
