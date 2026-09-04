@@ -29,6 +29,39 @@ async function allUserEmails(): Promise<Map<string, string>> {
   }
 }
 
+/**
+ * Creates the shop, giving it an address nobody else is using.
+ *
+ * organizations.slug is unique across the whole platform, and two shops can
+ * honestly want the same one: every platform administrator's own shop is
+ * provisioned as "Mi Licorería" and normalises to "mi-licoreria", and two
+ * clients can both be called Licorería El Sol. Without this the second one hit
+ * a unique violation — and for an administrator that surfaced as a 500 from
+ * /api/organizations/me, which is the response that locks everyone out.
+ *
+ * The number only breaks the tie, so it starts at the second shop: the first
+ * one keeps the plain slug.
+ */
+async function insertOrganization(name: string, desiredSlug: string) {
+  const base = normalizeSlug(desiredSlug || name);
+  if (!base) throw new Error("Organization slug is required");
+
+  for (let attempt = 1; attempt <= 25; attempt++) {
+    const slug = attempt === 1 ? base : `${base}-${attempt}`;
+    const { data, error } = await (supabase as any)
+      .from("organizations")
+      .insert({ name, slug, status: "active" })
+      .select("id, name, slug, status")
+      .single();
+
+    if (!error) return data;
+    // 23505 is the unique violation. Anything else is not ours to retry.
+    if (error.code !== "23505") throw error;
+  }
+
+  throw new Error(`No free slug for "${base}" after 25 attempts`);
+}
+
 function normalizeSlug(value: string): string {
   return value
     .normalize("NFD")
@@ -114,15 +147,7 @@ export class PlatformService {
 
   async createOwnOrganization(userId: string, input: { name: string; slug: string }) {
     const name = input.name.trim();
-    const slug = normalizeSlug(input.slug || name);
-    if (!slug) throw new Error("Organization slug is required");
-
-    const { data: organization, error } = await (supabase as any)
-      .from("organizations")
-      .insert({ name, slug, status: "active" })
-      .select("id, name, slug, status")
-      .single();
-    if (error) throw error;
+    const organization = await insertOrganization(name, input.slug);
 
     const { error: membershipError } = await (supabase as any)
       .from("organization_memberships")
@@ -139,15 +164,7 @@ export class PlatformService {
 
   async createOrganizationWithOwner(input: CreateOrganizationInput) {
     const name = input.name.trim();
-    const slug = normalizeSlug(input.slug || name);
-    if (!slug) throw new Error("Organization slug is required");
-
-    const { data: organization, error: organizationError } = await (supabase as any)
-      .from("organizations")
-      .insert({ name, slug, status: "active" })
-      .select("id, name, slug, status")
-      .single();
-    if (organizationError) throw organizationError;
+    const organization = await insertOrganization(name, input.slug);
 
     let userId: string | undefined;
     try {
