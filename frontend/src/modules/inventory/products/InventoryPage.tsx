@@ -4,6 +4,7 @@ import { useProducts, useRetireProduct } from "@/modules/inventory/products/prod
 import { ProductModal } from "./components/ProductModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ConfirmDestructive } from "@/components/ui/confirm-destructive";
 import { DataLoadError } from "@/components/ui/data-load-error";
 import { describeError } from "@/lib/api-errors";
 import { Search, Plus, Edit2, Archive, Package } from "lucide-react";
@@ -17,16 +18,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 export default function Inventory() {
   const { data: products, isLoading, isError, error, refetch, isFetching } = useProducts();
@@ -177,23 +168,14 @@ export default function Inventory() {
         product={editingProduct}
       />
 
-      <AlertDialog open={!!retireId} onOpenChange={(open) => !open && setRetireId(null)}>
-        <AlertDialogContent className="bg-card border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">¿Retirar este producto?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Dejará de aparecer en el inventario y no podrás venderlo ni fiarlo. Su historial de
-              movimientos y de fiados se conserva. Si tiene fiados sin pagar no se puede retirar.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRetire} className="bg-red-600 hover:bg-red-700 text-white">
-              Retirar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDestructive
+        open={retireId !== null}
+        onOpenChange={(open) => !open && setRetireId(null)}
+        title="¿Retirar este producto?"
+        description="Dejará de aparecer en el inventario y no podrás venderlo ni fiarlo. Su historial de movimientos y de fiados se conserva. Si tiene fiados sin pagar no se puede retirar."
+        confirmLabel="Retirar"
+        onConfirm={handleRetire}
+      />
     </div>
   );
 }
