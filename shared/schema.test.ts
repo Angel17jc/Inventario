@@ -6,8 +6,8 @@ import {
   createCategoryRequestSchema,
   createSupplierRequestSchema,
   createMovementRequestSchema,
+  accountPasswordSchema,
   passwordRules,
-  updatePasswordRequestSchema,
 } from "./schema.js";
 
 test("accepts a valid stock movement", () => {
@@ -56,20 +56,20 @@ test("validates supplier names and contact field limits", () => {
 });
 
 test("accepts passwords with six characters and a digit or symbol", () => {
-  assert.deepEqual(updatePasswordRequestSchema.parse({ password: "abc123" }), { password: "abc123" });
-  assert.deepEqual(updatePasswordRequestSchema.parse({ password: "abcde!" }), { password: "abcde!" });
+  assert.deepEqual(accountPasswordSchema.parse("abc123"), "abc123");
+  assert.deepEqual(accountPasswordSchema.parse("abcde!"), "abcde!");
 });
 
 test("rejects passwords that are too short or have only letters", () => {
-  assert.throws(() => updatePasswordRequestSchema.parse({ password: "abc12" }));
-  assert.throws(() => updatePasswordRequestSchema.parse({ password: "abcdefgh" }));
-  assert.throws(() => updatePasswordRequestSchema.parse({ password: "a".repeat(129) + "1" }));
+  assert.throws(() => accountPasswordSchema.parse("abc12"));
+  assert.throws(() => accountPasswordSchema.parse("abcdefgh"));
+  assert.throws(() => accountPasswordSchema.parse("a".repeat(129) + "1"));
 });
 
 test("the rules shown in the browser agree with the schema", () => {
   for (const candidate of ["abc123", "abcde!", "abc12", "abcdefgh", ""]) {
     const allRulesMet = passwordRules.every((rule) => rule.isMet(candidate));
-    const schemaAccepts = updatePasswordRequestSchema.safeParse({ password: candidate }).success;
+    const schemaAccepts = accountPasswordSchema.safeParse(candidate).success;
     assert.equal(allRulesMet, schemaAccepts, `mismatch for ${JSON.stringify(candidate)}`);
   }
 });

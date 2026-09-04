@@ -1,9 +1,9 @@
 import { useId, useMemo, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { Check, Eye, EyeOff, Loader2, MailWarning, ShieldCheck, X } from "lucide-react";
-import { passwordRules } from "@shared/schema";
+import { accountPasswordSchema, passwordRules } from "@shared/schema";
 import { recoveryLinkError, supabase } from "@/lib/supabase";
-import { authenticatedFetch, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -105,23 +105,27 @@ export default function ResetPassword() {
     event.preventDefault();
     if (!canSubmit) return;
 
+    const rejection = accountPasswordSchema.safeParse(password);
+    if (!rejection.success) {
+      setError(rejection.error.issues[0]?.message ?? "Contraseña inválida.");
+      return;
+    }
+
     setError(null);
     setIsSubmitting(true);
-    // The API re-validates and applies the change; this request only carries it.
-    const response = await authenticatedFetch("/api/account/password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    }).catch(() => null);
+    // Supabase applies the change against this session. It is the only party
+    // that knows the session came from a recovery link, so it is the only one
+    // that can allow the change here and demand re-authentication anywhere
+    // else. Doing it through the server's admin key skipped that distinction.
+    const { error: failure } = await supabase.auth.updateUser({ password });
     setIsSubmitting(false);
 
-    if (!response || !response.ok) {
-      if (response?.status === 401) {
-        setError("El enlace de recuperación caducó o ya fue utilizado. Solicita uno nuevo.");
-        return;
-      }
-      const body = await response?.json().catch(() => null);
-      setError(body?.message ?? "No fue posible guardar la contraseña. Inténtalo nuevamente.");
+    if (failure) {
+      setError(
+        failure.status === 401 || failure.status === 403
+          ? "El enlace de recuperación caducó o ya fue utilizado. Solicita uno nuevo."
+          : failure.message || "No fue posible guardar la contraseña. Inténtalo nuevamente.",
+      );
       return;
     }
 

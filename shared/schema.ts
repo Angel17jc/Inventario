@@ -349,11 +349,6 @@ export const accountPasswordSchema = z
   .max(128, "La contraseña no puede superar los 128 caracteres.")
   .refine((value) => /[\d\W_]/.test(value), "La contraseña debe incluir un número o un carácter especial.");
 
-export const updatePasswordRequestSchema = z.object({
-  password: accountPasswordSchema,
-});
-
-export type UpdatePasswordRequest = z.infer<typeof updatePasswordRequestSchema>;
 
 // Shop identity, editable by its owner.
 export const updateOrganizationRequestSchema = z.object({

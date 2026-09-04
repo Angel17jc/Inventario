@@ -9,7 +9,6 @@ import { registerCreditRoutes } from "./modules/credits/credit-routes.js";
 import { registerOrganizationRoutes } from "./modules/organization/organization-routes.js";
 import { registerPlatformRoutes } from "./modules/platform/platform-routes.js";
 import { api } from "../shared/routes.js";
-import { updatePasswordRequestSchema } from "../shared/schema.js";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -34,19 +33,12 @@ export async function registerRoutes(
   app.get("/api/organizations/me", async (req, res) => {
     res.json(await getAccessibleOrganizations(req.user!));
   });
-  // Registered before the organization guard: a user following a recovery link
-  // is authenticated but has no reason to carry an organization context yet.
-  app.post("/api/account/password", async (req, res, next) => {
-    const parsed = updatePasswordRequestSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Contraseña inválida." });
-    }
-
-    const { error } = await supabase.auth.admin.updateUserById(req.user!.id, { password: parsed.data.password });
-    if (error) return next(error);
-
-    return res.status(204).end();
-  });
+  // A password is set by the browser against Supabase, not here. The admin key
+  // changes a password without asking for the old one, and nothing in the JWT
+  // says whether a session came from a recovery link — amr reads
+  // `[{ method: "otp" }]` for a recovery and for an ordinary sign-in alike — so
+  // this endpoint could not tell the person who forgot their password from a
+  // stolen token, and had to let both through. Supabase knows the difference.
 
   registerPlatformRoutes(app, { requirePlatformAdmin });
   app.use("/api", requireOrganizationContext);
