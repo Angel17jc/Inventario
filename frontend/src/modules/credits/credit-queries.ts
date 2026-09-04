@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@shared/routes";
 import type { CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest } from "@shared/schema";
 import { authenticatedFetch } from "@/lib/auth";
 import { ledgerKey } from "@/modules/inventory/movements/movement-queries";
@@ -71,7 +72,13 @@ export function useCreateCredit() {
     mutationFn: createCredit,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["credits"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      // A fiado leaves the shelf like any other sale: create_credit_sale
+      // subtracts the stock, so whatever counts it has to be read again. The
+      // key is the request path, which is what useProducts and useStats
+      // register under — a loose "products" matches no query and fails in
+      // silence, leaving the old figure on screen until a reload.
+      queryClient.invalidateQueries({ queryKey: [api.products.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.stats.get.path] });
       queryClient.invalidateQueries({ queryKey: ledgerKey });
     },
   });
