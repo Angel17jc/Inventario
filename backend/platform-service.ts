@@ -7,6 +7,28 @@ export interface CreateOrganizationInput {
   ownerPassword: string;
 }
 
+/**
+ * Every account's address, however many there are.
+ *
+ * listUsers answers one page at a time and defaults to 50. Reading only the
+ * first page did not fail: the owners past it simply came back without an
+ * email, so the client list would start showing blanks once the business grew
+ * past fifty shops, with nothing to say why.
+ */
+async function allUserEmails(): Promise<Map<string, string>> {
+  const emailByUserId = new Map<string, string>();
+  const perPage = 200;
+
+  for (let page = 1; ; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+
+    for (const user of data.users) emailByUserId.set(user.id, user.email ?? "");
+    // A short page is the last one; a full page may still have more behind it.
+    if (data.users.length < perPage) return emailByUserId;
+  }
+}
+
 function normalizeSlug(value: string): string {
   return value
     .normalize("NFD")
@@ -39,8 +61,7 @@ export class PlatformService {
       .eq("status", "active");
     if (ownersError) throw ownersError;
 
-    const { data: users } = await supabase.auth.admin.listUsers();
-    const emailByUserId = new Map(users.users.map((user) => [user.id, user.email ?? ""]));
+    const emailByUserId = await allUserEmails();
     const ownerEmailByOrganization = new Map(
       (owners ?? []).map((owner: { organization_id: string; user_id: string }) => [
         owner.organization_id,
