@@ -24,11 +24,16 @@ const extensionByContentType: Record<string, string> = {
 async function ensureLogoBucket() {
   const { data } = await supabase.storage.getBucket(LOGO_BUCKET);
   if (data) return;
-  await supabase.storage.createBucket(LOGO_BUCKET, {
+
+  const { error } = await supabase.storage.createBucket(LOGO_BUCKET, {
     public: true,
     fileSizeLimit: LOGO_MAX_BYTES,
     allowedMimeTypes: [...LOGO_CONTENT_TYPES],
   });
+  // Two owners uploading at once both find no bucket and both create it; the
+  // loser is fine. Any other failure has to surface here, or the upload right
+  // after fails instead and reports a symptom rather than the cause.
+  if (error && !/already exists/i.test(error.message)) throw error;
 }
 
 const organizationColumns = "id, name, slug, status, logo_url";
