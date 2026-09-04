@@ -54,7 +54,10 @@ test("a sale of cases and loose units charges each at its own price", () => {
 
 test("a sale with no case is charged entirely by the unit", () => {
   assert.equal(chargeFor(0, 6, null, "2.00"), 12);
-  assert.equal(chargeFor(3, 0, null, "2.00"), 0);
+  // Whichever side holds them, units with no presentation cost the unit price.
+  // This is what create_credit_sale charges: charged_pack_price = unit_price.
+  assert.equal(chargeFor(3, 0, null, "2.00"), 6);
+  assert.equal(chargeFor(3, 2, null, "2.00"), 10);
 });
 
 test("a sale of cases and loose units reads as both", () => {

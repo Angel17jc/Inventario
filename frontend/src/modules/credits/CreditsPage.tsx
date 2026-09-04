@@ -78,7 +78,9 @@ export default function Credits() {
         // A fiado is sold the same way a cash sale is: whole cases, loose
         // units, or both. The backend works out what it comes to.
         packId: formData.packId === "" ? null : parseInt(formData.packId),
-        quantity: formData.packId === "" ? 0 : Number(formData.quantity) || 0,
+        // The same figure the total above was worked out from: what is charged
+        // on screen and what is sent cannot be derived twice and disagree.
+        quantity: creditPacks,
         looseQuantity: Number(formData.looseQuantity) || 0,
         notes: formData.notes || undefined,
       });

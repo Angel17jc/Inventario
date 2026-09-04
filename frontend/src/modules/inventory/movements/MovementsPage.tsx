@@ -95,9 +95,10 @@ export default function Movements() {
   function onSubmit(data: MovementFormValues) {
     const remaining = (product?.quantity ?? 0) - leaving;
 
-    // Without a presentation there are no cases to count, whatever the field
-    // held before the presentation was cleared.
-    createMovement.mutate({ ...data, quantity: presentation ? data.quantity : 0 }, {
+    // The same figure the charge above was worked out from. Without a
+    // presentation it is zero, whatever the field held before the presentation
+    // was cleared, and what is shown and what is sent cannot disagree.
+    createMovement.mutate({ ...data, quantity: packQuantity }, {
       onSuccess: () => {
         // Registering the sale is never refused, so the person is told what it
         // left behind rather than being stopped beforehand.

@@ -244,7 +244,12 @@ export function chargeFor(
   unitPrice: string | number,
 ): number {
   const perUnit = Number(unitPrice);
-  const packs = presentation ? packQuantity * priceOf(presentation, perUnit) : 0;
+  // With no presentation the first figure is already loose units — the same
+  // reading toBaseUnits gives it, and the same one create_credit_sale applies
+  // when p_pack_id is null. Charging it as nothing would put a sale at 0.00.
+  const packs = presentation
+    ? packQuantity * priceOf(presentation, perUnit)
+    : packQuantity * perUnit;
   return packs + looseQuantity * perUnit;
 }
 
