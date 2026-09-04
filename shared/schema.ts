@@ -43,7 +43,12 @@ export const products = pgTable("products", {
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   name: text("name").notNull(),
   description: text("description"),
-  sku: text("sku").unique(),
+  // Unique within the shop, not across the platform: migration 003 dropped the
+  // global constraint for a partial index on (organization_id, sku). Declaring
+  // .unique() here described a rule the database does not have, and in a
+  // multi-tenant schema that is the wrong rule to leave written down — it says
+  // one licorería's codes can collide with another's.
+  sku: text("sku"),
   quantity: integer("quantity").notNull().default(0),
   costPrice: decimal("cost_price", { precision: 10, scale: 2 }).notNull(),
   sellingPrice: decimal("selling_price", { precision: 10, scale: 2 }).notNull(),
