@@ -37,6 +37,26 @@ async function ensureLogoBucket() {
   if (error && !/already exists/i.test(error.message)) throw error;
 }
 
+/**
+ * Removes the shop's logo from the bucket, whichever format it was saved in.
+ *
+ * The object is named after the shop and carries the extension of the format
+ * it arrived as, so a shop that uploads a PNG over a JPG leaves the JPG
+ * behind: same shop, different path. The bucket is public and the paths are
+ * predictable, so an orphan there stays readable to anyone who guesses it —
+ * including after the owner asked for the logo to be removed. All three
+ * possible names go, which also keeps a change of format from accumulating.
+ */
+async function removeStoredLogos(organizationId: string) {
+  const paths = Object.values(extensionByContentType).map(
+    (extension) => `${organizationId}.${extension}`,
+  );
+  const { error } = await supabase.storage.from(LOGO_BUCKET).remove(paths);
+  // Removing a name that is not there is not a failure; a bucket that was
+  // never created is not either, since then there is nothing to remove.
+  if (error && !/not found|does not exist/i.test(error.message)) throw error;
+}
+
 const organizationColumns = "id, name, slug, status, logo_url";
 
 async function updateOrganization(organizationId: string, changes: Record<string, unknown>) {
@@ -98,8 +118,10 @@ export function registerOrganizationRoutes(
 
       await ensureLogoBucket();
 
-      // Named after the shop, so a new logo replaces the previous file instead
-      // of leaving it orphaned in the bucket.
+      // Named after the shop, so a new logo of the same format overwrites the
+      // previous file. A different format writes a different name, so the old
+      // one is removed rather than left readable in a public bucket.
+      await removeStoredLogos(req.organization!.id);
       const path = `${req.organization!.id}.${extensionByContentType[contentType]}`;
       const { error: uploadError } = await supabase.storage
         .from(LOGO_BUCKET)
@@ -119,7 +141,12 @@ export function registerOrganizationRoutes(
 
   app.delete("/api/organization/logo", requireOwner, async (req, res) => {
     try {
-      return res.json(await updateOrganization(req.organization!.id, { logo_url: null }));
+      // The row is cleared first: if removing the object fails, the shop still
+      // stops showing a logo it asked to remove, and what is left behind is an
+      // unreferenced file rather than a broken image.
+      const organization = await updateOrganization(req.organization!.id, { logo_url: null });
+      await removeStoredLogos(req.organization!.id);
+      return res.json(organization);
     } catch (error) {
       return sendApiError(res, error);
     }
