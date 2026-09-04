@@ -28,6 +28,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Only what ships. The dev tree carries build tooling whose advisories
+      # never reach a visitor, and failing on those trains everyone to ignore
+      # this step. `moderate` is the floor because that is where the last real
+      # one landed: qs, the query string parser of every deployed request.
+      - name: Audit the dependencies that ship
+        run: npm audit --omit=dev --audit-level=moderate
+
       - name: Typecheck
         run: npm run check
 
