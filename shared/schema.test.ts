@@ -25,6 +25,10 @@ test("accepts cases and loose units in the same sale", () => {
 
 test("rejects invalid stock movement quantities and types", () => {
   assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "DELETE", quantity: 1 }));
+  // ADJUSTMENT set the stock to an absolute figure. It left the screens with
+  // the fields nobody filled in, and the API went on accepting it — from any
+  // role, cashier included.
+  assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "ADJUSTMENT", quantity: 1 }));
   // Nothing on either side is not a sale.
   assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "OUT", quantity: 0 }));
   assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "OUT", quantity: 0, looseQuantity: 0 }));

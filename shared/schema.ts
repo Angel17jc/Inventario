@@ -73,7 +73,7 @@ export const movements = pgTable("movements", {
   id: serial("id").primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   productId: integer("product_id").references(() => products.id).notNull(),
-  type: varchar("type", { length: 20 }).notNull(), // 'IN', 'OUT', 'ADJUSTMENT'
+  type: varchar("type", { length: 20 }).notNull(), // 'IN' entra, 'OUT' sale
   // Stock is always counted in base units, whatever left the counter.
   quantity: integer("quantity").notNull(),
   // The presentation it was registered with, and what the person actually
@@ -295,7 +295,11 @@ const nothingToRegister = { message: "Registra al menos una caja o una unidad." 
 export const createMovementRequestSchema = z
   .object({
     productId: z.coerce.number().int().positive(),
-    type: z.enum(["IN", "OUT", "ADJUSTMENT"]),
+    // Stock either comes in or goes out. ADJUSTMENT set the count to an
+    // absolute figure, which is the shop rewriting its own stock without a
+    // reason attached — the product decision took it off the screens and the
+    // API kept accepting it. No movement in the database ever used it.
+    type: z.enum(["IN", "OUT"]),
     reason: z.string().trim().max(500).nullable().optional(),
     ...mixedQuantities,
   })
@@ -374,7 +378,7 @@ export interface LedgerMovementEntry {
   kind: "movement";
   id: number;
   at: string;
-  type: "IN" | "OUT" | "ADJUSTMENT";
+  type: "IN" | "OUT";
   /** Always in base units, whatever presentation was used. */
   quantity: number;
   /** Whole cases the person typed: 2, when the case holds twelve. */
