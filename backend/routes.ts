@@ -18,6 +18,12 @@ export async function registerRoutes(
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  app.use("/api", requireAuthenticatedUser);
+
+  // Behind the guard on purpose. Reaching the database is what this answers, so
+  // leaving it open let anyone on the internet spend a round trip to Postgres
+  // per request and learn whether the database was up. /api/health above needs
+  // nothing from the database and stays open for the platform's own probe.
   app.get("/api/health/database", async (_req, res, next) => {
     const { error } = await supabase
       .from("organizations")
@@ -28,8 +34,6 @@ export async function registerRoutes(
 
     return res.json({ status: "ok", database: "reachable", timestamp: new Date().toISOString() });
   });
-
-  app.use("/api", requireAuthenticatedUser);
   app.get("/api/organizations/me", async (req, res) => {
     res.json(await getAccessibleOrganizations(req.user!));
   });
