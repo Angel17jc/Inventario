@@ -1,6 +1,8 @@
 import type { Express, RequestHandler } from "express";
 import { z } from "zod";
 import { platformService } from "../../platform-service.js";
+import { fail } from "../../errors.js";
+import { errorCodes } from "../../../shared/errors.js";
 import {
   createOrganizationSchema,
   updateOrganizationStatusSchema,
@@ -23,6 +25,16 @@ export function registerPlatformRoutes(app: Express, { requirePlatformAdmin }: P
   app.patch("/api/platform/organizations/:organizationId/status", requirePlatformAdmin, async (req, res) => {
     const organizationId = z.string().uuid().parse(req.params.organizationId);
     const { status } = updateOrganizationStatusSchema.parse(req.body);
-    res.json(await platformService.updateOrganizationStatus(organizationId, status));
+
+    // The client list already leaves the administrator's own shop out, because
+    // offering to suspend the account you are signed in with is not an offer.
+    // The endpoint took any id, though, so the guard has to live here too: a
+    // suspended organization is refused by the API, and the administrator
+    // would have locked itself out of its own shop with no way back in.
+    if (await platformService.isOwnedBy(organizationId, req.user!.id)) {
+      return fail(res, 409, errorCodes.conflict, "No puedes suspender tu propia licorería.");
+    }
+
+    return res.json(await platformService.updateOrganizationStatus(organizationId, status));
   });
 }

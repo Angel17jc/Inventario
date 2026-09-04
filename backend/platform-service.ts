@@ -118,6 +118,19 @@ export class PlatformService {
       }));
   }
 
+  /** Whether this shop is the administrator's own rather than a client's. */
+  async isOwnedBy(organizationId: string, userId: string): Promise<boolean> {
+    const { data, error } = await (supabase as any)
+      .from("organization_memberships")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .maybeSingle();
+    if (error) throw error;
+    return data !== null;
+  }
+
   async updateOrganizationStatus(organizationId: string, status: "active" | "suspended") {
     const { data, error } = await (supabase as any).from("organizations").update({ status }).eq("id", organizationId).select("id, name, status").single();
     if (error) throw error;
