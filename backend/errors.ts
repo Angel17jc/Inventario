@@ -24,6 +24,12 @@ const postgresStates = {
   noDataFound: "P0002",
   raisedException: "22000",
   invalidParameter: "22023",
+  /**
+   * Ours, raised by retire_product in migration 017. Postgres does not use the
+   * LM class, so a rule this application enforces can say what it is instead
+   * of arriving as one more unexplained failure.
+   */
+  productHasUnpaidCredits: "LM001",
 } as const;
 
 export function getApiError(error: unknown): ApiError {
@@ -70,6 +76,12 @@ export function getApiError(error: unknown): ApiError {
         status: 400,
         code: errorCodes.validation,
         message: "Los datos enviados no son válidos.",
+      };
+    case postgresStates.productHasUnpaidCredits:
+      return {
+        status: 409,
+        code: errorCodes.productHasUnpaidCredits,
+        message: "No puedes retirar este producto: tiene fiados sin pagar. Cóbralos primero.",
       };
   }
 

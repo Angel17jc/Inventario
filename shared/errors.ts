@@ -20,6 +20,8 @@ export const errorCodes = {
   notFound: "not_found",
   /** The operation collides with existing data, such as a repeated SKU. */
   conflict: "conflict",
+  /** The product still has fiados nobody has paid, so it cannot be retired. */
+  productHasUnpaidCredits: "product_has_unpaid_credits",
   /** The submitted values did not pass validation. */
   validation: "validation",
   /** Anything the server did not anticipate. */

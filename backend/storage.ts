@@ -140,7 +140,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProducts(): Promise<(Product & { category: Category | null, supplier: Supplier | null })[]> {
-    const { data, error } = await supabase.from('products').select('*, category:categories(*), supplier:suppliers(*)').eq('organization_id', this.organizationScope);
+    const { data, error } = await supabase.from('products').select('*, category:categories(*), supplier:suppliers(*)').eq('organization_id', this.organizationScope).is('retired_at', null);
     if (error) throw error;
     return (data || []).map(toCamelCase);
   }
@@ -171,30 +171,21 @@ export class DatabaseStorage implements IStorage {
     return toCamelCase(data);
   }
 
+  /**
+   * Takes a product off the shelf and leaves its history alone.
+   *
+   * It used to read the credit accounts, decide, delete the paid ones and then
+   * delete the product — four statements with nothing holding them together. A
+   * fiado registered in between was lost, and deleting a paid account destroys
+   * the record that a customer paid, which is the shop's accounting rather
+   * than a catalogue detail. The function in migration 017 counts and retires
+   * with the product row locked, and refuses with LM001 when money is owed.
+   */
   async deleteProduct(id: number): Promise<void> {
-    // Buscar cuentas de crédito asociadas al producto
-    const { data: accounts, error: accountsError } = await supabase
-      .from('credit_accounts')
-      .select('id, status')
-      .eq('product_id', id)
-      .eq('organization_id', this.organizationScope);
-    if (accountsError) throw accountsError;
-
-    const accs = (accounts as any[]) || [];
-    if (accs.length > 0) {
-      // Si existen cuentas no pagadas (pending o partial), bloquear la eliminación
-      const blocked = accs.find((a) => a.status !== 'paid');
-      if (blocked) {
-        throw new Error('No se puede eliminar el producto: existen cuentas de crédito (fiados) pendientes o parciales asociadas');
-      }
-
-      // Todas las cuentas están pagadas: procedemos a eliminarlas (esto eliminará también los pagos por ON DELETE CASCADE)
-      const ids = accs.map((a) => a.id);
-      const { error: delAccError } = await supabase.from('credit_accounts').delete().in('id', ids).eq('organization_id', this.organizationScope);
-      if (delAccError) throw delAccError;
-    }
-
-    const { error } = await supabase.from('products').delete().eq('id', id).eq('organization_id', this.organizationScope);
+    const { error } = await (supabase as any).rpc('retire_product', {
+      p_organization_id: this.organizationScope,
+      p_product_id: id,
+    });
     if (error) throw error;
   }
 
@@ -419,10 +410,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
-    const { count: totalProducts, error: countError } = await supabase.from('products').select('*', { count: 'exact', head: true }).eq('organization_id', this.organizationScope);
+    const { count: totalProducts, error: countError } = await supabase.from('products').select('*', { count: 'exact', head: true }).eq('organization_id', this.organizationScope).is('retired_at', null);
     if (countError) throw countError;
 
-    const { data: productsData, error: productsError } = await supabase.from('products').select('quantity, cost_price').eq('organization_id', this.organizationScope);
+    const { data: productsData, error: productsError } = await supabase.from('products').select('quantity, cost_price').eq('organization_id', this.organizationScope).is('retired_at', null);
     if (productsError) throw productsError;
     
     const totalValue = (productsData as any[])?.reduce((sum, p) => sum + (p.quantity * parseFloat(p.cost_price || '0')), 0) || 0;
