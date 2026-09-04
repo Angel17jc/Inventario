@@ -4,12 +4,6 @@ import { registerRoutes } from "./routes.js";
 import { getApiError } from "./errors.js";
 import { withoutPersonalData } from "./request-log.js";
 
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: unknown;
-  }
-}
-
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -39,15 +33,10 @@ export async function createApp(httpServer: Server) {
     next();
   });
 
-  app.use(
-    express.json({
-      verify: (req, _res, buf) => {
-        req.rawBody = buf;
-      },
-    }),
-  );
-
-  app.use(express.urlencoded({ extended: false }));
+  // No verify hook: it kept a second copy of every request body in memory for
+  // a signature check this API never does. No urlencoded parser either —
+  // nothing here posts a form, and the browser sends JSON.
+  app.use(express.json());
 
   // Only the request line is logged. Response bodies used to be written here,
   // which sent customer names, balances and stock figures to the platform's log
