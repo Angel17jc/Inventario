@@ -143,6 +143,7 @@ export default function Inventory() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                aria-label={`Editar ${product.name}`}
                                 onClick={() => { setEditingProduct(product); setIsModalOpen(true); }}
                                 className="hover:bg-blue-500/20 hover:text-blue-400"
                               >
@@ -151,6 +152,7 @@ export default function Inventory() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                aria-label={`Retirar ${product.name}`}
                                 onClick={() => setRetireId(product.id)}
                                 className="hover:bg-red-500/20 hover:text-red-400"
                               >
