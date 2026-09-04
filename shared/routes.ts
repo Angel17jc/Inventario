@@ -166,13 +166,6 @@ export const api = {
     },
   },
   movements: {
-    list: {
-      method: 'GET' as const,
-      path: '/api/movements',
-      responses: {
-        200: z.array(z.custom<MovementWithProduct>()),
-      },
-    },
     create: {
       method: 'POST' as const,
       path: '/api/movements',

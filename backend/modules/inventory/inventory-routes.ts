@@ -62,8 +62,6 @@ export function registerInventoryRoutes(app: Express, { requireManager, requireO
     } catch (error) { return sendApiError(res, error); }
   });
 
-  app.get(api.movements.list.path, async (req, res) => res.json(await scopedStorage(req).getMovements()));
-
   // Stock and money on one line of time. Bounded on purpose: the shop reads
   // the last part of its day here, not its whole history.
   app.get("/api/movimientos/historial", async (req, res) => {

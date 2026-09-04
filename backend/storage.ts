@@ -51,7 +51,6 @@ export interface IStorage {
   updateProduct(id: number, product: UpdateProductRequest): Promise<Product>;
   deleteProduct(id: number): Promise<void>;
   
-  getMovements(): Promise<(Movement & { product: Product | null })[]>;
   getLedger(limit: number): Promise<LedgerEntry[]>;
   createMovement(movement: CreateMovementRequest): Promise<Movement>;
   
@@ -187,18 +186,6 @@ export class DatabaseStorage implements IStorage {
       p_product_id: id,
     });
     if (error) throw error;
-  }
-
-  async getMovements(): Promise<(Movement & { product: Product | null })[]> {
-    // The presentation comes along so the history can read "2 × Caja de 12"
-    // instead of the 24 bottles it amounted to.
-    const { data, error } = await (supabase as any)
-      .from('movements')
-      .select('*, product:products(*), pack:product_packs!movements_pack_organization_fkey(id, label, units, cost, price)')
-      .eq('organization_id', this.organizationScope)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data || []).map(toCamelCase);
   }
 
   /**
