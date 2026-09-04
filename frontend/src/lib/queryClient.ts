@@ -1,31 +1,7 @@
-import { MutationCache, QueryCache, QueryClient, QueryFunction } from "@tanstack/react-query";
-import { authenticatedFetch } from "./auth";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { isSessionExpired } from "./api-errors";
 import { supabase } from "./supabase";
 import { toast } from "@/hooks/use-toast";
-
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
-  }
-}
-
-type UnauthorizedBehavior = "returnNull" | "throw";
-const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const res = await authenticatedFetch(queryKey.join("/") as string);
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
-
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
 
 /**
  * A rejected token means the person has to sign in again, and every screen
@@ -53,7 +29,12 @@ export const queryClient = new QueryClient({
   mutationCache: new MutationCache({ onError: handleExpiredSession }),
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
+      // No default queryFn on purpose. Every query brings its own, which reads
+      // the failure through throwApiError and so carries the server's code —
+      // the thing isSessionExpired and describeError react to. The default
+      // that used to sit here threw a bare Error instead, and a query written
+      // without a queryFn would silently lose both the automatic sign-out and
+      // the server's own wording. React Query now says so out loud instead.
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
