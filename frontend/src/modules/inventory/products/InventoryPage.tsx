@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { useProducts, useDeleteProduct } from "@/modules/inventory/products/product-queries";
+import { useProducts, useRetireProduct } from "@/modules/inventory/products/product-queries";
 import { ProductModal } from "./components/ProductModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DataLoadError } from "@/components/ui/data-load-error";
 import { describeError } from "@/lib/api-errors";
-import { Search, Plus, Edit2, Trash2, Package } from "lucide-react";
+import { Search, Plus, Edit2, Archive, Package } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import {
   Table,
@@ -30,21 +30,21 @@ import {
 
 export default function Inventory() {
   const { data: products, isLoading, isError, error, refetch, isFetching } = useProducts();
-  const deleteProduct = useDeleteProduct();
+  const retireProduct = useRetireProduct();
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [retireId, setRetireId] = useState<number | null>(null);
 
   const filteredProducts = products?.filter((p) => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
     p.sku?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDelete = () => {
-    if (deleteId) {
-      deleteProduct.mutate(deleteId);
-      setDeleteId(null);
+  const handleRetire = () => {
+    if (retireId) {
+      retireProduct.mutate(retireId);
+      setRetireId(null);
     }
   };
 
@@ -151,10 +151,10 @@ export default function Inventory() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => setDeleteId(product.id)}
+                                onClick={() => setRetireId(product.id)}
                                 className="hover:bg-red-500/20 hover:text-red-400"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Archive className="w-4 h-4" />
                               </Button>
                             </div>
                           </TableCell>
@@ -175,18 +175,19 @@ export default function Inventory() {
         product={editingProduct}
       />
 
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+      <AlertDialog open={!!retireId} onOpenChange={(open) => !open && setRetireId(null)}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">¿Retirar este producto?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el producto y su historial.
+              Dejará de aparecer en el inventario y no podrás venderlo ni fiarlo. Su historial de
+              movimientos y de fiados se conserva. Si tiene fiados sin pagar no se puede retirar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">
-              Eliminar
+            <AlertDialogAction onClick={handleRetire} className="bg-red-600 hover:bg-red-700 text-white">
+              Retirar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
