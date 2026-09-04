@@ -343,13 +343,13 @@ export interface CreditsStats {
 // Account password rules. Declared here so the browser can give live feedback
 // against the same definition the API enforces; the API is the authority.
 export const passwordRules = [
-  { label: "Al menos 6 caracteres", isMet: (value: string) => value.length >= 6 },
+  { label: "Al menos 8 caracteres", isMet: (value: string) => value.length >= 8 },
   { label: "Un número o un carácter especial", isMet: (value: string) => /[\d\W_]/.test(value) },
 ] as const;
 
 export const accountPasswordSchema = z
   .string()
-  .min(6, "La contraseña debe tener al menos 6 caracteres.")
+  .min(8, "La contraseña debe tener al menos 8 caracteres.")
   .max(128, "La contraseña no puede superar los 128 caracteres.")
   .refine((value) => /[\d\W_]/.test(value), "La contraseña debe incluir un número o un carácter especial.");
 

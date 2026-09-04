@@ -59,19 +59,20 @@ test("validates supplier names and contact field limits", () => {
   assert.throws(() => createSupplierRequestSchema.parse({ name: "Proveedor", contactInfo: "x".repeat(256) }));
 });
 
-test("accepts passwords with six characters and a digit or symbol", () => {
-  assert.deepEqual(accountPasswordSchema.parse("abc123"), "abc123");
-  assert.deepEqual(accountPasswordSchema.parse("abcde!"), "abcde!");
+test("accepts passwords of eight characters with a digit or symbol", () => {
+  assert.deepEqual(accountPasswordSchema.parse("abc12345"), "abc12345");
+  assert.deepEqual(accountPasswordSchema.parse("abcdefg!"), "abcdefg!");
 });
 
 test("rejects passwords that are too short or have only letters", () => {
-  assert.throws(() => accountPasswordSchema.parse("abc12"));
+  // Seven characters used to be enough; NIST asks for eight.
+  assert.throws(() => accountPasswordSchema.parse("abc1234"));
   assert.throws(() => accountPasswordSchema.parse("abcdefgh"));
   assert.throws(() => accountPasswordSchema.parse("a".repeat(129) + "1"));
 });
 
 test("the rules shown in the browser agree with the schema", () => {
-  for (const candidate of ["abc123", "abcde!", "abc12", "abcdefgh", ""]) {
+  for (const candidate of ["abc12345", "abcdefg!", "abc1234", "abcdefgh", "abc123", ""]) {
     const allRulesMet = passwordRules.every((rule) => rule.isMet(candidate));
     const schemaAccepts = accountPasswordSchema.safeParse(candidate).success;
     assert.equal(allRulesMet, schemaAccepts, `mismatch for ${JSON.stringify(candidate)}`);
