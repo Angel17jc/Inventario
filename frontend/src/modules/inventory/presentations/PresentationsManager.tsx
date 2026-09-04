@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { priceOf, unitCostOf, type Presentation } from "@shared/schema";
 import { Button } from "@/components/ui/button";
+import { ConfirmDestructive } from "@/components/ui/confirm-destructive";
 import { Input } from "@/components/ui/input";
 import { describeError } from "@/lib/api-errors";
 import { useCreatePresentation, useDeletePresentation, usePresentations } from "./presentation-queries";
@@ -30,6 +31,7 @@ export function PresentationsManager({ productId, unitLabel, sellingPrice, costP
   const createPresentation = useCreatePresentation(productId);
   const deletePresentation = useDeletePresentation(productId);
   const [draft, setDraft] = useState(emptyDraft);
+  const [toRemove, setToRemove] = useState<Presentation | null>(null);
 
   const presentations = data ?? [];
   const units = Number(draft.units);
@@ -97,7 +99,7 @@ export function PresentationsManager({ productId, unitLabel, sellingPrice, costP
                 size="icon"
                 aria-label={`Quitar ${presentation.label}`}
                 disabled={deletePresentation.isPending}
-                onClick={() => deletePresentation.mutate(presentation.id)}
+                onClick={() => setToRemove(presentation)}
                 className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4" />
@@ -164,6 +166,15 @@ export function PresentationsManager({ productId, unitLabel, sellingPrice, costP
           ? `Ya hay una presentación de ${units} ${unitLabel}s.`
           : `Costo y precio son opcionales. Sin precio se cobra el precio por ${unitLabel} multiplicado por las unidades.`}
       </p>
+
+      <ConfirmDestructive
+        open={toRemove !== null}
+        onOpenChange={(open) => !open && setToRemove(null)}
+        title={`¿Quitar «${toRemove?.label ?? ""}»?`}
+        description={`Las ventas y entradas ya registradas con esta presentación siguen ahí y el stock no cambia, pero dejarán de decir que eran cajas de ${toRemove?.units ?? ""}: quedarán solo como ${unitLabel}s. No se puede deshacer.`}
+        confirmLabel="Quitar"
+        onConfirm={() => { if (toRemove) deletePresentation.mutate(toRemove.id); setToRemove(null); }}
+      />
     </div>
   );
 }

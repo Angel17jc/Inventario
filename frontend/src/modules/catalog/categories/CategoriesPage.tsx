@@ -7,6 +7,7 @@ import { Edit2, Loader2, Plus, Tag, Trash2 } from "lucide-react";
 import { createCategoryRequestSchema } from "@shared/schema";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
+import { ConfirmDestructive } from "@/components/ui/confirm-destructive";
 import { DataLoadError } from "@/components/ui/data-load-error";
 import { describeError } from "@/lib/api-errors";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -25,6 +26,7 @@ export default function CategoriesPage() {
   const deleteCategory = useDeleteCategory();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<EditableCategory | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<{ id: number; name: string } | null>(null);
   const form = useForm<CategoryFormValues>({ resolver: zodResolver(createCategoryRequestSchema), defaultValues: { name: "", description: "" } });
 
   const draftKey = isModalOpen ? `category:${editingCategory?.id ?? "new"}` : null;
@@ -73,12 +75,21 @@ export default function CategoriesPage() {
           <div className="glass-panel rounded-2xl p-6">
             {isLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" /></div> : isError ? <DataLoadError message={describeError(error, "No se pudieron cargar las categorías.")} onRetry={() => refetch()} isRetrying={isFetching} /> : (
               <Table><TableHeader><TableRow className="border-border/50 hover:bg-transparent"><TableHead className="text-white">Nombre</TableHead><TableHead>Descripción</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-                <TableBody>{categories?.map((category) => <TableRow key={category.id} className="border-border/30 hover:bg-white/5"><TableCell className="font-medium"><div className="flex items-center gap-2"><Tag className="h-4 w-4 text-primary" /><span className="text-white">{category.name}</span></div></TableCell><TableCell className="text-muted-foreground">{category.description || "-"}</TableCell><TableCell className="text-right"><div className="flex justify-end gap-2"><Button variant="ghost" size="icon" aria-label={`Editar ${category.name}`} onClick={() => editCategory(category)}><Edit2 className="h-4 w-4 text-blue-400" /></Button><Button variant="ghost" size="icon" aria-label={`Eliminar ${category.name}`} onClick={() => deleteCategory.mutate(category.id)}><Trash2 className="h-4 w-4 text-red-400" /></Button></div></TableCell></TableRow>)}</TableBody>
+                <TableBody>{categories?.map((category) => <TableRow key={category.id} className="border-border/30 hover:bg-white/5"><TableCell className="font-medium"><div className="flex items-center gap-2"><Tag className="h-4 w-4 text-primary" /><span className="text-white">{category.name}</span></div></TableCell><TableCell className="text-muted-foreground">{category.description || "-"}</TableCell><TableCell className="text-right"><div className="flex justify-end gap-2"><Button variant="ghost" size="icon" aria-label={`Editar ${category.name}`} onClick={() => editCategory(category)}><Edit2 className="h-4 w-4 text-blue-400" /></Button><Button variant="ghost" size="icon" aria-label={`Eliminar ${category.name}`} onClick={() => setCategoryToDelete(category)}><Trash2 className="h-4 w-4 text-red-400" /></Button></div></TableCell></TableRow>)}</TableBody>
               </Table>
             )}
           </div>
         </div>
       </main>
+
+      <ConfirmDestructive
+        open={categoryToDelete !== null}
+        onOpenChange={(open) => !open && setCategoryToDelete(null)}
+        title={`¿Eliminar «${categoryToDelete?.name ?? ""}»?`}
+        description="Los productos que estén en esta categoría no se borran: se quedan sin categoría y los tendrás que reasignar uno a uno. La categoría no se puede recuperar."
+        confirmLabel="Eliminar"
+        onConfirm={() => { if (categoryToDelete) deleteCategory.mutate(categoryToDelete.id); setCategoryToDelete(null); }}
+      />
 
       <Dialog open={isModalOpen} onOpenChange={(open) => open ? setIsModalOpen(true) : closeModal()}>
         <DialogContent className="border-border bg-card"><DialogHeader><DialogTitle className="text-white">{editingCategory ? "Editar Categoría" : "Nueva Categoría"}</DialogTitle></DialogHeader>
