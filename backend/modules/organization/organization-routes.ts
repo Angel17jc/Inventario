@@ -1,6 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { supabase } from "../../db.js";
 import { fail, sendApiError } from "../../errors.js";
+import { detectImageFormat } from "../../image-bytes.js";
 import { errorCodes } from "../../../shared/errors.js";
 import {
   LOGO_CONTENT_TYPES,
@@ -82,6 +83,17 @@ export function registerOrganizationRoutes(
       }
       if (file.byteLength > LOGO_MAX_BYTES) {
         return fail(res, 400, errorCodes.validation, "El logo no puede superar los 512 KB.");
+      }
+
+      // The content type is a header the caller writes, and the bucket is
+      // public: whatever lands there is served to anyone with the URL. The
+      // bytes have to say the same thing the header does.
+      const format = detectImageFormat(file);
+      if (!format) {
+        return fail(res, 400, errorCodes.validation, "Ese archivo no es una imagen PNG, JPG o WebP.");
+      }
+      if (format !== contentType) {
+        return fail(res, 400, errorCodes.validation, "El archivo no coincide con el tipo de imagen que dice ser.");
       }
 
       await ensureLogoBucket();
