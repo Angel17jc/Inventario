@@ -153,6 +153,9 @@ export function PresentationsManager({ productId, unitLabel, sellingPrice, costP
         <Button
           type="button"
           onClick={add}
+          // The word next to the icon is hidden from sm up, so on a desktop
+          // this is an icon and nothing else.
+          aria-label="Agregar presentación"
           disabled={!canAdd || createPresentation.isPending}
           className="col-span-2 sm:col-span-1 sm:self-end"
         >
