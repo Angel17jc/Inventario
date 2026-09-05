@@ -12,14 +12,50 @@ jobs:
   database-activity:
     runs-on: ubuntu-latest
     steps:
-      # Calls the deployed health endpoint, which queries Supabase server-side
-      # with the service role key. The anon key can no longer read any table:
-      # migration 006 revoked those privileges, which is what this workflow
-      # previously relied on. No credentials are needed here as a result.
-      - name: Perform a read-only database request
+      # A free Supabase project pauses after a week without database activity,
+      # and this is the only thing that keeps it awake while the app has no
+      # real traffic yet.
+      #
+      # It used to call the app's /api/health/database. That endpoint moved
+      # behind the authentication guard in 0c0cfeb, because leaving a database
+      # probe open let anyone on the internet spend a round trip to Postgres
+      # per request — so this has been failing with 401 since 4 September. The
+      # guard is right; what was wrong was reaching the database through a door
+      # meant for people.
+      #
+      # So it asks PostgREST directly with the publishable key, which is public
+      # by design and already sits in the browser bundle. Migration 006 revoked
+      # every privilege from that role, so the answer is Postgres refusing:
+      # SQLSTATE 42501, raised by the database itself. That is the point — the
+      # error proves the query reached Postgres, which is what has to happen
+      # for the project to count as active. A 200 would mean the privileges
+      # came back and is accepted too; it is still a query.
+      - name: Reach Postgres and prove it
         env:
-          APP_URL: ${{ vars.APP_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          test -n "$APP_URL" || { echo "Set the APP_URL repository variable."; exit 1; }
-          curl --fail --silent --show-error --retry 3 --retry-all-errors \
-            "$APP_URL/api/health/database"
+          test -n "$SUPABASE_URL" || { echo "Missing the SUPABASE_URL secret."; exit 1; }
+          test -n "$SUPABASE_ANON_KEY" || { echo "Missing the SUPABASE_ANON_KEY secret."; exit 1; }
+
+          CODE=$(curl --silent --show-error --retry 3 --retry-all-errors \
+            --output respuesta.json --write-out '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/organizations?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+
+          echo "HTTP $CODE"
+          cat respuesta.json
+          echo
+
+          if [ "$CODE" = "200" ]; then
+            echo "The database answered. Note the anon role can read this table again."
+            exit 0
+          fi
+          if [ "$CODE" = "401" ] && grep -q '"42501"' respuesta.json; then
+            echo "Postgres refused the read, which means Postgres ran it. The project is awake."
+            exit 0
+          fi
+          echo "This is not the database refusing a query: it did not reach Postgres."
+          echo "A paused project, a wrong URL or a rotated key all look like this."
+          exit 1
