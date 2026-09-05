@@ -278,10 +278,33 @@ export function describeSale(
   return parts.join(" + ");
 }
 
+/**
+ * The unit label in the plural.
+ *
+ * Adding an "s" is right for "botella" and "caja" and wrong for the label
+ * every shop starts with: "unidad" became "unidads" on the movements screen,
+ * in the history and in the presentations panel. Spanish forms the plural in
+ * -es after a consonant, so the default needs the rule and not the shortcut.
+ *
+ * It is a rule of thumb for the words that go on a shelf — vowel takes -s,
+ * -z turns into -ces, a word already ending in -s or -x does not change, and
+ * anything else takes -es. It does not handle every noun in the language and
+ * is not meant to.
+ */
+export function pluralOf(unitLabel: string): string {
+  const word = unitLabel.trim();
+  if (word === "") return word;
+  const last = word.slice(-1).toLowerCase();
+  if ("aeiou".includes(last)) return `${word}s`;
+  if (last === "z") return `${word.slice(0, -1)}ces`;
+  if (last === "s" || last === "x") return word;
+  return `${word}es`;
+}
+
 /** The words to put beside a figure: "2 Caja de 12", "6 botellas". */
 export function describeQuantity(quantity: number, presentation: Presentation | null, unitLabel: string): string {
   if (presentation) return `${quantity} × ${presentation.label}`;
-  return `${quantity} ${quantity === 1 ? unitLabel : `${unitLabel}s`}`;
+  return `${quantity} ${quantity === 1 ? unitLabel : pluralOf(unitLabel)}`;
 }
 
 const mixedQuantities = {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chargeFor, describeQuantity, describeSale, priceOf, toBaseUnits, unitCostOf, type Presentation } from "./schema.js";
+import { chargeFor, describeQuantity, describeSale, pluralOf, priceOf, toBaseUnits, unitCostOf, type Presentation } from "./schema.js";
 
 const caseOfTwelve: Presentation = { id: 1, label: "Caja de 12", units: 12, cost: "17.00", price: null };
 const caseOfSix: Presentation = { id: 2, label: "Caja de 6", units: 6, cost: null, price: "95.00" };
@@ -31,6 +31,8 @@ test("quantities read in the words the shop chose", () => {
   assert.equal(describeQuantity(2, caseOfTwelve, "botella"), "2 × Caja de 12");
   assert.equal(describeQuantity(1, null, "botella"), "1 botella");
   assert.equal(describeQuantity(6, null, "botella"), "6 botellas");
+  // The label every shop starts with is the one the shortcut got wrong.
+  assert.equal(describeQuantity(6, null, "unidad"), "6 unidades");
 });
 
 test("a case cost divides into what one unit cost the shop", () => {
@@ -74,4 +76,21 @@ test("whichever side of a sale is zero is left out", () => {
 test("cases and loose units add up in base units", () => {
   // Two cases of twelve and two loose bottles take twenty-six off the shelf.
   assert.equal(toBaseUnits(2, caseOfTwelve) + 2, 26);
+});
+
+test("pluralises the unit label the way the word actually goes", () => {
+  // Vowel: the case the old "+s" happened to get right.
+  assert.equal(pluralOf("botella"), "botellas");
+  assert.equal(pluralOf("caja"), "cajas");
+  assert.equal(pluralOf("litro"), "litros");
+  // Consonant: the default label, and the reason this exists.
+  assert.equal(pluralOf("unidad"), "unidades");
+  assert.equal(pluralOf("galon"), "galones");
+  // -z closes to -ces.
+  assert.equal(pluralOf("nuez"), "nueces");
+  // Already plural in form: nothing to add.
+  assert.equal(pluralOf("dosis"), "dosis");
+  // Whatever the shop typed, including nothing.
+  assert.equal(pluralOf("  caja  "), "cajas");
+  assert.equal(pluralOf(""), "");
 });

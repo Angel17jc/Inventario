@@ -2,7 +2,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { PresentationPicker } from "@/modules/inventory/presentations/PresentationPicker";
 import { usePresentations } from "@/modules/inventory/presentations/presentation-queries";
 import { useToast } from "@/hooks/use-toast";
-import { chargeFor, describeSale, toBaseUnits, type LedgerEntry } from "@shared/schema";
+import { chargeFor, describeQuantity, describeSale, pluralOf, toBaseUnits, type LedgerEntry } from "@shared/schema";
 import { useCreateMovement, useLedger } from "@/modules/inventory/movements/movement-queries";
 import { useProducts } from "@/modules/inventory/products/product-queries";
 import { Button } from "@/components/ui/button";
@@ -106,7 +106,7 @@ export default function Movements() {
           toast({
             title: remaining < 0 ? `${product.name} quedó en negativo` : `${product.name} se agotó`,
             description: remaining < 0
-              ? `El registro dice ${remaining} ${unitLabel}: se vendió más de lo que había contado. Corrige el stock en Inventario cuando puedas.`
+              ? `El registro dice ${describeQuantity(remaining, null, unitLabel)}: se vendió más de lo que había contado. Corrige el stock en Inventario cuando puedas.`
               : "No queda nada en el registro. Repón antes de la próxima venta.",
             variant: "destructive",
           });
@@ -193,7 +193,7 @@ export default function Movements() {
                         name="looseQuantity"
                         render={({ field }) => (
                           <FormItem className={presentation ? undefined : "col-span-2"}>
-                            <FormLabel>{presentation ? `${unitLabel}s sueltas` : `${unitLabel}s`}</FormLabel>
+                            <FormLabel>{presentation ? `${pluralOf(unitLabel)} sueltas` : pluralOf(unitLabel)}</FormLabel>
                             <FormControl>
                               <Input type="number" min="0" {...field} />
                             </FormControl>
@@ -210,7 +210,7 @@ export default function Movements() {
                       <div className="rounded-lg border border-border bg-background/40 px-3 py-2 text-xs">
                         <p className="text-muted-foreground">
                           {describeSale(packQuantity, looseQuantity, presentation, unitLabel)} ={" "}
-                          <span className="font-medium text-foreground">{leaving} {unitLabel}s</span> del stock
+                          <span className="font-medium text-foreground">{describeQuantity(leaving, null, unitLabel)}</span> del stock
                         </p>
                         <p className="mt-0.5 text-sm font-semibold text-primary">Total ${charge.toFixed(2)}</p>
                       </div>

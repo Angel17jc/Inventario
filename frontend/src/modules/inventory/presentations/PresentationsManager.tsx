@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { priceOf, unitCostOf, type Presentation } from "@shared/schema";
+import { pluralOf, priceOf, unitCostOf, type Presentation } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { ConfirmDestructive } from "@/components/ui/confirm-destructive";
 import { Input } from "@/components/ui/input";
@@ -67,7 +67,7 @@ export function PresentationsManager({ productId, unitLabel, sellingPrice, costP
         <h4 className="text-sm font-semibold text-foreground">Presentaciones</h4>
         <p className="text-xs text-muted-foreground">
           Cómo se compra y se vende además de por {unitLabel}: caja de 6, de 12, de 24.
-          El costo y el precio son de la caja entera. El stock se sigue contando en {unitLabel}s.
+          El costo y el precio son de la caja entera. El stock se sigue contando en {pluralOf(unitLabel)}.
         </p>
       </div>
 
@@ -88,7 +88,7 @@ export function PresentationsManager({ productId, unitLabel, sellingPrice, costP
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{presentation.label}</p>
                 <p className="text-xs text-muted-foreground">
-                  {presentation.units} {unitLabel}s · vende ${priceOf(presentation, sellingPrice).toFixed(2)}
+                  {presentation.units} {pluralOf(unitLabel)} · vende ${priceOf(presentation, sellingPrice).toFixed(2)}
                   {presentation.price === null && " (calculado)"}
                 </p>
                 <p className="text-xs text-muted-foreground">{describeCost(presentation)}</p>
@@ -119,7 +119,7 @@ export function PresentationsManager({ productId, unitLabel, sellingPrice, costP
           />
         </label>
         <label className="space-y-1">
-          <span className="text-xs text-muted-foreground">{unitLabel}s</span>
+          <span className="text-xs text-muted-foreground">{pluralOf(unitLabel)}</span>
           <Input
             type="number"
             min="2"
@@ -166,7 +166,7 @@ export function PresentationsManager({ productId, unitLabel, sellingPrice, costP
 
       <p className="text-xs text-muted-foreground">
         {duplicate
-          ? `Ya hay una presentación de ${units} ${unitLabel}s.`
+          ? `Ya hay una presentación de ${units} ${pluralOf(unitLabel)}.`
           : `Costo y precio son opcionales. Sin precio se cobra el precio por ${unitLabel} multiplicado por las unidades.`}
       </p>
 
@@ -174,7 +174,7 @@ export function PresentationsManager({ productId, unitLabel, sellingPrice, costP
         open={toRemove !== null}
         onOpenChange={(open) => !open && setToRemove(null)}
         title={`¿Quitar «${toRemove?.label ?? ""}»?`}
-        description={`Las ventas y entradas ya registradas con esta presentación siguen ahí y el stock no cambia, pero dejarán de decir que eran cajas de ${toRemove?.units ?? ""}: quedarán solo como ${unitLabel}s. No se puede deshacer.`}
+        description={`Las ventas y entradas ya registradas con esta presentación siguen ahí y el stock no cambia, pero dejarán de decir que eran cajas de ${toRemove?.units ?? ""}: quedarán solo como ${pluralOf(unitLabel)}. No se puede deshacer.`}
         confirmLabel="Quitar"
         onConfirm={() => { if (toRemove) deletePresentation.mutate(toRemove.id); setToRemove(null); }}
       />
