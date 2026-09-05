@@ -10,9 +10,8 @@ import assert from "node:assert/strict";
  * another, and RLS is on. Neither helps here: the API reads with the service
  * key, which is exactly the role RLS is written to let through, so what keeps
  * one licorería's products out of another's screen is `organization_id` on
- * every query in this file. The generated Database type does not describe the
- * column, so the compiler cannot ask for it — and `(supabase as any)` is how
- * most of these queries are written.
+ * every query in this file, and the client carries no schema type, so the
+ * compiler cannot ask for the column even in principle.
  *
  * So it is checked here instead. Reading the source is crude, and it is the
  * same crude check the CI already runs on extensionless ESM imports: it costs

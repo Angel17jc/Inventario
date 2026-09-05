@@ -79,8 +79,6 @@ export class PlatformService {
    * itself is not a client and is left out.
    */
   async listOrganizations(administratorId: string) {
-    // The generated Database type does not describe the tenancy tables, which
-    // is why every caller in this file reaches them the same way.
     const { data: organizations, error } = await (supabase as any)
       .from("organizations")
       .select("id, name, slug, status, created_at")

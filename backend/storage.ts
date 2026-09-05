@@ -96,7 +96,6 @@ export class DatabaseStorage implements IStorage {
 
   async updateCategory(id: number, category: UpdateCategoryRequest): Promise<Category> {
     const snakeData = toSnakeCase(category);
-    // @ts-expect-error - Supabase types don't support dynamic object conversion
     const { data, error } = await supabase.from('categories').update(snakeData).eq('id', id).eq('organization_id', this.organizationScope).select().single();
     if (error) throw error;
     return toCamelCase(data);
@@ -127,7 +126,6 @@ export class DatabaseStorage implements IStorage {
 
   async updateSupplier(id: number, supplier: UpdateSupplierRequest): Promise<Supplier> {
     const snakeData = toSnakeCase(supplier);
-    // @ts-expect-error - Supabase types don't support dynamic object conversion
     const { data, error } = await supabase.from('suppliers').update(snakeData).eq('id', id).eq('organization_id', this.organizationScope).select().single();
     if (error) throw error;
     return toCamelCase(data);
@@ -164,7 +162,6 @@ export class DatabaseStorage implements IStorage {
 
   async updateProduct(id: number, product: UpdateProductRequest): Promise<Product> {
     const snakeData = toSnakeCase(product);
-    // @ts-expect-error - Supabase types don't support dynamic object conversion
     const { data, error } = await supabase.from('products').update(snakeData).eq('id', id).eq('organization_id', this.organizationScope).select().single();
     if (error) throw error;
     return toCamelCase(data);

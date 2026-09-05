@@ -32,192 +32,31 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   );
 }
 
-// Define the database schema with snake_case columns
-export interface Database {
-  public: {
-    Tables: {
-      categories: {
-        Row: {
-          id: number;
-          name: string;
-          description: string | null;
-        };
-        Insert: {
-          id?: number;
-          name: string;
-          description?: string | null;
-        };
-        Update: {
-          id?: number;
-          name?: string;
-          description?: string | null;
-        };
-      };
-      suppliers: {
-        Row: {
-          id: number;
-          name: string;
-          contact_info: string | null;
-          address: string | null;
-        };
-        Insert: {
-          id?: number;
-          name: string;
-          contact_info?: string | null;
-          address?: string | null;
-        };
-        Update: {
-          id?: number;
-          name?: string;
-          contact_info?: string | null;
-          address?: string | null;
-        };
-      };
-      products: {
-        Row: {
-          id: number;
-          name: string;
-          description: string | null;
-          sku: string | null;
-          quantity: number;
-          cost_price: string;
-          selling_price: string;
-          category_id: number | null;
-          supplier_id: number | null;
-          image_url: string | null;
-          min_stock_level: number | null;
-        };
-        Insert: {
-          id?: number;
-          name: string;
-          description?: string | null;
-          sku?: string | null;
-          quantity?: number;
-          cost_price: string;
-          selling_price: string;
-          category_id?: number | null;
-          supplier_id?: number | null;
-          image_url?: string | null;
-          min_stock_level?: number | null;
-        };
-        Update: {
-          id?: number;
-          name?: string;
-          description?: string | null;
-          sku?: string | null;
-          quantity?: number;
-          cost_price?: string;
-          selling_price?: string;
-          category_id?: number | null;
-          supplier_id?: number | null;
-          image_url?: string | null;
-          min_stock_level?: number | null;
-        };
-      };
-      movements: {
-        Row: {
-          id: number;
-          product_id: number;
-          type: string;
-          quantity: number;
-          reason: string | null;
-          created_at: string | null;
-          user_id: string | null;
-        };
-        Insert: {
-          id?: number;
-          product_id: number;
-          type: string;
-          quantity: number;
-          reason?: string | null;
-          created_at?: string | null;
-          user_id?: string | null;
-        };
-        Update: {
-          id?: number;
-          product_id?: number;
-          type?: string;
-          quantity?: number;
-          reason?: string | null;
-          created_at?: string | null;
-          user_id?: string | null;
-        };
-      };
-      credit_accounts: {
-        Row: {
-          id: number;
-          customer_name: string;
-          product_id: number;
-          movement_id: number | null;
-          quantity: number;
-          unit_price: string;
-          total_amount: string;
-          paid_amount: string;
-          remaining_amount: string;
-          status: string;
-          notes: string | null;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: number;
-          customer_name: string;
-          product_id: number;
-          movement_id?: number | null;
-          quantity: number;
-          unit_price: string;
-          total_amount: string;
-          paid_amount?: string;
-          remaining_amount: string;
-          status?: string;
-          notes?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-        Update: {
-          id?: number;
-          customer_name?: string;
-          product_id?: number;
-          movement_id?: number | null;
-          quantity?: number;
-          unit_price?: string;
-          total_amount?: string;
-          paid_amount?: string;
-          remaining_amount?: string;
-          status?: string;
-          notes?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-      };
-      credit_payments: {
-        Row: {
-          id: number;
-          credit_account_id: number;
-          amount: string;
-          payment_method: string | null;
-          notes: string | null;
-          created_at: string | null;
-        };
-        Insert: {
-          id?: number;
-          credit_account_id: number;
-          amount: string;
-          payment_method?: string | null;
-          notes?: string | null;
-          created_at?: string | null;
-        };
-        Update: {
-          id?: number;
-          credit_account_id?: number;
-          amount?: string;
-          payment_method?: string | null;
-          notes?: string | null;
-          created_at?: string | null;
-        };
-      };
-    };
-  };
-}
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
+/**
+ * No schema type on purpose.
+ *
+ * This file used to carry a hand-written `Database` interface, and it had
+ * described the January schema ever since: no `organization_id` on any table,
+ * no `product_packs`, no `retired_at`, prices as strings when PostgREST sends
+ * them as numbers. It was not merely out of date, it was misleading in both
+ * directions — it accepted queries against columns that are gone and rejected
+ * correct ones, which is why twenty-seven queries in storage.ts were written
+ * `(supabase as any)` and three more carried a `@ts-expect-error` apologising
+ * for "dynamic object conversion" that was really the type being wrong.
+ *
+ * A second hand-written description of the database drifts in silence; that is
+ * the same lesson that got `database/schema.sql` deleted in August, and the
+ * migrations are the one description of this database. So there is no copy
+ * here. What the compiler cannot check, `storage-tenancy.test.ts` checks for
+ * the one thing that matters — that every query is scoped to its shop — and
+ * the API's Zod schemas check the shape of what goes out.
+ *
+ * To get real types back, generate them rather than write them:
+ *
+ *   npx supabase gen types typescript --project-id htkzkykfmnybkqcrtkby > backend/database.types.ts
+ *
+ * which needs a SUPABASE_ACCESS_TOKEN. Then import that file and pass it as
+ * `createClient<Database>`, with a CI step that regenerates and diffs it so it
+ * cannot go stale again. That step is the remaining half of M-13.
+ */
+export const supabase = createClient(supabaseUrl, supabaseKey);
