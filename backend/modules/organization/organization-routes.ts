@@ -60,7 +60,7 @@ async function removeStoredLogos(organizationId: string) {
 const organizationColumns = "id, name, slug, status, logo_url";
 
 async function updateOrganization(organizationId: string, changes: Record<string, unknown>) {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("organizations")
     .update(changes)
     .eq("id", organizationId)

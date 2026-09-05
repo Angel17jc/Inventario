@@ -48,7 +48,7 @@ async function insertOrganization(name: string, desiredSlug: string) {
 
   for (let attempt = 1; attempt <= 25; attempt++) {
     const slug = attempt === 1 ? base : `${base}-${attempt}`;
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("organizations")
       .insert({ name, slug, status: "active" })
       .select("id, name, slug, status")
@@ -79,13 +79,13 @@ export class PlatformService {
    * itself is not a client and is left out.
    */
   async listOrganizations(administratorId: string) {
-    const { data: organizations, error } = await (supabase as any)
+    const { data: organizations, error } = await supabase
       .from("organizations")
       .select("id, name, slug, status, created_at")
       .order("name");
     if (error) throw error;
 
-    const { data: owners, error: ownersError } = await (supabase as any)
+    const { data: owners, error: ownersError } = await supabase
       .from("organization_memberships")
       .select("organization_id, user_id")
       .eq("role", "owner")
@@ -118,7 +118,7 @@ export class PlatformService {
 
   /** Whether this shop is the administrator's own rather than a client's. */
   async isOwnedBy(organizationId: string, userId: string): Promise<boolean> {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("organization_memberships")
       .select("id")
       .eq("organization_id", organizationId)
@@ -130,7 +130,7 @@ export class PlatformService {
   }
 
   async updateOrganizationStatus(organizationId: string, status: "active" | "suspended") {
-    const { data, error } = await (supabase as any).from("organizations").update({ status }).eq("id", organizationId).select("id, name, status").single();
+    const { data, error } = await supabase.from("organizations").update({ status }).eq("id", organizationId).select("id, name, status").single();
     if (error) throw error;
     return data;
   }
@@ -144,7 +144,7 @@ export class PlatformService {
    */
   /** The shops this user owns, in the shape the session endpoint returns. */
   async findOwnedOrganizations(userId: string) {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("organization_memberships")
       .select("role, organization:organizations(id, name, slug, status, logo_url)")
       .eq("user_id", userId)
@@ -160,13 +160,13 @@ export class PlatformService {
     const name = input.name.trim();
     const organization = await insertOrganization(name, input.slug);
 
-    const { error: membershipError } = await (supabase as any)
+    const { error: membershipError } = await supabase
       .from("organization_memberships")
       .insert({ organization_id: organization.id, user_id: userId, role: "owner", status: "active" });
 
     if (membershipError) {
       // No transaction spans both statements, so an orphan shop is undone here.
-      await (supabase as any).from("organizations").delete().eq("id", organization.id);
+      await supabase.from("organizations").delete().eq("id", organization.id);
       throw membershipError;
     }
 
@@ -187,7 +187,7 @@ export class PlatformService {
       if (error || !data.user) throw error ?? new Error("Could not create owner account");
       userId = data.user.id;
 
-      const { error: membershipError } = await (supabase as any)
+      const { error: membershipError } = await supabase
         .from("organization_memberships")
         .insert({ organization_id: organization.id, user_id: userId, role: "owner", status: "active" });
       if (membershipError) throw membershipError;
@@ -197,7 +197,7 @@ export class PlatformService {
       // Supabase Auth and the application database cannot share one transaction.
       // Compensate in reverse order to avoid incomplete client accounts.
       if (userId) await supabase.auth.admin.deleteUser(userId).catch(() => undefined);
-      await (supabase as any).from("organizations").delete().eq("id", organization.id);
+      await supabase.from("organizations").delete().eq("id", organization.id);
       throw error;
     }
   }

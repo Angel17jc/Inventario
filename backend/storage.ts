@@ -89,7 +89,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
-    const { data, error } = await (supabase as any).from('categories').insert({ ...toSnakeCase(category), organization_id: this.organizationScope }).select().single();
+    const { data, error } = await supabase.from('categories').insert({ ...toSnakeCase(category), organization_id: this.organizationScope }).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
@@ -119,7 +119,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
-    const { data, error } = await (supabase as any).from('suppliers').insert({ ...toSnakeCase(supplier), organization_id: this.organizationScope }).select().single();
+    const { data, error } = await supabase.from('suppliers').insert({ ...toSnakeCase(supplier), organization_id: this.organizationScope }).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
@@ -155,7 +155,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
-    const { data, error } = await (supabase as any).from('products').insert({ ...toSnakeCase(product), organization_id: this.organizationScope }).select().single();
+    const { data, error } = await supabase.from('products').insert({ ...toSnakeCase(product), organization_id: this.organizationScope }).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
@@ -178,7 +178,7 @@ export class DatabaseStorage implements IStorage {
    * with the product row locked, and refuses with LM001 when money is owed.
    */
   async deleteProduct(id: number): Promise<void> {
-    const { error } = await (supabase as any).rpc('retire_product', {
+    const { error } = await supabase.rpc('retire_product', {
       p_organization_id: this.organizationScope,
       p_product_id: id,
     });
@@ -195,13 +195,13 @@ export class DatabaseStorage implements IStorage {
    */
   async getLedger(limit: number): Promise<LedgerEntry[]> {
     const [movementsResult, paymentsResult] = await Promise.all([
-      (supabase as any)
+      supabase
         .from('movements')
         .select('id, type, quantity, entered_quantity, loose_quantity, reason, created_at, product:products(id, name, unit_label), pack:product_packs!movements_pack_organization_fkey(id, label, units, cost, price)')
         .eq('organization_id', this.organizationScope)
         .order('created_at', { ascending: false })
         .limit(limit),
-      (supabase as any)
+      supabase
         .from('credit_payments')
         .select('id, credit_account_id, amount, payment_method, notes, created_at')
         .eq('organization_id', this.organizationScope)
@@ -217,7 +217,7 @@ export class DatabaseStorage implements IStorage {
     const customerByAccount = new Map<number, string>();
     const accountIds = Array.from(new Set<number>(payments.map((payment) => payment.credit_account_id)));
     if (accountIds.length > 0) {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('credit_accounts')
         .select('id, customer_name')
         .in('id', accountIds)
@@ -261,7 +261,7 @@ export class DatabaseStorage implements IStorage {
   // ---- Presentaciones -------------------------------------------------
 
   async getProductPacks(productId: number) {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("product_packs")
       .select("id, label, units, cost, price")
       .eq("product_id", productId)
@@ -272,7 +272,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProductPack(productId: number, pack: { label: string; units: number; cost: string | null; price: string | null }) {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("product_packs")
       .insert({
         organization_id: this.organizationScope,
@@ -289,7 +289,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProductPack(packId: number) {
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("product_packs")
       .delete()
       .eq("id", packId)
@@ -301,7 +301,7 @@ export class DatabaseStorage implements IStorage {
     // The quantity travels as the person typed it and the presentation goes
     // with it. The function multiplies with the product row locked, so the
     // size cannot change between reading it and moving the stock.
-    const { data, error } = await (supabase as any).rpc('create_inventory_movement', {
+    const { data, error } = await supabase.rpc('create_inventory_movement', {
       p_organization_id: this.organizationScope,
       p_product_id: movement.productId,
       p_type: movement.type,
@@ -349,7 +349,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCreditAccount(credit: CreateCreditAccountRequest): Promise<CreditAccount> {
-    const { data, error } = await (supabase as any).rpc('create_credit_sale', {
+    const { data, error } = await supabase.rpc('create_credit_sale', {
       p_organization_id: this.organizationScope,
       p_product_id: credit.productId,
       p_customer_name: credit.customerName,
@@ -365,7 +365,7 @@ export class DatabaseStorage implements IStorage {
 
 
   async createCreditPayment(payment: CreateCreditPaymentRequest): Promise<CreditPayment> {
-    const { data, error } = await (supabase as any).rpc('register_credit_payment', {
+    const { data, error } = await supabase.rpc('register_credit_payment', {
       p_organization_id: this.organizationScope,
       p_credit_account_id: payment.creditAccountId,
       p_amount: payment.amount,

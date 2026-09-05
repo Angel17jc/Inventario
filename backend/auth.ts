@@ -70,7 +70,7 @@ export async function requireOrganizationContext(req: Request, res: Response, ne
   // The organization's own status is read alongside the membership: suspending
   // a tenant has to cut off its API access, and filtering by status in the
   // browser only hides the data from the interface.
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("organization_memberships")
     .select("role, organization:organizations(status)")
     .eq("organization_id", organizationId)
@@ -78,12 +78,17 @@ export async function requireOrganizationContext(req: Request, res: Response, ne
     .eq("status", "active")
     .maybeSingle();
   if (error) return next(error);
-  if (!data || !isOrganizationRole(data.role)) return fail(res, 403, errorCodes.forbidden, "No tienes acceso a esta empresa.");
-  if (data.organization?.status !== "active") {
+  // A membership belongs to one organization, so PostgREST embeds it as an
+  // object. With no schema type the client cannot know the cardinality and
+  // guesses an array; checked against the database, the row arrives as
+  // { role, organization: { status } }.
+  const membership = data as { role: string; organization: { status: string } | null } | null;
+  if (!membership || !isOrganizationRole(membership.role)) return fail(res, 403, errorCodes.forbidden, "No tienes acceso a esta empresa.");
+  if (membership.organization?.status !== "active") {
     return fail(res, 403, errorCodes.organizationSuspended, "Esta empresa está suspendida. Contacta al administrador.");
   }
 
-  req.organization = { id: organizationId, role: data.role };
+  req.organization = { id: organizationId, role: membership.role };
   return next();
 }
 
@@ -108,7 +113,7 @@ export async function getAccessibleOrganizations(user: AuthenticatedUser) {
     return [toOrganizationSummary(organization, "owner")];
   }
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("organization_memberships")
     .select("role, organization:organizations(id, name, slug, status, logo_url)")
     .eq("user_id", user.id)
