@@ -279,8 +279,10 @@ export class DatabaseStorage implements IStorage {
         product_id: productId,
         label: pack.label,
         units: pack.units,
-        cost: pack.cost,
-        price: pack.price,
+        // Mismo motivo que en register_credit_payment: el costo y el precio de
+        // la caja viajan como cadena decimal, no como flotante.
+        cost: pack.cost as unknown as number | null,
+        price: pack.price as unknown as number | null,
       })
       .select("id, label, units, cost, price")
       .single();
@@ -306,9 +308,9 @@ export class DatabaseStorage implements IStorage {
       p_product_id: movement.productId,
       p_type: movement.type,
       p_quantity: movement.quantity,
-      p_reason: movement.reason ?? null,
-      p_user_id: this.actorId ?? null,
-      p_pack_id: movement.packId ?? null,
+      p_reason: movement.reason ?? undefined,
+      p_user_id: this.actorId ?? undefined,
+      p_pack_id: movement.packId ?? undefined,
       p_loose_quantity: movement.looseQuantity ?? 0,
     });
     if (error) throw error;
@@ -354,9 +356,9 @@ export class DatabaseStorage implements IStorage {
       p_product_id: credit.productId,
       p_customer_name: credit.customerName,
       p_quantity: credit.quantity,
-      p_notes: credit.notes ?? null,
-      p_user_id: this.actorId ?? null,
-      p_pack_id: credit.packId ?? null,
+      p_notes: credit.notes ?? undefined,
+      p_user_id: this.actorId ?? undefined,
+      p_pack_id: credit.packId ?? undefined,
       p_loose_quantity: credit.looseQuantity ?? 0,
     });
     if (error) throw error;
@@ -365,12 +367,18 @@ export class DatabaseStorage implements IStorage {
 
 
   async createCreditPayment(payment: CreateCreditPaymentRequest): Promise<CreditPayment> {
+    // El importe llega como cadena de dos decimales: createCreditPaymentRequest
+    // lo valida como número y lo fija con toFixed(2) antes de mandarlo, para
+    // que Postgres lea un literal decimal exacto en vez de un flotante. Los
+    // tipos generados declaran el argumento `number` porque la columna es
+    // numeric; PostgREST acepta la cadena y la convierte sin pasar por un
+    // double, que es justo lo que se quiere con dinero.
     const { data, error } = await supabase.rpc('register_credit_payment', {
       p_organization_id: this.organizationScope,
       p_credit_account_id: payment.creditAccountId,
-      p_amount: payment.amount,
-      p_payment_method: payment.paymentMethod ?? null,
-      p_notes: payment.notes ?? null,
+      p_amount: payment.amount as unknown as number,
+      p_payment_method: payment.paymentMethod ?? undefined,
+      p_notes: payment.notes ?? undefined,
     });
     if (error) throw error;
     return toCamelCase(data[0]);

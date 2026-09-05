@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from './database.types.js';
 
 // Prefer using the Service Role Key on the server for full privileges.
 // Fallback to ANON key only when SERVICE key is not provided (not recommended for production).
@@ -33,30 +34,17 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 /**
- * No schema type on purpose.
+ * The schema type is generated, never written.
  *
- * This file used to carry a hand-written `Database` interface, and it had
- * described the January schema ever since: no `organization_id` on any table,
- * no `product_packs`, no `retired_at`, prices as strings when PostgREST sends
- * them as numbers. It was not merely out of date, it was misleading in both
- * directions — it accepted queries against columns that are gone and rejected
- * correct ones, which is why twenty-seven queries in storage.ts were written
- * `(supabase as any)` and three more carried a `@ts-expect-error` apologising
- * for "dynamic object conversion" that was really the type being wrong.
+ * This file used to carry a hand-written `Database` interface describing the
+ * January schema: no `organization_id` on any table, no `product_packs`, no
+ * `retired_at`, prices as strings where PostgREST sends numbers. It rejected
+ * correct code — which is why so many queries were written `(supabase as any)`
+ * — and accepted queries against columns that were gone.
  *
- * A second hand-written description of the database drifts in silence; that is
- * the same lesson that got `database/schema.sql` deleted in August, and the
- * migrations are the one description of this database. So there is no copy
- * here. What the compiler cannot check, `storage-tenancy.test.ts` checks for
- * the one thing that matters — that every query is scoped to its shop — and
- * the API's Zod schemas check the shape of what goes out.
- *
- * To get real types back, generate them rather than write them:
- *
- *   npx supabase gen types typescript --project-id htkzkykfmnybkqcrtkby > backend/database.types.ts
- *
- * which needs a SUPABASE_ACCESS_TOKEN. Then import that file and pass it as
- * `createClient<Database>`, with a CI step that regenerates and diffs it so it
- * cannot go stale again. That step is the remaining half of M-13.
+ * `database.types.ts` comes from the database itself, via `npm run types:db`,
+ * and CI regenerates it on every push and fails if it has drifted. That is the
+ * difference that matters: a second description of the schema is only safe
+ * when nobody is trusted to keep it up to date by hand.
  */
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseKey);

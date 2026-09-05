@@ -7,7 +7,8 @@
     "dev": "cross-env NODE_ENV=development tsx backend/index.ts",
     "build": "vite build",
     "check": "tsc",
-    "test": "tsx --test shared/**/*.test.ts backend/**/*.test.ts"
+    "test": "tsx --test shared/**/*.test.ts backend/**/*.test.ts",
+    "types:db": "node script/db-types.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
