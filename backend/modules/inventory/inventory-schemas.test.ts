@@ -7,14 +7,16 @@ test("normalizes valid product input and an empty SKU", () => {
     name: "  Ron Añejo  ",
     sku: "  ",
     quantity: "12",
-    costPrice: "10.50",
+    purchaseUnits: "24",
+    purchasePrice: "17.00",
     sellingPrice: "16.75",
   });
 
   assert.equal(product.name, "Ron Añejo");
   assert.equal(product.sku, null);
   assert.equal(product.quantity, 12);
-  assert.equal(product.costPrice, 10.5);
+  assert.equal(product.purchaseUnits, 24);
+  assert.equal(product.purchasePrice, 17);
 });
 
 test("drops the fields the product form stopped sending", () => {
@@ -27,14 +29,18 @@ test("drops the fields the product form stopped sending", () => {
     sellingPrice: 2,
     minStockLevel: 3,
     description: "no se guarda",
+    costPrice: 99,
   });
   assert.equal("minStockLevel" in product, false);
   assert.equal("description" in product, false);
-  assert.deepEqual(updateProductSchema.parse({ minStockLevel: 9, description: "x" }), {});
+  // El costo por unidad lo calcula el servidor: aceptarlo permitiría que la
+  // valoración del inventario dijera algo distinto de lo que se pagó.
+  assert.equal("costPrice" in product, false);
+  assert.deepEqual(updateProductSchema.parse({ minStockLevel: 9, description: "x", costPrice: 1 }), {});
 });
 
 test("rejects invalid stock, prices, and catalog references", () => {
-  const baseProduct = { name: "Vodka", quantity: 1, costPrice: 5, sellingPrice: 8 };
+  const baseProduct = { name: "Vodka", quantity: 1, sellingPrice: 8 };
   assert.throws(() => createProductSchema.parse({ ...baseProduct, quantity: -1 }));
   assert.throws(() => createProductSchema.parse({ ...baseProduct, sellingPrice: -1 }));
   assert.throws(() => createProductSchema.parse({ ...baseProduct, categoryId: 0 }));

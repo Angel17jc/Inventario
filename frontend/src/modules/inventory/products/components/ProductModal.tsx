@@ -6,7 +6,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { insertProductSchema } from "@shared/schema";
+import { insertProductSchema, pluralOf, unitCostFromPurchase } from "@shared/schema";
 import { useCreateProduct, useUpdateProduct } from "@/modules/inventory/products/product-queries";
 import { useCategories } from "@/modules/catalog/categories/category-queries";
 import { useSuppliers } from "@/modules/catalog/suppliers/supplier-queries";
@@ -17,7 +17,8 @@ import { useCallback, useEffect, useState } from "react";
 // Extend schema for form validation to handle string inputs for numbers
 const formSchema = insertProductSchema.extend({
   quantity: z.coerce.number().min(0),
-  costPrice: z.coerce.number().min(0),
+  purchaseUnits: z.coerce.number().min(0),
+  purchasePrice: z.coerce.number().min(0),
   sellingPrice: z.coerce.number().min(0),
   categoryId: z.coerce.number().optional(),
   supplierId: z.coerce.number().optional(),
@@ -45,7 +46,8 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
       name: "",
       sku: "",
       quantity: 0,
-      costPrice: 0,
+      purchaseUnits: 0,
+      purchasePrice: 0,
       sellingPrice: 0,
       imageUrl: "",
       unitLabel: "unidad",
@@ -59,7 +61,8 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
         name: product.name,
         sku: product.sku || "",
         quantity: product.quantity,
-        costPrice: Number(product.costPrice),
+        purchaseUnits: Number(product.purchaseUnits ?? 0),
+        purchasePrice: Number(product.purchasePrice ?? 0),
         sellingPrice: Number(product.sellingPrice),
         imageUrl: product.imageUrl || "",
         unitLabel: product.unitLabel || "unidad",
@@ -71,7 +74,8 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
         name: "",
         sku: "",
         quantity: 0,
-        costPrice: 0,
+        purchaseUnits: 0,
+        purchasePrice: 0,
         sellingPrice: 0,
         imageUrl: "",
         unitLabel: "unidad",
@@ -89,13 +93,20 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
     onOpenChange(false);
   }
 
+  const unidad = form.watch("unitLabel") || "unidad";
+  const costoPorUnidad = unitCostFromPurchase(
+    Number(form.watch("purchaseUnits")) || 0,
+    Number(form.watch("purchasePrice")) || 0,
+  );
+
   const isEditing = product !== undefined && product !== null;
 
   function onSubmit(data: ProductFormValues) {
-    // Convert numeric decimal values to strings as expected by schema
+    // El costo por unidad lo deriva el servidor de estas dos cifras.
     const submitData = {
       ...data,
-      costPrice: String(data.costPrice),
+      purchaseUnits: data.purchaseUnits > 0 ? data.purchaseUnits : null,
+      purchasePrice: data.purchaseUnits > 0 ? String(data.purchasePrice) : null,
       sellingPrice: String(data.sellingPrice),
     };
 
@@ -193,13 +204,33 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
 
               <FormField
                 control={form.control}
-                name="costPrice"
+                name="purchaseUnits"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Costo por unidad</FormLabel>
+                    <FormLabel>Unidades que compraste</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input type="number" min="0" placeholder="24" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="purchasePrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Precio de compra</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" min="0" placeholder="17.00" {...field} />
+                    </FormControl>
+                    {/* Lo que la persona quiere saber sin sacar la calculadora. */}
+                    <p className="text-xs text-muted-foreground">
+                      {costoPorUnidad > 0
+                        ? `Te sale a ${costoPorUnidad.toFixed(2)} cada ${unidad}`
+                        : `Lo que pagaste por esas ${pluralOf(unidad)} en total`}
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -50,6 +50,10 @@ export const products = pgTable("products", {
   // one licorería's codes can collide with another's.
   sku: text("sku"),
   quantity: integer("quantity").notNull().default(0),
+  // Lo que se compró y por cuánto, tal como viene en la factura. El costo por
+  // unidad sale de dividirlos, así que no se teclea.
+  purchaseUnits: integer("purchase_units"),
+  purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }),
   costPrice: decimal("cost_price", { precision: 10, scale: 2 }).notNull(),
   sellingPrice: decimal("selling_price", { precision: 10, scale: 2 }).notNull(),
   categoryId: integer("category_id").references(() => categories.id),
@@ -172,6 +176,25 @@ export type UpdateSupplierRequest = z.infer<typeof updateSupplierRequestSchema>;
 
 export type CreateProductRequest = InsertProduct;
 export type UpdateProductRequest = Partial<InsertProduct>;
+
+/**
+ * Lo que cuesta una unidad, a partir de lo que se compró.
+ *
+ * La factura dice "24 cervezas, 17 dólares"; nadie lleva encima el 0,708. Se
+ * deriva para que haya un solo número que mantener en vez de dos que pueden
+ * contradecirse. Sin compra registrada, se conserva el costo que ya tuviera.
+ */
+export function unitCostFromPurchase(
+  purchaseUnits: number | null | undefined,
+  purchasePrice: number | string | null | undefined,
+  fallback: number | string = 0,
+): number {
+  const units = Number(purchaseUnits ?? 0);
+  if (!Number.isFinite(units) || units <= 0) return Number(fallback) || 0;
+  const price = Number(purchasePrice ?? 0);
+  if (!Number.isFinite(price)) return Number(fallback) || 0;
+  return price / units;
+}
 
 
 /**

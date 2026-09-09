@@ -7,6 +7,7 @@ import type {
   DashboardStats, CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest,
   LedgerEntry, CreateSaleRequest, SaleResult
 } from "../shared/schema.js";
+import { unitCostFromPurchase } from "../shared/schema.js";
 
 // Helper functions to convert between camelCase and snake_case
 function toSnakeCase(obj: any): any {
@@ -154,8 +155,27 @@ export class DatabaseStorage implements IStorage {
     return data ? toCamelCase(data) : undefined;
   }
 
+  /**
+   * El costo por unidad se calcula aquí y no se acepta de fuera.
+   *
+   * El formulario pide lo que dice la factura — cuántas unidades trae la compra
+   * y cuánto costó — porque es el número que la persona tiene delante. Dividir
+   * en el servidor deja un solo sitio donde puede estar mal.
+   */
+  private conCostoDerivado<T extends { purchaseUnits?: number | null; purchasePrice?: number | string | null }>(
+    product: T,
+    costoAnterior: number | string = 0,
+  ) {
+    if (product.purchaseUnits === undefined && product.purchasePrice === undefined) return product;
+    return {
+      ...product,
+      costPrice: unitCostFromPurchase(product.purchaseUnits, product.purchasePrice, costoAnterior).toFixed(4),
+    };
+  }
+
   async createProduct(product: InsertProduct): Promise<Product> {
-    const { data, error } = await supabase.from('products').insert({ ...toSnakeCase(product), organization_id: this.organizationScope }).select().single();
+    const conCosto = this.conCostoDerivado(product as any);
+    const { data, error } = await supabase.from('products').insert({ ...toSnakeCase(conCosto), organization_id: this.organizationScope }).select().single();
     if (error) throw error;
     return toCamelCase(data);
   }
@@ -175,9 +195,12 @@ export class DatabaseStorage implements IStorage {
     const { quantity, ...rest } = product;
 
     if (Object.keys(rest).length > 0) {
+      // El costo anterior sirve de red: una edición que solo toca el precio de
+      // venta no debe dejar el costo en cero.
+      const anterior = await this.getProduct(id);
       const { error } = await supabase
         .from('products')
-        .update(toSnakeCase(rest))
+        .update(toSnakeCase(this.conCostoDerivado(rest as any, anterior?.costPrice ?? 0)))
         .eq('id', id)
         .eq('organization_id', this.organizationScope);
       if (error) throw error;

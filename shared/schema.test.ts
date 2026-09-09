@@ -8,6 +8,7 @@ import {
   createSaleRequestSchema,
   accountPasswordSchema,
   passwordRules,
+  unitCostFromPurchase,
 } from "./schema.js";
 
 test("validates credit sales before inventory is affected", () => {
@@ -76,4 +77,16 @@ test("a sale is bounded so one request cannot carry a catalogue", () => {
   const line = { productId: 1, quantity: 1 };
   assert.doesNotThrow(() => createSaleRequestSchema.parse({ items: Array(100).fill(line) }));
   assert.throws(() => createSaleRequestSchema.parse({ items: Array(101).fill(line) }));
+});
+
+test("the unit cost comes from the purchase, not from a typed figure", () => {
+  // 24 cervezas por 17 dólares: 0,708 cada una. Nadie lleva ese número encima.
+  assert.equal(unitCostFromPurchase(24, "17.00").toFixed(4), "0.7083");
+  assert.equal(unitCostFromPurchase(12, 48), 4);
+});
+
+test("without a purchase recorded the previous cost stands", () => {
+  assert.equal(unitCostFromPurchase(null, null, "2.50"), 2.5);
+  assert.equal(unitCostFromPurchase(0, "17.00", "2.50"), 2.5);
+  assert.equal(unitCostFromPurchase(undefined, undefined), 0);
 });

@@ -14,6 +14,14 @@ import type { DashboardStats, MovementWithProduct } from './schema.js';
 // ============================================
 // SHARED ERROR SCHEMAS
 // ============================================
+// El cliente no envía estos: la descripción y el stock mínimo dejaron de
+// pedirse, y el costo por unidad lo calcula el servidor desde la compra.
+const productInputSchema = insertProductSchema.omit({
+  description: true,
+  minStockLevel: true,
+  costPrice: true,
+});
+
 export const errorSchemas = {
   validation: z.object({
     message: z.string(),
@@ -138,7 +146,7 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/products',
-      input: insertProductSchema,
+      input: productInputSchema,
       responses: {
         201: z.custom<typeof products.$inferSelect>(),
         400: errorSchemas.validation,
@@ -147,7 +155,7 @@ export const api = {
     update: {
       method: 'PUT' as const,
       path: '/api/products/:id',
-      input: insertProductSchema.partial(),
+      input: productInputSchema.partial(),
       responses: {
         200: z.custom<typeof products.$inferSelect>(),
         400: errorSchemas.validation,

@@ -19,7 +19,10 @@ const productFields = {
   name: z.string().trim().min(2).max(160),
   sku: optionalSkuSchema,
   quantity: z.coerce.number().int().min(0).max(1_000_000),
-  costPrice: z.coerce.number().min(0).max(1_000_000),
+  // Lo que trae la compra y lo que costó. El costo por unidad lo deriva el
+  // servidor: pedirlo además sería pedir dos veces el mismo dato.
+  purchaseUnits: z.coerce.number().int().min(1).max(1_000_000).nullable().optional(),
+  purchasePrice: z.coerce.number().min(0).max(1_000_000).nullable().optional(),
   sellingPrice: z.coerce.number().min(0).max(1_000_000),
   categoryId: optionalReferenceIdSchema,
   supplierId: optionalReferenceIdSchema,
@@ -28,13 +31,10 @@ const productFields = {
   unitLabel: z.string().trim().min(2).max(40).optional(),
 };
 
-const camposRetirados = { description: true, minStockLevel: true } as const;
-
-export const createProductSchema = api.products.create.input.omit(camposRetirados).extend(productFields);
-export const updateProductSchema = api.products.update.input.omit(camposRetirados).extend({
+export const createProductSchema = api.products.create.input.extend(productFields);
+export const updateProductSchema = api.products.update.input.extend({
   ...productFields,
   name: productFields.name.optional(),
   quantity: productFields.quantity.optional(),
-  costPrice: productFields.costPrice.optional(),
   sellingPrice: productFields.sellingPrice.optional(),
 });
