@@ -170,6 +170,7 @@ export type Database = {
       }
       movements: {
         Row: {
+          amount: number | null
           created_at: string | null
           entered_quantity: number | null
           id: number
@@ -179,10 +180,12 @@ export type Database = {
           product_id: number
           quantity: number
           reason: string | null
+          sale_id: string | null
           type: string
           user_id: string | null
         }
         Insert: {
+          amount?: number | null
           created_at?: string | null
           entered_quantity?: number | null
           id?: number
@@ -192,10 +195,12 @@ export type Database = {
           product_id: number
           quantity: number
           reason?: string | null
+          sale_id?: string | null
           type: string
           user_id?: string | null
         }
         Update: {
+          amount?: number | null
           created_at?: string | null
           entered_quantity?: number | null
           id?: number
@@ -205,6 +210,7 @@ export type Database = {
           product_id?: number
           quantity?: number
           reason?: string | null
+          sale_id?: string | null
           type?: string
           user_id?: string | null
         }
@@ -448,28 +454,7 @@ export type Database = {
       }
     }
     Views: {
-      customer_debts: {
-        Row: {
-          customer_name: string | null
-          organization_id: string | null
-          paid_accounts: number | null
-          partial_accounts: number | null
-          pending_accounts: number | null
-          total_accounts: number | null
-          total_debt: number | null
-          total_paid: number | null
-          total_remaining: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "credit_accounts_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       create_credit_sale: {
@@ -518,6 +503,7 @@ export type Database = {
           p_user_id?: string
         }
         Returns: {
+          amount: number | null
           created_at: string | null
           entered_quantity: number | null
           id: number
@@ -527,6 +513,7 @@ export type Database = {
           product_id: number
           quantity: number
           reason: string | null
+          sale_id: string | null
           type: string
           user_id: string | null
         }[]
@@ -536,6 +523,13 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      create_sale: {
+        Args: { p_items: Json; p_organization_id: string; p_user_id?: string }
+        Returns: {
+          sale_id: string
+          total: number
+        }[]
       }
       is_active_organization_member: {
         Args: { target_organization_id: string }
@@ -587,6 +581,35 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "products"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      set_product_stock: {
+        Args: {
+          p_organization_id: string
+          p_product_id: number
+          p_quantity: number
+          p_user_id?: string
+        }
+        Returns: {
+          amount: number | null
+          created_at: string | null
+          entered_quantity: number | null
+          id: number
+          loose_quantity: number | null
+          organization_id: string
+          pack_id: number | null
+          product_id: number
+          quantity: number
+          reason: string | null
+          sale_id: string | null
+          type: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "movements"
           isOneToOne: false
           isSetofReturn: true
         }
