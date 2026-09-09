@@ -3,6 +3,7 @@ import { api, buildUrl, type CreateProductRequest, type UpdateProductRequest } f
 import { useToast } from "@/hooks/use-toast";
 import { describeError, throwApiError } from "@/lib/api-errors";
 import { authenticatedFetch } from "@/lib/auth";
+import { ledgerKey } from "@/modules/inventory/movements/movement-queries";
 
 const productsKey = [api.products.list.path] as const;
 const dashboardKey = [api.stats.get.path] as const;
@@ -12,7 +13,7 @@ export function useProduct(id: number) { return useQuery({ queryKey: [api.produc
 
 function productMutation<TVariables, TData>(request: (data: TVariables) => Promise<TData>, successMessage: string) {
   const queryClient = useQueryClient(); const { toast } = useToast();
-  return useMutation({ mutationFn: request, onSuccess: () => { queryClient.invalidateQueries({ queryKey: productsKey }); queryClient.invalidateQueries({ queryKey: dashboardKey }); toast({ title: "Éxito", description: successMessage }); }, onError: (error) => toast({ title: "No se pudo guardar", description: describeError(error, "No se pudo completar la operación con el producto."), variant: "destructive" }) });
+  return useMutation({ mutationFn: request, onSuccess: () => { queryClient.invalidateQueries({ queryKey: productsKey }); queryClient.invalidateQueries({ queryKey: dashboardKey }); queryClient.invalidateQueries({ queryKey: ledgerKey }); toast({ title: "Éxito", description: successMessage }); }, onError: (error) => toast({ title: "No se pudo guardar", description: describeError(error, "No se pudo completar la operación con el producto."), variant: "destructive" }) });
 }
 
 export function useCreateProduct() { return productMutation(async (data: CreateProductRequest) => { const response = await authenticatedFetch(api.products.create.path, { method: api.products.create.method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); if (!response.ok) await throwApiError(response, "No se pudo crear el producto"); return api.products.create.responses[201].parse(await response.json()); }, "Producto creado correctamente"); }

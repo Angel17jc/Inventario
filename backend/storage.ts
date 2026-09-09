@@ -160,11 +160,42 @@ export class DatabaseStorage implements IStorage {
     return toCamelCase(data);
   }
 
+  /**
+   * Buying is recorded by editing the product, so this is where stock enters
+   * the shop. It used to write products.quantity straight, which left no trace
+   * at all: the history promised everything that comes in and out and showed
+   * nothing coming in, and anyone could rewrite the count with no record of
+   * having done it.
+   *
+   * The quantity now goes through set_product_stock, which fixes the figure and
+   * writes the movement that explains it with the row locked. Everything else
+   * about the product is an ordinary update.
+   */
   async updateProduct(id: number, product: UpdateProductRequest): Promise<Product> {
-    const snakeData = toSnakeCase(product);
-    const { data, error } = await supabase.from('products').update(snakeData).eq('id', id).eq('organization_id', this.organizationScope).select().single();
-    if (error) throw error;
-    return toCamelCase(data);
+    const { quantity, ...rest } = product;
+
+    if (Object.keys(rest).length > 0) {
+      const { error } = await supabase
+        .from('products')
+        .update(toSnakeCase(rest))
+        .eq('id', id)
+        .eq('organization_id', this.organizationScope);
+      if (error) throw error;
+    }
+
+    if (quantity !== undefined) {
+      const { error } = await (supabase as any).rpc('set_product_stock', {
+        p_organization_id: this.organizationScope,
+        p_product_id: id,
+        p_quantity: quantity,
+        p_user_id: this.actorId ?? null,
+      });
+      if (error) throw error;
+    }
+
+    const updated = await this.getProduct(id);
+    if (!updated) throw new Error('Product not found in organization');
+    return updated;
   }
 
   /**
