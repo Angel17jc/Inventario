@@ -228,7 +228,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
                     {/* Lo que la persona quiere saber sin sacar la calculadora. */}
                     <p className="text-xs text-muted-foreground">
                       {costoPorUnidad > 0
-                        ? `Te sale a ${costoPorUnidad.toFixed(2)} cada ${unidad}`
+                        ? `Te sale a $${costoPorUnidad.toFixed(2)} cada ${unidad}`
                         : `Lo que pagaste por esas ${pluralOf(unidad)} en total`}
                     </p>
                     <FormMessage />
