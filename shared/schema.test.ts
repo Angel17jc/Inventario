@@ -10,6 +10,7 @@ import {
   passwordRules,
   unitCostFromPurchase,
 } from "./schema.js";
+import { api } from "./routes.js";
 
 test("validates credit sales before inventory is affected", () => {
   const credit = createCreditAccountRequestSchema.parse({ customerName: "María Pérez", productId: 4, quantity: 3 });
@@ -89,4 +90,20 @@ test("without a purchase recorded the previous cost stands", () => {
   assert.equal(unitCostFromPurchase(null, null, "2.50"), 2.5);
   assert.equal(unitCostFromPurchase(0, "17.00", "2.50"), 2.5);
   assert.equal(unitCostFromPurchase(undefined, undefined), 0);
+});
+
+test("the product form can satisfy the contract without a unit cost", () => {
+  // El formulario valida contra este esquema. Cuando exigía cost_price —que ya
+  // no se pide en pantalla— Guardar no hacía nada y no decía por qué: no había
+  // campo donde poner el error. Esto lo sujeta.
+  const enviado = {
+    name: "Cerveza",
+    quantity: 24,
+    purchaseUnits: 24,
+    purchasePrice: "17.00",
+    sellingPrice: "1.00",
+    unitLabel: "cerveza",
+  };
+  assert.doesNotThrow(() => api.products.create.input.parse(enviado));
+  assert.equal("costPrice" in api.products.create.input.parse(enviado), false);
 });

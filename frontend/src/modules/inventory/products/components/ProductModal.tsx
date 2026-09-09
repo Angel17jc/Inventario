@@ -6,7 +6,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { insertProductSchema, pluralOf, unitCostFromPurchase } from "@shared/schema";
+import { pluralOf, unitCostFromPurchase } from "@shared/schema";
+import { api } from "@shared/routes";
 import { useCreateProduct, useUpdateProduct } from "@/modules/inventory/products/product-queries";
 import { useCategories } from "@/modules/catalog/categories/category-queries";
 import { useSuppliers } from "@/modules/catalog/suppliers/supplier-queries";
@@ -14,8 +15,11 @@ import { discardDraft, useDraft } from "@/lib/use-draft";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-// Extend schema for form validation to handle string inputs for numbers
-const formSchema = insertProductSchema.extend({
+// Se parte del contrato de la API, no de la forma de la tabla. La tabla exige
+// cost_price, que el servidor calcula y el formulario ya no pide: validar contra
+// ella dejaba el formulario pidiendo en silencio un campo que no existe en
+// pantalla, y Guardar no hacía nada ni decía por qué.
+const formSchema = api.products.create.input.extend({
   quantity: z.coerce.number().min(0),
   purchaseUnits: z.coerce.number().min(0),
   purchasePrice: z.coerce.number().min(0),
