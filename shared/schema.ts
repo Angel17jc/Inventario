@@ -87,6 +87,11 @@ export const movements = pgTable("movements", {
   packId: integer("pack_id").references(() => productPacks.id),
   enteredQuantity: integer("entered_quantity"),
   looseQuantity: integer("loose_quantity"),
+  // Agrupa las líneas registradas en una misma venta, y lo que se cobró por
+  // esta. El importe se guarda porque es un hecho del pasado: recalcularlo con
+  // los precios de hoy da un número falso en cuanto alguien cambia uno.
+  saleId: uuid("sale_id"),
+  amount: decimal("amount", { precision: 10, scale: 2 }),
   reason: text("reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   userId: varchar("user_id"), // Optional linkage to auth user
@@ -126,7 +131,7 @@ export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: tru
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, organizationId: true });
 // entered_quantity is derived by the database from the presentation. A caller
 // able to set it could make the history disagree with the stock it moved.
-export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, organizationId: true, createdAt: true, enteredQuantity: true, looseQuantity: true });
+export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, organizationId: true, createdAt: true, enteredQuantity: true, looseQuantity: true, saleId: true, amount: true });
 export const insertCreditAccountSchema = createInsertSchema(creditAccounts).omit({ id: true, organizationId: true, createdAt: true, updatedAt: true });
 export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({ id: true, organizationId: true, createdAt: true });
 
@@ -320,6 +325,21 @@ const atLeastOneQuantity = (value: { quantity: number; looseQuantity: number }) 
   value.quantity > 0 || value.looseQuantity > 0;
 const nothingToRegister = { message: "Registra al menos una caja o una unidad." };
 
+export const saleLineSchema = z
+  .object({
+    productId: z.coerce.number().int().positive(),
+    ...mixedQuantities,
+  })
+  .refine(atLeastOneQuantity, nothingToRegister);
+
+export const createSaleRequestSchema = z.object({
+  items: z.array(saleLineSchema).min(1, "Agrega al menos un producto.").max(100),
+});
+
+export type SaleLine = z.infer<typeof saleLineSchema>;
+export type CreateSaleRequest = z.infer<typeof createSaleRequestSchema>;
+export interface SaleResult { saleId: string; total: number; }
+
 export const createMovementRequestSchema = z
   .object({
     productId: z.coerce.number().int().positive(),
@@ -411,6 +431,10 @@ export interface LedgerMovementEntry {
   quantity: number;
   /** Whole cases the person typed: 2, when the case holds twelve. */
   enteredQuantity: number | null;
+  /** Groups the lines registered in one sale. Null for a lone movement. */
+  saleId: string | null;
+  /** What this line was charged, at the price of the day. Null when nothing was. */
+  amount: string | null;
   /** Units sold loose beside those cases. */
   looseQuantity: number | null;
   pack: Presentation | null;

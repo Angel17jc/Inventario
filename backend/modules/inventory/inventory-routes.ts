@@ -1,7 +1,7 @@
 import type { Express, Request, RequestHandler } from "express";
 import { z } from "zod";
 import { api } from "../../../shared/routes.js";
-import { createMovementRequestSchema, createProductPackRequestSchema } from "../../../shared/schema.js";
+import { createMovementRequestSchema, createProductPackRequestSchema, createSaleRequestSchema } from "../../../shared/schema.js";
 import { DatabaseStorage } from "../../storage.js";
 import { createProductSchema, updateProductSchema } from "./inventory-schemas.js";
 import { fail, sendApiError } from "../../errors.js";
@@ -73,5 +73,15 @@ export function registerInventoryRoutes(app: Express, { requireManager, requireO
       return sendApiError(res, error);
     }
   });
+  // Una venta completa: varias líneas, un solo total, una sola transacción.
+  app.post("/api/ventas", requireOperator, async (req, res) => {
+    try {
+      return res.status(201).json(await scopedStorage(req).createSale(createSaleRequestSchema.parse(req.body)));
+    } catch (error) {
+      if (error instanceof z.ZodError) return fail(res, 400, errorCodes.validation, error.errors[0].message);
+      return sendApiError(res, error);
+    }
+  });
+
   app.post(api.movements.create.path, requireOperator, async (req, res) => { try { return res.status(201).json(await scopedStorage(req).createMovement(createMovementRequestSchema.parse(req.body))); } catch (error) { if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message }); return sendApiError(res, error); } });
 }

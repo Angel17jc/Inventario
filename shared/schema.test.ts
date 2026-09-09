@@ -6,6 +6,7 @@ import {
   createCategoryRequestSchema,
   createSupplierRequestSchema,
   createMovementRequestSchema,
+  createSaleRequestSchema,
   accountPasswordSchema,
   passwordRules,
 } from "./schema.js";
@@ -77,4 +78,29 @@ test("the rules shown in the browser agree with the schema", () => {
     const schemaAccepts = accountPasswordSchema.safeParse(candidate).success;
     assert.equal(allRulesMet, schemaAccepts, `mismatch for ${JSON.stringify(candidate)}`);
   }
+});
+
+test("a sale carries several products at once", () => {
+  const sale = createSaleRequestSchema.parse({
+    items: [
+      { productId: 1, quantity: 2, looseQuantity: 2, packId: 7 },
+      { productId: 4, quantity: 0, looseQuantity: 1 },
+    ],
+  });
+  assert.equal(sale.items.length, 2);
+  assert.equal(sale.items[0].looseQuantity, 2);
+  // Sin presentación no hay cajas que contar, y la línea sigue siendo válida.
+  assert.equal(sale.items[1].quantity, 0);
+});
+
+test("a sale with no lines, or a line with nothing in it, is refused", () => {
+  assert.throws(() => createSaleRequestSchema.parse({ items: [] }));
+  assert.throws(() => createSaleRequestSchema.parse({ items: [{ productId: 1, quantity: 0, looseQuantity: 0 }] }));
+  assert.throws(() => createSaleRequestSchema.parse({ items: [{ productId: 0, looseQuantity: 1 }] }));
+});
+
+test("a sale is bounded so one request cannot carry a catalogue", () => {
+  const line = { productId: 1, quantity: 0, looseQuantity: 1 };
+  assert.doesNotThrow(() => createSaleRequestSchema.parse({ items: Array(100).fill(line) }));
+  assert.throws(() => createSaleRequestSchema.parse({ items: Array(101).fill(line) }));
 });

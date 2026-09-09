@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PresentationPicker } from "@/modules/inventory/presentations/PresentationPicker";
 import { usePresentations } from "@/modules/inventory/presentations/presentation-queries";
 import { useToast } from "@/hooks/use-toast";
 import { chargeFor, describeQuantity, describeSale, pluralOf, toBaseUnits, type LedgerEntry } from "@shared/schema";
-import { useCreateMovement, useLedger } from "@/modules/inventory/movements/movement-queries";
+import { useCreateSale, useLedger } from "@/modules/inventory/movements/movement-queries";
 import { useProducts } from "@/modules/inventory/products/product-queries";
 import { Button } from "@/components/ui/button";
 import { DataLoadError } from "@/components/ui/data-load-error";
@@ -18,7 +19,7 @@ import { insertMovementSchema } from "@shared/schema";
 import { z } from "zod";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowDown, ArrowUp, HandCoins, Loader2, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, HandCoins, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** How each line of the day reads: its mark, its colour and its figure. */
@@ -68,11 +69,26 @@ const emptySale = { type: "OUT", quantity: 0, looseQuantity: 1, packId: null } a
 
 type MovementFormValues = z.infer<typeof formSchema>;
 
+/** Una línea ya agregada a la venta en curso, con lo necesario para leerla. */
+interface LineaDeVenta {
+  clave: string;
+  productId: number;
+  packId: number | null;
+  quantity: number;
+  looseQuantity: number;
+  nombre: string;
+  unitLabel: string;
+  descripcion: string;
+  unidades: number;
+  importe: number;
+}
+
 export default function Movements() {
   const { data: entries, isLoading, isError, error, refetch, isFetching } = useLedger();
   const { data: products } = useProducts();
-  const createMovement = useCreateMovement();
+  const createSale = useCreateSale();
   const { toast } = useToast();
+  const [lineas, setLineas] = useState<LineaDeVenta[]>([]);
 
   const form = useForm<MovementFormValues>({
     resolver: zodResolver(formSchema),
@@ -92,28 +108,70 @@ export default function Movements() {
   const charge = chargeFor(packQuantity, looseQuantity, presentation, product?.sellingPrice ?? 0);
   const nothingToRegister = leaving <= 0;
 
-  function onSubmit(data: MovementFormValues) {
-    const remaining = (product?.quantity ?? 0) - leaving;
+  const totalDeLaVenta = lineas.reduce((suma, linea) => suma + linea.importe, 0);
 
-    // The same figure the charge above was worked out from. Without a
-    // presentation it is zero, whatever the field held before the presentation
-    // was cleared, and what is shown and what is sent cannot disagree.
-    createMovement.mutate({ ...data, quantity: packQuantity }, {
-      onSuccess: () => {
-        // Registering the sale is never refused, so the person is told what it
-        // left behind rather than being stopped beforehand.
-        if (remaining <= 0 && product) {
-          toast({
-            title: remaining < 0 ? `${product.name} quedó en negativo` : `${product.name} se agotó`,
-            description: remaining < 0
-              ? `El registro dice ${describeQuantity(remaining, null, unitLabel)}: se vendió más de lo que había contado. Corrige el stock en Inventario cuando puedas.`
-              : "No queda nada en el registro. Repón antes de la próxima venta.",
-            variant: "destructive",
-          });
-        }
-        form.reset({ ...emptySale });
+  function agregarLinea(data: MovementFormValues) {
+    if (!product) return;
+    setLineas((actuales) => [
+      ...actuales,
+      {
+        clave: `${Date.now()}-${actuales.length}`,
+        productId: product.id,
+        packId: presentation ? presentation.id : null,
+        // La misma cifra con la que se calculó el importe: sin presentación son
+        // cero cajas, valga lo que valga el campo que quedó atrás.
+        quantity: packQuantity,
+        looseQuantity,
+        nombre: product.name,
+        unitLabel,
+        descripcion: describeSale(packQuantity, looseQuantity, presentation, unitLabel),
+        unidades: leaving,
+        importe: charge,
       },
-    });
+    ]);
+    form.reset({ ...emptySale });
+    void data;
+  }
+
+  function quitarLinea(clave: string) {
+    setLineas((actuales) => actuales.filter((linea) => linea.clave !== clave));
+  }
+
+  function registrarVenta() {
+    if (lineas.length === 0) return;
+
+    // Lo que quedará de cada producto, sumando todas sus líneas de esta venta.
+    const restantes = new Map<number, { nombre: string; unitLabel: string; queda: number }>();
+    for (const linea of lineas) {
+      const encontrado = products?.find((candidato) => candidato.id === linea.productId);
+      const previo = restantes.get(linea.productId);
+      restantes.set(linea.productId, {
+        nombre: linea.nombre,
+        unitLabel: linea.unitLabel,
+        queda: (previo?.queda ?? encontrado?.quantity ?? 0) - linea.unidades,
+      });
+    }
+
+    createSale.mutate(
+      { items: lineas.map(({ productId, packId, quantity, looseQuantity: sueltas }) => ({ productId, packId, quantity, looseQuantity: sueltas })) },
+      {
+        onSuccess: () => {
+          setLineas([]);
+          form.reset({ ...emptySale });
+          // La venta nunca se rechaza: se avisa de lo que dejó atrás, después.
+          for (const producto of Array.from(restantes.values())) {
+            if (producto.queda > 0) continue;
+            toast({
+              title: producto.queda < 0 ? `${producto.nombre} quedó en negativo` : `${producto.nombre} se agotó`,
+              description: producto.queda < 0
+                ? `El registro dice ${describeQuantity(producto.queda, null, producto.unitLabel)}: se vendió más de lo que había contado. Corrige el stock en Inventario cuando puedas.`
+                : "No queda nada en el registro. Repón antes de la próxima venta.",
+              variant: "destructive",
+            });
+          }
+        },
+      },
+    );
   }
 
   return (
@@ -134,7 +192,7 @@ export default function Movements() {
               </CardHeader>
               <CardContent>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <form onSubmit={form.handleSubmit(agregarLinea)} className="space-y-4">
                     <FormField
                       control={form.control}
                       name="productId"
@@ -212,10 +270,59 @@ export default function Movements() {
                       </div>
                     )}
 
-                    <Button type="submit" disabled={createMovement.isPending || nothingToRegister} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 mt-4">
-                      {createMovement.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      Registrar venta
-                    </Button>
+                    {/* Lo que la venta lleva hasta ahora, con lo que se cobra. */}
+                    {lineas.length > 0 && (
+                      <ul className="space-y-2 rounded-xl border border-border bg-background/40 p-3">
+                        {lineas.map((linea) => (
+                          <li key={linea.clave} className="flex items-start gap-2 text-sm">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium text-foreground">{linea.nombre}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {linea.descripcion} · {linea.unidades} {pluralOf(linea.unitLabel)}
+                              </p>
+                            </div>
+                            <span className="shrink-0 font-mono text-sm">${linea.importe.toFixed(2)}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Quitar ${linea.nombre} de la venta`}
+                              onClick={() => quitarLinea(linea.clave)}
+                              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </li>
+                        ))}
+                        <li className="flex items-center justify-between border-t border-border pt-2 text-sm font-semibold">
+                          <span>Total</span>
+                          <span className="font-mono text-primary">${totalDeLaVenta.toFixed(2)}</span>
+                        </li>
+                      </ul>
+                    )}
+
+                    <div className="flex flex-col gap-2 pt-2">
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        disabled={nothingToRegister || !product}
+                        className="w-full"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Agregar a la venta
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={registrarVenta}
+                        disabled={createSale.isPending || lineas.length === 0}
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        {createSale.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        {lineas.length === 0
+                          ? "Registrar venta"
+                          : `Registrar venta · $${totalDeLaVenta.toFixed(2)}`}
+                      </Button>
+                    </div>
                   </form>
                 </Form>
               </CardContent>

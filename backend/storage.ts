@@ -5,7 +5,7 @@ import type {
   InsertCategory, InsertSupplier, InsertProduct, CreateMovementRequest, InsertCreditAccount, InsertCreditPayment,
   UpdateCategoryRequest, UpdateSupplierRequest, UpdateProductRequest,
   DashboardStats, CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest,
-  LedgerEntry
+  LedgerEntry, CreateSaleRequest, SaleResult
 } from "../shared/schema.js";
 
 // Helper functions to convert between camelCase and snake_case
@@ -53,6 +53,7 @@ export interface IStorage {
   
   getLedger(limit: number): Promise<LedgerEntry[]>;
   createMovement(movement: CreateMovementRequest): Promise<Movement>;
+  createSale(sale: CreateSaleRequest): Promise<SaleResult>;
   
   getCreditAccounts(): Promise<CreditAccountWithDetails[]>;
   getCreditAccountsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]>;
@@ -228,7 +229,7 @@ export class DatabaseStorage implements IStorage {
     const [movementsResult, paymentsResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('id, type, quantity, entered_quantity, loose_quantity, reason, created_at, product:products(id, name, unit_label), pack:product_packs!movements_pack_organization_fkey(id, label, units, cost, price)')
+        .select('id, type, quantity, entered_quantity, loose_quantity, sale_id, amount, reason, created_at, product:products(id, name, unit_label), pack:product_packs!movements_pack_organization_fkey(id, label, units, cost, price)')
         .eq('organization_id', this.organizationScope)
         .order('created_at', { ascending: false })
         .limit(limit),
@@ -266,6 +267,8 @@ export class DatabaseStorage implements IStorage {
         quantity: movement.quantity,
         enteredQuantity: movement.entered_quantity ?? null,
         looseQuantity: movement.loose_quantity ?? null,
+        saleId: movement.sale_id ?? null,
+        amount: movement.amount === null || movement.amount === undefined ? null : String(movement.amount),
         pack: movement.pack ? toCamelCase(movement.pack) : null,
         product: movement.product
           ? { id: movement.product.id, name: movement.product.name, unitLabel: movement.product.unit_label ?? 'unidad' }
@@ -328,6 +331,24 @@ export class DatabaseStorage implements IStorage {
       .eq("id", packId)
       .eq("organization_id", this.organizationScope);
     if (error) throw error;
+  }
+
+  /**
+   * A whole sale: several products handed over at once, charged together.
+   *
+   * The lines travel as one call because they are one transaction. The function
+   * locks each product as it reads it and refuses the lot if any line is wrong;
+   * half a sale on the shelf and none in the register is worse than neither.
+   */
+  async createSale(sale: CreateSaleRequest): Promise<SaleResult> {
+    const { data, error } = await (supabase as any).rpc('create_sale', {
+      p_organization_id: this.organizationScope,
+      p_items: sale.items,
+      p_user_id: this.actorId ?? null,
+    });
+    if (error) throw error;
+    const fila = Array.isArray(data) ? data[0] : data;
+    return { saleId: fila.sale_id, total: Number(fila.total) };
   }
 
   async createMovement(movement: CreateMovementRequest): Promise<Movement> {
