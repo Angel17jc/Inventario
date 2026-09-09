@@ -1,19 +1,42 @@
 # Licorería Manager
 
-Sistema de gestión de inventario y fiados para licorerías, multi-empresa y desplegado como una sola aplicación en Vercel.
+Inventario y fiados para licorerías. Multiempresa, desplegado como una sola aplicación
+en Vercel.
 
-Cada negocio (organización) ve únicamente sus propios datos. Un administrador de plataforma da de alta las licorerías cliente con su propietario, sin acceder a lo que cada una guarda; dentro de cada licorería los permisos se reparten entre propietario, encargado y cajero.
+Cada licorería ve únicamente sus propios datos. Un administrador de plataforma da de alta
+a los clientes con su propietario, sin acceder a lo que cada uno guarda.
 
 ---
 
 ## Qué hace
 
-- **Inventario** — productos con costo, precio de venta, categoría, proveedor y nivel mínimo de stock, con alertas cuando algo baja del mínimo.
-- **Movimientos** — entradas, salidas y ajustes. Cada movimiento ajusta el stock y queda registrado con su motivo y su fecha.
-- **Fiados** — cuentas de crédito por cliente. Cada abono descuenta del saldo y la cuenta pasa a `partial` o `paid` sola.
-- **Catálogo** — categorías y proveedores, propios de cada empresa.
-- **Panel** — total de productos, valor del inventario, alertas de stock bajo y actividad de los últimos 7 días.
-- **Clientes** — alta de licorerías cliente con su propietario, y suspenderlas. Reservado al administrador de plataforma, que no ve los datos de ninguna.
+- **Inventario** — productos con costo, precio de venta, unidad, categoría y proveedor.
+  Un producto se **retira**, no se borra: su historial de ventas sigue en pie.
+- **Presentaciones** — un producto se vende suelto y por caja, y las cajas varían: de 6,
+  de 12, de 24. Cada una guarda **su costo y su precio**, los de la caja entera; el costo
+  por unidad se deriva.
+- **Ventas** — una venta puede ser cajas más unidades sueltas a la vez: *2 cajas y 2
+  cervezas* es un solo registro. La app calcula lo que sale del stock y lo que se cobra
+  antes de guardarlo.
+- **Fiados** — cuentas de crédito por cliente, vendidas igual que una venta al contado.
+  Cada abono descuenta del saldo y la cuenta pasa a `partial` o `paid` sola.
+- **Historial** — todo lo que entra y sale en una sola línea de tiempo, **incluidos los
+  abonos de fiado**.
+- **Catálogo** — categorías y proveedores, propios de cada licorería.
+- **Panel** — total de productos, valor del inventario, productos agotados y actividad de
+  los últimos siete días.
+- **Mi licorería** — cambiar el nombre y subir el logo.
+- **Clientes** — alta y suspensión de licorerías cliente. Reservado al administrador de
+  plataforma, que no ve los datos de ninguna.
+
+### Dos cosas que sorprenden y son a propósito
+
+**El stock puede quedar negativo.** Nunca se bloquea una venta: si el tendero tiene la
+botella en la mano, la vende. La app avisa después de que el producto quedó agotado, en
+vez de impedirlo antes.
+
+**Las compras no son un movimiento.** Lo que entra se anota corrigiendo el stock del
+producto en Inventario. La pantalla de movimientos registra salidas.
 
 ---
 
@@ -32,203 +55,71 @@ Cada negocio (organización) ve únicamente sus propios datos. Un administrador 
 
 ---
 
-## Arquitectura
-
-El frontend y el backend se organizan por **módulo de negocio**, no por tipo de archivo. Cada módulo agrupa lo suyo: rutas, esquemas y consultas.
-
-```
-api/
-  index.ts                  Punto de entrada serverless en Vercel
-
-backend/
-  app.ts                    Construye la app Express (compartida por el servidor local y Vercel)
-  index.ts                  Servidor local con Vite en desarrollo
-  auth.ts                   Autenticación y contexto de organización
-  authorization.ts          Guardas por rol
-  db.ts                     Cliente Supabase con la clave secreta
-  errors.ts                 Traducción de errores a respuestas HTTP
-  storage.ts                Acceso a datos, siempre acotado a una organización
-  platform-service.ts       Alta de licorerías cliente y su propietario
-  modules/
-    catalog/                Categorías y proveedores
-    credits/                Fiados
-    inventory/              Productos y movimientos
-    platform/               Administración de la plataforma
-
-frontend/src/
-  App.tsx                   Rutas y guardas de sesión
-  lib/                      Cliente Supabase, sesión, cliente HTTP
-  pages/                    Login (landing), nueva contraseña, panel, 404
-  modules/                  Una carpeta por módulo, con su página y sus consultas
-  components/ui/            Componentes de interfaz
-  components/layout/        Barra lateral
-
-shared/
-  schema.ts                 Tablas, esquemas Zod y reglas compartidas
-  routes.ts                 Contrato de la API
-  tenancy.ts                Tipos de rol
-
-database/
-  migrations/               Migraciones numeradas, se aplican en orden
-  tests/                    Comprobaciones sobre las funciones transaccionales
-```
-
-### Un solo despliegue
-
-Vercel sirve el frontend compilado como estáticos y ejecuta la misma app Express como función serverless en `/api/*`. No hace falta alojar el backend aparte.
-
-Dos detalles que conviene conocer antes de tocar el backend:
-
-- Vercel ejecuta la función con el **resolvedor ESM nativo de Node**. Todo import relativo necesita extensión `.js` y los alias de `tsconfig` no se resuelven. El CI falla si aparece un import relativo sin extensión.
-- Las variables `VITE_*` se **incrustan en el bundle del navegador** al compilar. El build aborta si `VITE_SUPABASE_ANON_KEY` contiene una clave secreta.
-
----
-
-## Seguridad
-
-El modelo parte de una idea: **el navegador no toca la base de datos**. El bundle solo usa Supabase para autenticarse; cualquier lectura o escritura pasa por la API de Express, que valida el token, resuelve la organización y aplica el rol.
-
-**Aislamiento entre empresas.** Cada tabla lleva `organization_id`. `storage.ts` acota todas las consultas a la organización del contexto, y claves foráneas compuestas `(id, organization_id)` impiden a nivel de base de datos que una fila apunte a otra de una empresa distinta.
-
-**Row Level Security.** Activo en las nueve tablas y vistas. Los privilegios de tabla están revocados para `anon` y `authenticated`, así que la clave publicable no puede leer nada aunque quede expuesta — que es su naturaleza, va dentro del bundle.
-
-**Autenticación.** El token se valida en el servidor contra Supabase en cada petición. La pertenencia a la organización se comprueba en la base de datos, nunca a partir de un claim del token. Una organización suspendida queda sin acceso a la API.
-
-**El administrador de plataforma no entra en los datos de nadie.** Solo una membresía activa construye el contexto de organización, y su tipo únicamente admite roles de empresa: el compilador impide reintroducir la excepción. Ese rol crea licorerías, las lista y las suspende, y nada más.
-
-**Roles.**
-
-| Rol | Puede |
-|---|---|
-| `platform_admin` | Crear licorerías cliente con su propietario, listarlas y suspenderlas. No accede a los datos de ninguna |
-| `owner` / `manager` | Leer y escribir productos, categorías, proveedores, movimientos y fiados |
-| `cashier` | Leer, registrar movimientos y cobrar fiados |
-
-**Operaciones atómicas.** Crear un movimiento, vender fiado y registrar un abono se ejecutan en funciones PostgreSQL con bloqueo de fila, así que dos cajas simultáneas no pueden dejar el stock inconsistente. Esas funciones solo son ejecutables por el rol de servicio.
-
-**Sesiones.** Viven en `sessionStorage`: se cierran al cerrar la pestaña y tras 30 minutos sin actividad. La caja suele ser una máquina compartida.
-
-**Respuestas y registros.** Los errores internos no se devuelven al cliente. Los registros contienen la línea de la petición, nunca el cuerpo de la respuesta. Las respuestas de la API llevan `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` y `Cache-Control: no-store`; el HTML añade una Content Security Policy desde `vercel.json`.
-
-**Claves.** `SUPABASE_SERVICE_ROLE_KEY` es una clave secreta (`sb_secret_…`) y solo existe en el servidor. `VITE_SUPABASE_ANON_KEY` es publicable (`sb_publishable_…`) y es pública por diseño.
-
----
-
-## Puesta en marcha
-
-Necesitas Node 20 o superior y un proyecto de Supabase.
+## Empezar
 
 ```bash
 npm install
-cp .env.example .env      # y rellena los cuatro valores
+cp .env.example .env      # y rellena los valores
 npm run dev               # http://localhost:5000
 ```
 
-### Variables de entorno
+Falta aplicar las migraciones y configurar Supabase: está en
+**[OPERACION.md](OPERACION.md)**.
 
-```
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=sb_secret_...        # solo servidor
-VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_...      # va al navegador
-```
-
-Las encuentras en Supabase → Settings → API Keys.
-
-### Base de datos
-
-En el SQL Editor de Supabase, ejecuta `database/migrations/` **por número**, de la
-`001` a la última. No hay un volcado del esquema aparte: las migraciones son la
-única descripción de la base, y una segunda copia solo serviría para desviarse de
-ella sin que nadie lo note.
-
-Cada migración asume aplicada la anterior. Haz copia de seguridad antes de las que
-mueven datos.
-
-### Autenticación en Supabase
-
-En **Authentication → URL Configuration**:
-
-- **Site URL** — la URL de tu despliegue
-- **Redirect URLs** — esa misma URL con `/**`
-
-Sin esto, el enlace de recuperación de contraseña lleva al sitio equivocado y Supabase **no avisa**: acepta el `redirect_to` y cae en silencio al Site URL.
-
-El servicio de correo integrado de Supabase está limitado a unos pocos envíos por hora y es para pruebas. Para producción, configura SMTP propio en **Authentication → SMTP Settings**.
-
----
-
-## Scripts
+### Scripts
 
 ```bash
 npm run dev       # Servidor de desarrollo con Vite, puerto 5000
 npm run build     # Compila el frontend a dist/public
 npm run check     # Comprueba tipos
 npm test          # Ejecuta los tests
+npm run types:db  # Regenera backend/database.types.ts desde la base
 ```
 
-El esquema de la base **no se sincroniza desde código**. Se cambia escribiendo una
-migración en `database/migrations` y ejecutándola. Drizzle está aquí solo para
-declarar las tablas y derivar de ellas los esquemas de Zod; no consulta la base.
+---
+
+## Documentación
+
+| Archivo | Contenido |
+|---|---|
+| **[ARQUITECTURA.md](ARQUITECTURA.md)** | Cómo está organizado, el modelo de datos y las convenciones para cambios nuevos |
+| **[SEGURIDAD.md](SEGURIDAD.md)** | Claves, aislamiento entre licorerías, roles y autenticación |
+| **[OPERACION.md](OPERACION.md)** | Puesta en marcha, migraciones, CI, despliegue y pruebas |
+
+Son tres y no se solapan: cada tema se describe **en un solo sitio**. Si dos documentos
+se contradicen, es un fallo que hay que arreglar, no una diferencia de matiz.
 
 ---
 
 ## API
 
-Todas las rutas bajo `/api` exigen `Authorization: Bearer <token>`, salvo las de salud. Las que operan sobre datos de una empresa exigen además la cabecera `X-Organization-Id`.
+Todo bajo `/api` exige `Authorization: Bearer <token>` salvo `/api/health`. Las rutas que
+operan sobre datos de una licorería exigen además la cabecera `X-Organization-Id`.
 
-| Método | Ruta | Rol mínimo |
+| Método | Ruta | Quién |
 |---|---|---|
-| GET | `/api/health`, `/api/health/database` | público |
+| GET | `/api/health` | público |
+| GET | `/api/health/database` | autenticado |
 | GET | `/api/organizations/me` | autenticado |
 | POST | `/api/account/password` | autenticado |
 | GET | `/api/products`, `/api/products/:id` | miembro |
 | POST, PUT, DELETE | `/api/products`, `/api/products/:id` | encargado |
-| GET | `/api/movements` | miembro |
+| GET, POST | `/api/products/:id/presentaciones` | miembro / encargado |
+| DELETE | `/api/presentaciones/:packId` | encargado |
 | POST | `/api/movements` | cajero |
+| GET | `/api/movimientos/historial` | miembro |
 | GET | `/api/categories`, `/api/suppliers` (y `/:id`) | miembro |
 | POST, PUT, DELETE | `/api/categories`, `/api/suppliers` | encargado |
 | GET | `/api/credits`, `/api/credits/stats`, `/api/credits/customer/:nombre` | miembro |
 | POST | `/api/credits`, `/api/credits/payment` | cajero |
 | GET | `/api/stats` | miembro |
+| PATCH | `/api/organization` | propietario |
+| PUT, DELETE | `/api/organization/logo` | propietario |
 | GET, POST | `/api/platform/organizations` | administrador de plataforma |
 | PATCH | `/api/platform/organizations/:id/status` | administrador de plataforma |
 
----
-
-## Despliegue
-
-El proyecto está configurado para Vercel mediante `vercel.json`:
-
-- **Build** `vite build` · **Salida** `dist/public` · **Framework** Other
-- `/api/*` se reescribe a la función serverless; el resto sirve el SPA
-
-Configura las cuatro variables de entorno en el proyecto de Vercel **antes** del primer build: las `VITE_*` se incrustan al compilar, no se leen en tiempo de ejecución.
-
-### Integración continua
-
-`.github/workflows/ci-cd.yml` ejecuta en cada push y cada pull request: instalación, comprobación de tipos, tests y build. Además falla si:
-
-- la hoja de estilos generada baja de 20 kB, señal de que Tailwind no encuentra los archivos fuente;
-- aparece un import relativo sin extensión `.js`, que rompería la función en Vercel.
-
-Los tres guards nacieron de fallos reales que pasaban tipos, tests y build sin quejarse y solo se manifestaban en producción.
-
-El job de despliegue está inactivo salvo que definas la variable de repositorio `DEPLOY_VIA_ACTIONS` a `true`. Por defecto despliega la integración de Git de Vercel; activar ambos duplicaría los despliegues.
-
-`.github/workflows/supabase-keepalive.yml` llama a diario al endpoint de salud para que el proyecto de Supabase no se pause por inactividad. Usa la variable `APP_URL` y no necesita credenciales.
-
----
-
-## Documentación adicional
-
-| Archivo | Contenido |
-|---|---|
-| `MODULAR_ARCHITECTURE.md` | Límites entre módulos |
-| `SAAS_ARCHITECTURE.md` | Modelo multi-empresa |
-| `AUTH_SETUP.md` | Autenticación y roles |
-| `DEPLOYMENT.md` | Notas de despliegue |
-| `TESTING.md` | Estrategia de pruebas |
+`/api/movimientos/historial` está acotado a propósito: 50 registros por defecto, 200 como
+máximo. No existe un endpoint que devuelva el historial entero.
 
 ---
 
