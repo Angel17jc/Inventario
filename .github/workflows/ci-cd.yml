@@ -53,7 +53,19 @@ jobs:
             echo "No SUPABASE_ACCESS_TOKEN secret available; skipping the drift check."
             exit 0
           fi
+          # 75 is the generator saying Supabase did not answer, after retrying.
+          # An upstream timeout is not a schema change, and failing the build for
+          # one teaches everyone to ignore this step. A rejected token still
+          # fails: that one is ours to fix and does not clear up on its own.
+          set +e
           npm run types:db
+          estado=$?
+          set -e
+          if [ "$estado" = "75" ]; then
+            echo "::warning::Supabase no respondió; el cotejo de tipos se omite esta vez."
+            exit 0
+          fi
+          [ "$estado" = "0" ] || exit "$estado"
           # --porcelain rather than 'git diff', which reports nothing at all for
           # a file that is untracked: if this one ever stopped being committed,
           # the check would pass forever while checking nothing.
