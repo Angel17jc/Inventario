@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { discardDraft, useDraft } from "@/lib/use-draft";
 import { chargeFor, describeSale, toBaseUnits } from "@shared/schema";
 import { PresentationPicker } from "@/modules/inventory/presentations/PresentationPicker";
+import { ProductPicker } from "@/modules/inventory/products/components/ProductPicker";
 import { usePresentations } from "@/modules/inventory/presentations/presentation-queries";
 import { DataLoadError } from "@/components/ui/data-load-error";
 import { describeError } from "@/lib/api-errors";
@@ -177,25 +177,20 @@ export default function Credits() {
                       required
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="productId">Producto</Label>
-                    <Select
-                      value={formData.productId}
-                      onValueChange={(value) => setFormData({ ...formData, productId: value })}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar producto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id.toString()}>
-                        {product.name} (Stock: {product.quantity})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <ProductPicker
+                id="fiado-producto"
+                products={products}
+                value={creditProductId}
+                onChange={(productId) =>
+                  setFormData((current) => ({
+                    ...current,
+                    productId: String(productId),
+                    // Otro producto tiene otras cajas: la elegida ya no aplica.
+                    packId: "",
+                    quantity: "",
+                  }))
+                }
+              />
               <PresentationPicker
                 productId={formData.productId === "" ? undefined : Number(formData.productId)}
                 unitLabel={creditUnitLabel}

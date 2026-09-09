@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DataLoadError } from "@/components/ui/data-load-error";
 import { describeError } from "@/lib/api-errors";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ProductPicker } from "@/modules/inventory/products/components/ProductPicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -140,21 +140,17 @@ export default function Movements() {
                       name="productId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Producto</FormLabel>
-                          <Select onValueChange={(val) => field.onChange(Number(val))}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Buscar producto..." />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {products?.map((prod) => (
-                                <SelectItem key={prod.id} value={String(prod.id)}>
-                                  {prod.name} (Stock: {prod.quantity})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <ProductPicker
+                            id="venta-producto"
+                            products={products ?? []}
+                            value={field.value || undefined}
+                            onChange={(productId) => {
+                              field.onChange(productId);
+                              // Otro producto tiene otras cajas: la elegida ya no aplica.
+                              form.setValue("packId", null);
+                              form.setValue("quantity", 0);
+                            }}
+                          />
                           <FormMessage />
                         </FormItem>
                       )}
