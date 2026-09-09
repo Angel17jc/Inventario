@@ -172,11 +172,8 @@ export type Database = {
         Row: {
           amount: number | null
           created_at: string | null
-          entered_quantity: number | null
           id: number
-          loose_quantity: number | null
           organization_id: string
-          pack_id: number | null
           product_id: number
           quantity: number
           reason: string | null
@@ -187,11 +184,8 @@ export type Database = {
         Insert: {
           amount?: number | null
           created_at?: string | null
-          entered_quantity?: number | null
           id?: number
-          loose_quantity?: number | null
           organization_id: string
-          pack_id?: number | null
           product_id: number
           quantity: number
           reason?: string | null
@@ -202,11 +196,8 @@ export type Database = {
         Update: {
           amount?: number | null
           created_at?: string | null
-          entered_quantity?: number | null
           id?: number
-          loose_quantity?: number | null
           organization_id?: string
-          pack_id?: number | null
           product_id?: number
           quantity?: number
           reason?: string | null
@@ -221,13 +212,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "movements_pack_organization_fkey"
-            columns: ["pack_id", "organization_id"]
-            isOneToOne: false
-            referencedRelation: "product_packs"
-            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "movements_product_organization_fkey"
@@ -306,47 +290,6 @@ export type Database = {
         }
         Relationships: []
       }
-      product_packs: {
-        Row: {
-          cost: number | null
-          created_at: string
-          id: number
-          label: string
-          organization_id: string
-          price: number | null
-          product_id: number
-          units: number
-        }
-        Insert: {
-          cost?: number | null
-          created_at?: string
-          id?: number
-          label: string
-          organization_id: string
-          price?: number | null
-          product_id: number
-          units: number
-        }
-        Update: {
-          cost?: number | null
-          created_at?: string
-          id?: number
-          label?: string
-          organization_id?: string
-          price?: number | null
-          product_id?: number
-          units?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_packs_product_organization_fkey"
-            columns: ["product_id", "organization_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id", "organization_id"]
-          },
-        ]
-      }
       products: {
         Row: {
           category_id: number | null
@@ -357,6 +300,8 @@ export type Database = {
           min_stock_level: number | null
           name: string
           organization_id: string
+          purchase_price: number | null
+          purchase_units: number | null
           quantity: number
           retired_at: string | null
           selling_price: number
@@ -373,6 +318,8 @@ export type Database = {
           min_stock_level?: number | null
           name: string
           organization_id: string
+          purchase_price?: number | null
+          purchase_units?: number | null
           quantity?: number
           retired_at?: string | null
           selling_price: number
@@ -389,6 +336,8 @@ export type Database = {
           min_stock_level?: number | null
           name?: string
           organization_id?: string
+          purchase_price?: number | null
+          purchase_units?: number | null
           quantity?: number
           retired_at?: string | null
           selling_price?: number
@@ -460,10 +409,8 @@ export type Database = {
       create_credit_sale: {
         Args: {
           p_customer_name: string
-          p_loose_quantity?: number
           p_notes?: string
           p_organization_id: string
-          p_pack_id?: number
           p_product_id: number
           p_quantity: number
           p_user_id?: string
@@ -487,39 +434,6 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "credit_accounts"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
-      create_inventory_movement: {
-        Args: {
-          p_loose_quantity?: number
-          p_organization_id: string
-          p_pack_id?: number
-          p_product_id: number
-          p_quantity: number
-          p_reason?: string
-          p_type: string
-          p_user_id?: string
-        }
-        Returns: {
-          amount: number | null
-          created_at: string | null
-          entered_quantity: number | null
-          id: number
-          loose_quantity: number | null
-          organization_id: string
-          pack_id: number | null
-          product_id: number
-          quantity: number
-          reason: string | null
-          sale_id: string | null
-          type: string
-          user_id: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "movements"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -571,6 +485,8 @@ export type Database = {
           min_stock_level: number | null
           name: string
           organization_id: string
+          purchase_price: number | null
+          purchase_units: number | null
           quantity: number
           retired_at: string | null
           selling_price: number
@@ -595,11 +511,8 @@ export type Database = {
         Returns: {
           amount: number | null
           created_at: string | null
-          entered_quantity: number | null
           id: number
-          loose_quantity: number | null
           organization_id: string
-          pack_id: number | null
           product_id: number
           quantity: number
           reason: string | null

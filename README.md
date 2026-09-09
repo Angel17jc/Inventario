@@ -29,12 +29,11 @@ a los clientes con su propietario, sin acceder a lo que cada uno guarda.
 
 - **Inventario** — productos con costo, precio de venta, unidad, categoría y proveedor.
   Un producto se **retira**, no se borra: su historial de ventas sigue en pie.
-- **Presentaciones** — un producto se vende suelto y por caja, y las cajas varían: de 6,
-  de 12, de 24. Cada una guarda **su costo y su precio**, los de la caja entera; el costo
-  por unidad se deriva.
-- **Ventas** — una venta puede ser cajas más unidades sueltas a la vez: *2 cajas y 2
-  cervezas* es un solo registro. La app calcula lo que sale del stock y lo que se cobra
-  antes de guardarlo.
+- **La compra tal como llega** — anotas cuántas unidades trajo y lo que costó, como en la
+  factura. El costo por unidad se calcula y se muestra: *"te sale a $0.71 cada cerveza"*.
+- **Ventas** — eliges producto y cuántas unidades salieron, la cantidad que sea. Una venta
+  puede llevar **varios productos**: cerveza, whisky y cigarrillos son un solo registro con
+  su total, y la app lo muestra antes de guardarlo.
 - **Fiados** — cuentas de crédito por cliente, vendidas igual que una venta al contado.
   Cada abono descuenta del saldo y la cuenta pasa a `partial` o `paid` sola.
 - **Historial** — todo lo que entra y sale en una sola línea de tiempo, **incluidos los
@@ -196,9 +195,7 @@ erDiagram
     organizations ||--o{ suppliers : "posee"
     categories    ||--o{ products : "clasifica"
     suppliers     ||--o{ products : "provee"
-    products      ||--o{ product_packs : "se vende en"
     products      ||--o{ movements : "registra"
-    product_packs ||--o{ movements : "en la presentación"
     movements     ||--o| credit_accounts : "origina"
     products      ||--o{ credit_accounts : "fiado de"
     credit_accounts ||--o{ credit_payments : "recibe"
@@ -223,29 +220,21 @@ erDiagram
         text name
         text sku "nullable"
         int quantity "puede ser negativo"
-        numeric cost_price "por unidad"
+        int purchase_units "lo que trajo la compra"
+        numeric purchase_price "lo que costó esa compra"
+        numeric cost_price "derivado, no se teclea"
         numeric selling_price "por unidad"
         text unit_label "botella, lata"
         timestamptz retired_at "nullable, no se borra"
-    }
-    product_packs {
-        int id PK
-        uuid organization_id FK
-        int product_id FK
-        text label "Caja de 12"
-        int units "mayor que 1"
-        numeric cost "de la caja entera"
-        numeric price "de la caja entera"
     }
     movements {
         int id PK
         uuid organization_id FK
         int product_id FK
         text type "IN o OUT"
-        int quantity "SIEMPRE en unidades base"
-        int entered_quantity "cajas tecleadas"
-        int loose_quantity "sueltas tecleadas"
-        int pack_id FK "nullable"
+        int quantity "unidades"
+        uuid sale_id "agrupa las líneas de una venta"
+        numeric amount "lo que se cobró"
         text reason "nullable"
         timestamptz created_at
     }
@@ -286,38 +275,39 @@ erDiagram
 y `retire_product` hacen el trabajo transaccional; `is_active_organization_member` e
 `is_platform_admin` sostienen las políticas de RLS.
 
-### Por qué una caja es una fila y no una columna
+### Por qué el producto guarda la compra y no el costo por unidad
 
-Un producto se vende suelto **y** por caja, y las cajas varían: whisky de 6 y de 12,
-cerveza de 10, 12 o 24. Una columna `units_per_pack` obliga a elegir un tamaño que no
-existe, o a crear dos productos para lo que en la percha es uno.
+La factura dice "24 cervezas, 17 dólares". Nadie lleva encima el 0,708.
 
-- `products.cost_price` y `selling_price` son **por unidad**.
-- `product_packs.cost` y `price` son **de la caja entera**, que es como vienen en la
-  factura y en la percha. El costo por unidad se **deriva** (`cost / units`): un número
-  que mantener en vez de dos que pueden contradecirse.
-- El stock se cuenta **siempre en unidades base**, pase lo que pase.
+- `products.purchase_units` y `purchase_price` — **lo que trajo la compra y lo que costó**,
+  tal como viene en la factura.
+- `products.cost_price` — **se deriva** (`purchase_price / purchase_units`) y no se acepta
+  desde una petición. Aceptarlo dejaría el inventario valorado en algo distinto de lo que
+  se pagó, y dos números que mantener de acuerdo en vez de uno.
+- `products.selling_price` — lo que se cobra **por unidad**.
+
+Hubo un modelo de presentaciones —cajas de 6, 12 y 24, cada una con su precio— y se
+quitó. La licorería compra un lote y vende por unidad; la cantidad que sale de una vez
+es la que el cliente pida. En toda la base llegó a existir **una sola presentación**, y
+la creó una prueba.
 
 ---
 
 ## La lógica que importa
 
-### Una venta son cajas más sueltas
+### Una venta lleva varios productos
 
-"2 cajas y 2 unidades" es **una** venta, no dos.
+Cerveza, whisky y cigarrillos son **una** venta, no tres. Cada línea es un producto y
+una cantidad; el total es la suma, y se ve antes de guardar.
 
 ```
-unidades = cajas × unidades_de_la_caja + sueltas
-total    = cajas × precio_de_la_caja   + sueltas × precio_por_unidad
+línea  = cantidad × precio_de_venta
+total  = suma de las líneas
 ```
 
-Se cobran distinto a propósito: seis cervezas sueltas cuestan seis veces el precio por
-unidad, mientras que una caja cuesta lo que la licorería cobre por la caja, que
-normalmente es menos.
-
-`movements.quantity` guarda el total en unidades base; `entered_quantity` y
-`loose_quantity` guardan lo que la persona tecleó, para poder leerlo después como
-*"2 × Caja de 12 + 2 botellas"*.
+Las líneas de una venta comparten `movements.sale_id`, y cada una guarda en `amount` lo
+que se cobró. **El importe se guarda** porque es un hecho del pasado: recalcularlo con
+los precios de hoy da un número falso en cuanto alguien cambia uno.
 
 ### El camino de una venta, de la pantalla al stock
 
@@ -325,35 +315,32 @@ normalmente es menos.
 sequenceDiagram
     participant U as Tendero
     participant F as MovementsPage
-    participant S as shared/schema.ts
     participant A as Express
     participant D as PostgreSQL
 
-    U->>F: 2 cajas y 2 sueltas
-    F->>S: chargeFor() y toBaseUnits()
-    S-->>F: 26 unidades y 50.00
-    Note over F: lo muestra ANTES de guardar
+    U->>F: Cerveza x12, Whisky x1
+    Note over F: muestra el total ANTES de guardar
     U->>F: Registrar venta
-    F->>A: POST /api/movements
-    A->>S: createMovementRequestSchema.parse()
+    F->>A: POST /api/ventas { items }
+    A->>A: createSaleRequestSchema.parse()
     Note over A: valida de nuevo,<br/>el cliente no es de fiar
-    A->>D: create_inventory_movement(...)
+    A->>D: create_sale(items)
     activate D
-    Note over D: SELECT ... FOR UPDATE<br/>bloquea la fila del producto
-    D->>D: unidades = 2x12 + 2
-    D->>D: UPDATE products SET quantity = quantity - 26
-    D->>D: INSERT INTO movements
+    Note over D: por cada línea:<br/>SELECT ... FOR UPDATE
+    D->>D: UPDATE products SET quantity = quantity - cantidad
+    D->>D: INSERT INTO movements (sale_id, amount)
+    Note over D: si una línea falla,<br/>no se registra ninguna
     deactivate D
-    D-->>A: movimiento
+    D-->>A: sale_id y total
     A-->>F: 201
-    F-->>U: avisa si quedó en cero o menos
+    F-->>U: avisa de lo que quedó agotado
 ```
 
-La multiplicación ocurre **dentro** de la función, con la fila del producto bloqueada. Si
-se leyera el tamaño de la caja fuera, se hiciera la cuenta y se escribiera después,
-quedaría un hueco en el que otra caja registradora podría cambiar la presentación.
+Cada producto se bloquea al leerlo, así que el precio con el que se cobra y el stock que
+se descuenta salen de la misma lectura. **Media venta guardada sería peor que ninguna**,
+por eso la función rechaza el lote entero si una línea está mal.
 
-**La venta nunca se rechaza.** El aviso de agotado llega después de registrarla.
+**La venta nunca se rechaza por falta de stock.** El aviso de agotado llega después.
 
 ### Un fiado es una venta que además abre una cuenta
 
@@ -595,9 +582,7 @@ operan sobre datos de una licorería exigen además la cabecera `X-Organization-
 | POST | `/api/account/password` | autenticado |
 | GET | `/api/products`, `/api/products/:id` | miembro |
 | POST, PUT, DELETE | `/api/products`, `/api/products/:id` | encargado |
-| GET, POST | `/api/products/:id/presentaciones` | miembro / encargado |
-| DELETE | `/api/presentaciones/:packId` | encargado |
-| POST | `/api/movements` | cajero |
+| POST | `/api/ventas` | cajero |
 | GET | `/api/movimientos/historial` | miembro |
 | GET | `/api/categories`, `/api/suppliers` (y `/:id`) | miembro |
 | POST, PUT, DELETE | `/api/categories`, `/api/suppliers` | encargado |
@@ -667,19 +652,20 @@ npm test
 npm run build
 ```
 
-Los tests cubren los contratos de validación, los cálculos de presentaciones y ventas
-mixtas, el mapeo seguro de errores, las reglas de contraseña y **el filtro de organización
-en las consultas**: ese último falla el build si una consulta pierde su `organization_id`.
+Los tests cubren los contratos de validación, el costo por unidad derivado de la compra,
+el mapeo seguro de errores, las reglas de contraseña y **el filtro de organización en las
+consultas**: ese último falla el build si una consulta pierde su `organization_id`.
 
 ### Funciones transaccionales
 
 Ejecuta [atomic_operations_smoke_test.sql](database/tests/atomic_operations_smoke_test.sql)
 en el SQL Editor. Requiere al menos un producto. Comprueba cuatro cosas:
 
-1. Una entrada mueve el stock por lo que se pidió.
-2. Una salida de 2 cajas de 12 descuenta **24 unidades**, no 2.
+1. Fijar el stock **deja rastro** en el historial.
+2. Una venta descuenta lo vendido y devuelve su total.
 3. Vender por encima de lo contado **no se rechaza**: el stock queda en negativo.
-4. Una presentación que no pertenece al producto se rechaza.
+4. Un producto de otra licorería se rechaza.
+5. Una venta sin líneas se rechaza.
 
 Usa `BEGIN` y `ROLLBACK`, así que no conserva cambios.
 
