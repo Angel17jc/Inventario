@@ -1,0 +1,6 @@
+# Este archivo lo escribe `npm run types:db` siempre con finales de línea LF.
+# Sin esta regla, en Windows `core.autocrlf` lo deja con CRLF al hacer checkout,
+# el generador lo reescribe con LF y git lo marca como modificado aunque el
+# contenido sea idéntico: el guard de deriva del CI acusaría un cambio que no
+# existe. Se fija a LF para que coincida en cualquier sistema.
+backend/database.types.ts text eol=lf
