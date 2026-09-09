@@ -466,6 +466,39 @@ export class DatabaseStorage implements IStorage {
     // compare against was one more number to keep up to date for no gain.
     const lowStockCount = (productsData as any[])?.filter((product) => product.quantity <= 0).length || 0;
 
+    // Se pide el día del local con un margen de un día a cada lado: la ventana
+    // se corta en UTC y los días se cuentan en la zona de la licorería.
+    const dayStart = new Date(Date.now() - 36 * 60 * 60 * 1000);
+    const { data: todayRows, error: todayError } = await (supabase as any)
+      .from('movements')
+      .select('sale_id, amount, quantity, entered_quantity, loose_quantity, created_at, product:products(cost_price), pack:product_packs!movements_pack_organization_fkey(units, cost)')
+      .eq('organization_id', this.organizationScope)
+      .eq('type', 'OUT')
+      .not('amount', 'is', null)
+      .gte('created_at', dayStart.toISOString());
+    if (todayError) throw todayError;
+
+    const today = shopDayKey(new Date());
+    const ventasDeHoy = new Set<string>();
+    let soldToday = 0;
+    let costToday = 0;
+    for (const row of (todayRows as any[]) ?? []) {
+      if (!row.created_at || shopDayKey(new Date(row.created_at)) !== today) continue;
+      soldToday += Number(row.amount);
+      // Lo que costó lo que salió: el costo de la caja si se vendió por caja, y
+      // el del producto para las sueltas. Sin costo de caja se usa el del
+      // producto, que es lo mismo que hace la pantalla del producto.
+      const unitCost = Number(row.product?.cost_price ?? 0);
+      const packUnitCost = row.pack?.cost === null || row.pack?.cost === undefined
+        ? unitCost
+        : Number(row.pack.cost) / Number(row.pack.units);
+      costToday += (row.entered_quantity ?? 0) * Number(row.pack?.units ?? 0) * packUnitCost
+        + (row.loose_quantity ?? 0) * unitCost;
+      // Una venta de tres productos es una venta. Las líneas sueltas, de antes
+      // de que existieran las ventas agrupadas, cuentan una cada una.
+      ventasDeHoy.add(row.sale_id ?? `suelta:${row.created_at}`);
+    }
+
     const { data: recentMovements, error: movementsError } = await supabase.from('movements').select('*, product:products(*)').eq('organization_id', this.organizationScope).order('created_at', { ascending: false }).limit(5);
     if (movementsError) throw movementsError;
 
@@ -497,6 +530,9 @@ export class DatabaseStorage implements IStorage {
       totalProducts: totalProducts || 0,
       totalValue,
       lowStockCount,
+      soldToday: Math.round(soldToday * 100) / 100,
+      profitToday: Math.round((soldToday - costToday) * 100) / 100,
+      salesToday: ventasDeHoy.size,
       recentMovements: (recentMovements || []).map(toCamelCase),
       weeklyActivity: Array.from(activityByDate.values()),
     };

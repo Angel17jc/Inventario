@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useStats } from "@/modules/inventory/movements/movement-queries";
 import { StatCard } from "@/components/ui/StatCard";
-import { Package, DollarSign, AlertTriangle, ArrowRightLeft } from "lucide-react";
+import { Package, DollarSign, AlertTriangle, ArrowRightLeft , TrendingUp, Receipt } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { format } from "date-fns";
@@ -50,6 +50,29 @@ export default function Dashboard() {
             <div className="px-4 py-2 bg-primary/10 rounded-full text-primary border border-primary/20 text-sm font-medium">
               {format(new Date(), "dd 'de' MMMM, yyyy", { locale: es })}
             </div>
+          </div>
+
+          {/* Lo primero que pregunta cualquiera al cerrar el día. */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <StatCard
+              title="Vendido hoy"
+              value={`${Number(stats?.soldToday ?? 0).toFixed(2)}`}
+              icon={DollarSign}
+              colorClass="bg-primary/20 text-primary"
+              className="border-primary/30 ring-1 ring-primary/20"
+            />
+            <StatCard
+              title="Ganancia de hoy"
+              value={`${Number(stats?.profitToday ?? 0).toFixed(2)}`}
+              icon={TrendingUp}
+              colorClass="bg-green-500/20 text-green-400"
+            />
+            <StatCard
+              title="Ventas de hoy"
+              value={stats?.salesToday ?? 0}
+              icon={Receipt}
+              colorClass="bg-blue-500/20 text-blue-400"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

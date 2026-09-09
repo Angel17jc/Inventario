@@ -11,7 +11,7 @@ import {
   suppliers,
   movements
 } from './schema.js';
-import type { MovementWithProduct } from './schema.js';
+import type { DashboardStats, MovementWithProduct } from './schema.js';
 
 // ============================================
 // SHARED ERROR SCHEMAS
@@ -181,13 +181,9 @@ export const api = {
       method: 'GET' as const,
       path: '/api/stats',
       responses: {
-        200: z.object({
-          totalProducts: z.number(),
-          totalValue: z.number(),
-          lowStockCount: z.number(),
-          recentMovements: z.array(z.custom<MovementWithProduct>()),
-          weeklyActivity: z.array(z.object({ date: z.string(), label: z.string(), inbound: z.number(), outbound: z.number() })),
-        }),
+        // Se apunta al tipo en vez de repetir su forma: la copia que había aquí
+        // se quedó atrás cada vez que el panel aprendió a mostrar algo nuevo.
+        200: z.custom<DashboardStats>(),
       },
     },
   },

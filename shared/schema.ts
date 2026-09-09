@@ -378,6 +378,12 @@ export interface DashboardStats {
   totalProducts: number;
   totalValue: number;
   lowStockCount: number;
+  /** Lo cobrado hoy, en el día del local. Incluye lo fiado: la mercadería salió. */
+  soldToday: number;
+  /** Lo cobrado menos lo que costó, con el costo de la presentación vendida. */
+  profitToday: number;
+  /** Cuántas ventas se registraron hoy, contando cada una una sola vez. */
+  salesToday: number;
   recentMovements: MovementWithProduct[];
   weeklyActivity: Array<{ date: string; label: string; inbound: number; outbound: number }>;
 }
