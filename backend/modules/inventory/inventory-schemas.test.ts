@@ -7,7 +7,6 @@ test("normalizes valid product input and an empty SKU", () => {
     name: "  Ron Añejo  ",
     sku: "  ",
     quantity: "12",
-    minStockLevel: "3",
     costPrice: "10.50",
     sellingPrice: "16.75",
   });
@@ -16,6 +15,22 @@ test("normalizes valid product input and an empty SKU", () => {
   assert.equal(product.sku, null);
   assert.equal(product.quantity, 12);
   assert.equal(product.costPrice, 10.5);
+});
+
+test("drops the fields the product form stopped sending", () => {
+  // Se aceptaban sin que nadie los escribiera ni los leyera. Que la petición
+  // los traiga no debe volver a guardarlos.
+  const product = createProductSchema.parse({
+    name: "Ron Añejo",
+    quantity: 1,
+    costPrice: 1,
+    sellingPrice: 2,
+    minStockLevel: 3,
+    description: "no se guarda",
+  });
+  assert.equal("minStockLevel" in product, false);
+  assert.equal("description" in product, false);
+  assert.deepEqual(updateProductSchema.parse({ minStockLevel: 9, description: "x" }), {});
 });
 
 test("rejects invalid stock, prices, and catalog references", () => {
