@@ -5,36 +5,10 @@ import {
   createCreditPaymentRequestSchema,
   createCategoryRequestSchema,
   createSupplierRequestSchema,
-  createMovementRequestSchema,
   createSaleRequestSchema,
   accountPasswordSchema,
   passwordRules,
 } from "./schema.js";
-
-test("accepts a valid stock movement", () => {
-  const movement = createMovementRequestSchema.parse({ productId: "7", type: "OUT", quantity: "2", reason: "Venta" });
-  assert.deepEqual(movement, { productId: 7, type: "OUT", quantity: 2, looseQuantity: 0, reason: "Venta" });
-});
-
-test("accepts cases and loose units in the same sale", () => {
-  // Two cases and two bottles is one sale, and so is six bottles on their own.
-  const mixed = createMovementRequestSchema.parse({ productId: 7, type: "OUT", quantity: 2, looseQuantity: 2, packId: 3 });
-  assert.equal(mixed.quantity, 2);
-  assert.equal(mixed.looseQuantity, 2);
-  assert.equal(createMovementRequestSchema.parse({ productId: 7, type: "OUT", quantity: 0, looseQuantity: 6 }).looseQuantity, 6);
-});
-
-test("rejects invalid stock movement quantities and types", () => {
-  assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "DELETE", quantity: 1 }));
-  // ADJUSTMENT set the stock to an absolute figure. It left the screens with
-  // the fields nobody filled in, and the API went on accepting it — from any
-  // role, cashier included.
-  assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "ADJUSTMENT", quantity: 1 }));
-  // Nothing on either side is not a sale.
-  assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "OUT", quantity: 0 }));
-  assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "OUT", quantity: 0, looseQuantity: 0 }));
-  assert.throws(() => createMovementRequestSchema.parse({ productId: 1, type: "OUT", quantity: -1, looseQuantity: 2 }));
-});
 
 test("validates credit sales before inventory is affected", () => {
   const credit = createCreditAccountRequestSchema.parse({ customerName: "María Pérez", productId: 4, quantity: 3 });
@@ -83,24 +57,23 @@ test("the rules shown in the browser agree with the schema", () => {
 test("a sale carries several products at once", () => {
   const sale = createSaleRequestSchema.parse({
     items: [
-      { productId: 1, quantity: 2, looseQuantity: 2, packId: 7 },
-      { productId: 4, quantity: 0, looseQuantity: 1 },
+      { productId: 1, quantity: 2 },
+      { productId: 4, quantity: 1 },
     ],
   });
   assert.equal(sale.items.length, 2);
-  assert.equal(sale.items[0].looseQuantity, 2);
-  // Sin presentación no hay cajas que contar, y la línea sigue siendo válida.
-  assert.equal(sale.items[1].quantity, 0);
+  assert.equal(sale.items[0].quantity, 2);
+  assert.equal(sale.items[1].productId, 4);
 });
 
 test("a sale with no lines, or a line with nothing in it, is refused", () => {
   assert.throws(() => createSaleRequestSchema.parse({ items: [] }));
-  assert.throws(() => createSaleRequestSchema.parse({ items: [{ productId: 1, quantity: 0, looseQuantity: 0 }] }));
-  assert.throws(() => createSaleRequestSchema.parse({ items: [{ productId: 0, looseQuantity: 1 }] }));
+  assert.throws(() => createSaleRequestSchema.parse({ items: [{ productId: 1, quantity: 0 }] }));
+  assert.throws(() => createSaleRequestSchema.parse({ items: [{ productId: 0, quantity: 1 }] }));
 });
 
 test("a sale is bounded so one request cannot carry a catalogue", () => {
-  const line = { productId: 1, quantity: 0, looseQuantity: 1 };
+  const line = { productId: 1, quantity: 1 };
   assert.doesNotThrow(() => createSaleRequestSchema.parse({ items: Array(100).fill(line) }));
   assert.throws(() => createSaleRequestSchema.parse({ items: Array(101).fill(line) }));
 });

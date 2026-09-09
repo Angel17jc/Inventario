@@ -11,7 +11,6 @@ import { useCreateProduct, useUpdateProduct } from "@/modules/inventory/products
 import { useCategories } from "@/modules/catalog/categories/category-queries";
 import { useSuppliers } from "@/modules/catalog/suppliers/supplier-queries";
 import { discardDraft, useDraft } from "@/lib/use-draft";
-import { PresentationsManager } from "@/modules/inventory/presentations/PresentationsManager";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -53,11 +52,6 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
     },
   });
 
-  // A product needs an id before it can have presentations. Rather than send
-  // the person away to reopen what they just created, the modal stays on the
-  // product and turns into its editor.
-  const [createdId, setCreatedId] = useState<number | null>(null);
-  const productId = product?.id ?? createdId ?? undefined;
 
   useEffect(() => {
     if (product) {
@@ -85,12 +79,6 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
     }
   }, [product, form]);
 
-  // Reopening the modal must not offer the presentations of the product
-  // created the time before.
-  useEffect(() => {
-    if (!open) setCreatedId(null);
-  }, [open]);
-
   const draftKey = open ? `product:${product?.id ?? "new"}` : null;
   const restoreDraft = useCallback((draft: ProductFormValues) => form.reset(draft), [form]);
   useDraft(draftKey, form.watch(), restoreDraft);
@@ -101,7 +89,7 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
     onOpenChange(false);
   }
 
-  const isEditing = productId !== undefined;
+  const isEditing = product !== undefined && product !== null;
 
   function onSubmit(data: ProductFormValues) {
     // Convert numeric decimal values to strings as expected by schema
@@ -111,17 +99,10 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
       sellingPrice: String(data.sellingPrice),
     };
 
-    if (productId !== undefined) {
-      updateProduct.mutate({ id: productId, ...submitData }, {
-        onSuccess: closeAndDiscard,
-      });
+    if (isEditing) {
+      updateProduct.mutate({ id: product.id, ...submitData }, { onSuccess: closeAndDiscard });
     } else {
-      createProduct.mutate(submitData, {
-        onSuccess: (created) => {
-          if (draftKey) discardDraft(draftKey);
-          setCreatedId(created.id);
-        },
-      });
+      createProduct.mutate(submitData, { onSuccess: closeAndDiscard });
     }
   }
 
@@ -268,22 +249,9 @@ export function ProductModal({ open, onOpenChange, product }: ProductModalProps)
 
             </div>
 
-            {productId === undefined ? (
-              <p className="rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
-                Las presentaciones (caja de 6, caja de 12) se agregan en cuanto guardes el producto.
-              </p>
-            ) : (
-              <PresentationsManager
-                productId={productId}
-                unitLabel={form.watch("unitLabel") || "unidad"}
-                sellingPrice={Number(form.watch("sellingPrice")) || 0}
-                costPrice={Number(form.watch("costPrice")) || 0}
-              />
-            )}
-
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={closeAndDiscard}>
-                {createdId !== null ? "Listo" : "Cancelar"}
+                Cancelar
               </Button>
               <Button type="submit" disabled={isPending} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

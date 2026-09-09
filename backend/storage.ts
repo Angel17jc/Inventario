@@ -2,7 +2,7 @@ import { supabase } from "./db.js";
 import { lastSevenShopDays, shopDayKey } from "./shop-time.js";
 import type {
   Category, Supplier, Product, Movement, CreditAccount, CreditPayment,
-  InsertCategory, InsertSupplier, InsertProduct, CreateMovementRequest, InsertCreditAccount, InsertCreditPayment,
+  InsertCategory, InsertSupplier, InsertProduct, InsertCreditAccount, InsertCreditPayment,
   UpdateCategoryRequest, UpdateSupplierRequest, UpdateProductRequest,
   DashboardStats, CreditAccountWithDetails, CreditsStats, CreateCreditAccountRequest, CreateCreditPaymentRequest,
   LedgerEntry, CreateSaleRequest, SaleResult
@@ -52,7 +52,6 @@ export interface IStorage {
   deleteProduct(id: number): Promise<void>;
   
   getLedger(limit: number): Promise<LedgerEntry[]>;
-  createMovement(movement: CreateMovementRequest): Promise<Movement>;
   createSale(sale: CreateSaleRequest): Promise<SaleResult>;
   
   getCreditAccounts(): Promise<CreditAccountWithDetails[]>;
@@ -229,7 +228,7 @@ export class DatabaseStorage implements IStorage {
     const [movementsResult, paymentsResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('id, type, quantity, entered_quantity, loose_quantity, sale_id, amount, reason, created_at, product:products(id, name, unit_label), pack:product_packs!movements_pack_organization_fkey(id, label, units, cost, price)')
+        .select('id, type, quantity, sale_id, amount, reason, created_at, product:products(id, name, unit_label)')
         .eq('organization_id', this.organizationScope)
         .order('created_at', { ascending: false })
         .limit(limit),
@@ -265,11 +264,8 @@ export class DatabaseStorage implements IStorage {
         at: movement.created_at,
         type: movement.type,
         quantity: movement.quantity,
-        enteredQuantity: movement.entered_quantity ?? null,
-        looseQuantity: movement.loose_quantity ?? null,
         saleId: movement.sale_id ?? null,
         amount: movement.amount === null || movement.amount === undefined ? null : String(movement.amount),
-        pack: movement.pack ? toCamelCase(movement.pack) : null,
         product: movement.product
           ? { id: movement.product.id, name: movement.product.name, unitLabel: movement.product.unit_label ?? 'unidad' }
           : null,
@@ -292,47 +288,6 @@ export class DatabaseStorage implements IStorage {
     return entries.slice(0, limit);
   }
 
-  // ---- Presentaciones -------------------------------------------------
-
-  async getProductPacks(productId: number) {
-    const { data, error } = await supabase
-      .from("product_packs")
-      .select("id, label, units, cost, price")
-      .eq("product_id", productId)
-      .eq("organization_id", this.organizationScope)
-      .order("units");
-    if (error) throw error;
-    return (data ?? []).map(toCamelCase);
-  }
-
-  async createProductPack(productId: number, pack: { label: string; units: number; cost: string | null; price: string | null }) {
-    const { data, error } = await supabase
-      .from("product_packs")
-      .insert({
-        organization_id: this.organizationScope,
-        product_id: productId,
-        label: pack.label,
-        units: pack.units,
-        // Mismo motivo que en register_credit_payment: el costo y el precio de
-        // la caja viajan como cadena decimal, no como flotante.
-        cost: pack.cost as unknown as number | null,
-        price: pack.price as unknown as number | null,
-      })
-      .select("id, label, units, cost, price")
-      .single();
-    if (error) throw error;
-    return toCamelCase(data);
-  }
-
-  async deleteProductPack(packId: number) {
-    const { error } = await supabase
-      .from("product_packs")
-      .delete()
-      .eq("id", packId)
-      .eq("organization_id", this.organizationScope);
-    if (error) throw error;
-  }
-
   /**
    * A whole sale: several products handed over at once, charged together.
    *
@@ -350,25 +305,6 @@ export class DatabaseStorage implements IStorage {
     const fila = Array.isArray(data) ? data[0] : data;
     return { saleId: fila.sale_id, total: Number(fila.total) };
   }
-
-  async createMovement(movement: CreateMovementRequest): Promise<Movement> {
-    // The quantity travels as the person typed it and the presentation goes
-    // with it. The function multiplies with the product row locked, so the
-    // size cannot change between reading it and moving the stock.
-    const { data, error } = await supabase.rpc('create_inventory_movement', {
-      p_organization_id: this.organizationScope,
-      p_product_id: movement.productId,
-      p_type: movement.type,
-      p_quantity: movement.quantity,
-      p_reason: movement.reason ?? undefined,
-      p_user_id: this.actorId ?? undefined,
-      p_pack_id: movement.packId ?? undefined,
-      p_loose_quantity: movement.looseQuantity ?? 0,
-    });
-    if (error) throw error;
-    return toCamelCase(data[0]);
-  }
-
 
   async getCreditAccounts(): Promise<CreditAccountWithDetails[]> {
     const { data, error } = await supabase
@@ -410,8 +346,6 @@ export class DatabaseStorage implements IStorage {
       p_quantity: credit.quantity,
       p_notes: credit.notes ?? undefined,
       p_user_id: this.actorId ?? undefined,
-      p_pack_id: credit.packId ?? undefined,
-      p_loose_quantity: credit.looseQuantity ?? 0,
     });
     if (error) throw error;
     return toCamelCase(data[0]);
@@ -471,7 +405,7 @@ export class DatabaseStorage implements IStorage {
     const dayStart = new Date(Date.now() - 36 * 60 * 60 * 1000);
     const { data: todayRows, error: todayError } = await (supabase as any)
       .from('movements')
-      .select('sale_id, amount, quantity, entered_quantity, loose_quantity, created_at, product:products(cost_price), pack:product_packs!movements_pack_organization_fkey(units, cost)')
+      .select('sale_id, amount, quantity, created_at, product:products(cost_price)')
       .eq('organization_id', this.organizationScope)
       .eq('type', 'OUT')
       .not('amount', 'is', null)
@@ -485,15 +419,8 @@ export class DatabaseStorage implements IStorage {
     for (const row of (todayRows as any[]) ?? []) {
       if (!row.created_at || shopDayKey(new Date(row.created_at)) !== today) continue;
       soldToday += Number(row.amount);
-      // Lo que costó lo que salió: el costo de la caja si se vendió por caja, y
-      // el del producto para las sueltas. Sin costo de caja se usa el del
-      // producto, que es lo mismo que hace la pantalla del producto.
-      const unitCost = Number(row.product?.cost_price ?? 0);
-      const packUnitCost = row.pack?.cost === null || row.pack?.cost === undefined
-        ? unitCost
-        : Number(row.pack.cost) / Number(row.pack.units);
-      costToday += (row.entered_quantity ?? 0) * Number(row.pack?.units ?? 0) * packUnitCost
-        + (row.loose_quantity ?? 0) * unitCost;
+      // Lo que costó lo que salió, al costo por unidad del producto.
+      costToday += Number(row.quantity) * Number(row.product?.cost_price ?? 0);
       // Una venta de tres productos es una venta. Las líneas sueltas, de antes
       // de que existieran las ventas agrupadas, cuentan una cada una.
       ventasDeHoy.add(row.sale_id ?? `suelta:${row.created_at}`);

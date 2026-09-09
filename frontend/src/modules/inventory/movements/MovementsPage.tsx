@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { PresentationPicker } from "@/modules/inventory/presentations/PresentationPicker";
-import { usePresentations } from "@/modules/inventory/presentations/presentation-queries";
 import { useToast } from "@/hooks/use-toast";
-import { chargeFor, describeQuantity, describeSale, pluralOf, toBaseUnits, type LedgerEntry } from "@shared/schema";
+import { describeQuantity, pluralOf, type LedgerEntry } from "@shared/schema";
 import { useCreateSale, useLedger } from "@/modules/inventory/movements/movement-queries";
 import { useProducts } from "@/modules/inventory/products/product-queries";
 import { Button } from "@/components/ui/button";
@@ -36,7 +34,6 @@ function describeEntry(entry: LedgerEntry) {
   }
 
   const unitLabel = entry.product?.unitLabel ?? "unidad";
-  const figure = describeSale(entry.enteredQuantity ?? 0, entry.looseQuantity ?? 0, entry.pack, unitLabel);
   return {
     icon: entry.type === "IN" ? <ArrowUp className="w-5 h-5" />
       : entry.type === "OUT" ? <ArrowDown className="w-5 h-5" />
@@ -47,25 +44,18 @@ function describeEntry(entry: LedgerEntry) {
     title: entry.product?.name ?? "Producto eliminado",
     amount: `${entry.type === "IN" ? "+" : "-"}${entry.quantity}`,
     amountTone: entry.type === "IN" ? "text-green-400" : "text-red-400",
-    // The chip only earns its place when it says something the figure does
-    // not: "1 × Caja de 12 + 6 botellas" against the 18 that left the shelf.
-    note: entry.pack || entry.looseQuantity ? figure : null,
+    note: describeQuantity(entry.quantity, unitLabel),
   };
 }
 
-// A sale is whole cases plus loose units: one case and six beers is one sale,
-// not two. Either side may be zero, which the submit button enforces.
-const formSchema = insertMovementSchema.extend({
-  packId: z.coerce.number().int().positive().nullable().optional(),
-  quantity: z.coerce.number().min(0),
-  looseQuantity: z.coerce.number().min(0),
+// Se vende por unidad: un producto y cuántas salieron. Lo que entra se anota
+// en Inventario, corrigiendo el stock del producto.
+const formSchema = z.object({
   productId: z.coerce.number().min(1, "Selecciona un producto"),
-  // Stock only ever leaves from here. Buying is recorded in the inventory,
-  // where the shop writes down what it now has on the shelf.
-  type: z.literal("OUT"),
+  quantity: z.coerce.number().min(1, "Registra al menos una unidad"),
 });
 
-const emptySale = { type: "OUT", quantity: 0, looseQuantity: 1, packId: null } as const;
+const emptySale = { quantity: 1 } as const;
 
 type MovementFormValues = z.infer<typeof formSchema>;
 
@@ -73,13 +63,9 @@ type MovementFormValues = z.infer<typeof formSchema>;
 interface LineaDeVenta {
   clave: string;
   productId: number;
-  packId: number | null;
   quantity: number;
-  looseQuantity: number;
   nombre: string;
   unitLabel: string;
-  descripcion: string;
-  unidades: number;
   importe: number;
 }
 
@@ -96,17 +82,12 @@ export default function Movements() {
   });
 
   const selectedProductId = Number(form.watch("productId")) || undefined;
-  const presentations = usePresentations(selectedProductId).data ?? [];
   const product = products?.find((candidate) => candidate.id === selectedProductId);
   const unitLabel = product?.unitLabel ?? "unidad";
 
-  const packId = form.watch("packId") ?? null;
-  const presentation = presentations.find((candidate) => candidate.id === packId) ?? null;
-  const packQuantity = presentation ? Number(form.watch("quantity")) || 0 : 0;
-  const looseQuantity = Number(form.watch("looseQuantity")) || 0;
-  const leaving = toBaseUnits(packQuantity, presentation) + looseQuantity;
-  const charge = chargeFor(packQuantity, looseQuantity, presentation, product?.sellingPrice ?? 0);
-  const nothingToRegister = leaving <= 0;
+  const cantidad = Number(form.watch("quantity")) || 0;
+  const charge = cantidad * Number(product?.sellingPrice ?? 0);
+  const nothingToRegister = cantidad <= 0;
 
   const totalDeLaVenta = lineas.reduce((suma, linea) => suma + linea.importe, 0);
 
@@ -117,15 +98,9 @@ export default function Movements() {
       {
         clave: `${Date.now()}-${actuales.length}`,
         productId: product.id,
-        packId: presentation ? presentation.id : null,
-        // La misma cifra con la que se calculó el importe: sin presentación son
-        // cero cajas, valga lo que valga el campo que quedó atrás.
-        quantity: packQuantity,
-        looseQuantity,
+        quantity: cantidad,
         nombre: product.name,
         unitLabel,
-        descripcion: describeSale(packQuantity, looseQuantity, presentation, unitLabel),
-        unidades: leaving,
         importe: charge,
       },
     ]);
@@ -148,12 +123,12 @@ export default function Movements() {
       restantes.set(linea.productId, {
         nombre: linea.nombre,
         unitLabel: linea.unitLabel,
-        queda: (previo?.queda ?? encontrado?.quantity ?? 0) - linea.unidades,
+        queda: (previo?.queda ?? encontrado?.quantity ?? 0) - linea.quantity,
       });
     }
 
     createSale.mutate(
-      { items: lineas.map(({ productId, packId, quantity, looseQuantity: sueltas }) => ({ productId, packId, quantity, looseQuantity: sueltas })) },
+      { items: lineas.map(({ productId, quantity }) => ({ productId, quantity })) },
       {
         onSuccess: () => {
           setLineas([]);
@@ -164,7 +139,7 @@ export default function Movements() {
             toast({
               title: producto.queda < 0 ? `${producto.nombre} quedó en negativo` : `${producto.nombre} se agotó`,
               description: producto.queda < 0
-                ? `El registro dice ${describeQuantity(producto.queda, null, producto.unitLabel)}: se vendió más de lo que había contado. Corrige el stock en Inventario cuando puedas.`
+                ? `El registro dice ${describeQuantity(producto.queda, producto.unitLabel)}: se vendió más de lo que había contado. Corrige el stock en Inventario cuando puedas.`
                 : "No queda nada en el registro. Repón antes de la próxima venta.",
               variant: "destructive",
             });
@@ -202,69 +177,33 @@ export default function Movements() {
                             id="venta-producto"
                             products={products ?? []}
                             value={field.value || undefined}
-                            onChange={(productId) => {
-                              field.onChange(productId);
-                              // Otro producto tiene otras cajas: la elegida ya no aplica.
-                              form.setValue("packId", null);
-                              form.setValue("quantity", 0);
-                            }}
+                            onChange={(productId) => field.onChange(productId)}
                           />
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    <PresentationPicker
-                      productId={selectedProductId}
-                      unitLabel={unitLabel}
-                      value={packId}
-                      onChange={(next) => {
-                        form.setValue("packId", next);
-                        // Clearing the presentation leaves no cases to count.
-                        if (next === null) form.setValue("quantity", 0);
-                      }}
+                    <FormField
+                      control={form.control}
+                      name="quantity"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{pluralOf(unitLabel)}</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="1" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
 
-                    <div className="grid grid-cols-2 gap-3">
-                      {presentation && (
-                        <FormField
-                          control={form.control}
-                          name="quantity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{presentation.label}</FormLabel>
-                              <FormControl>
-                                <Input type="number" min="0" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
-
-                      <FormField
-                        control={form.control}
-                        name="looseQuantity"
-                        render={({ field }) => (
-                          <FormItem className={presentation ? undefined : "col-span-2"}>
-                            <FormLabel>{presentation ? `${pluralOf(unitLabel)} sueltas` : pluralOf(unitLabel)}</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="0" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {/* What the sale comes to, before it is registered: the
-                        cases at the case price, the loose units at the unit
-                        price, and the stock counted in base units. */}
+                    {/* Lo que cuesta esta línea, antes de agregarla. */}
                     {!nothingToRegister && product && (
                       <div className="rounded-lg border border-border bg-background/40 px-3 py-2 text-xs">
                         <p className="text-muted-foreground">
-                          {describeSale(packQuantity, looseQuantity, presentation, unitLabel)} ={" "}
-                          <span className="font-medium text-foreground">{describeQuantity(leaving, null, unitLabel)}</span> del stock
+                          {describeQuantity(cantidad, unitLabel)} ={" "}
+                          <span className="font-medium text-foreground">${charge.toFixed(2)}</span>
                         </p>
                         <p className="mt-0.5 text-sm font-semibold text-primary">Total ${charge.toFixed(2)}</p>
                       </div>
@@ -278,7 +217,7 @@ export default function Movements() {
                             <div className="min-w-0 flex-1">
                               <p className="truncate font-medium text-foreground">{linea.nombre}</p>
                               <p className="text-xs text-muted-foreground">
-                                {linea.descripcion} · {linea.unidades} {pluralOf(linea.unitLabel)}
+                                {describeQuantity(linea.quantity, linea.unitLabel)}
                               </p>
                             </div>
                             <span className="shrink-0 font-mono text-sm">${linea.importe.toFixed(2)}</span>

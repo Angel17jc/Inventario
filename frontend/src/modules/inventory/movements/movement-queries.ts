@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type CreateMovementRequest } from "@shared/routes";
+import { api } from "@shared/routes";
 import type { CreateSaleRequest, LedgerEntry, SaleResult } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { describeError, throwApiError } from "@/lib/api-errors";
@@ -14,15 +14,6 @@ export function useLedger() {
     if (!response.ok) await throwApiError(response, "No se pudo cargar el historial");
     return (await response.json()) as LedgerEntry[];
   }});
-}
-
-export function useCreateMovement() {
-  const queryClient = useQueryClient(); const { toast } = useToast();
-  return useMutation({ mutationFn: async (data: CreateMovementRequest) => {
-    const response = await authenticatedFetch(api.movements.create.path, { method: api.movements.create.method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-    if (!response.ok) await throwApiError(response, "No se pudo registrar el movimiento");
-    return api.movements.create.responses[201].parse(await response.json());
-  }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ledgerKey }); queryClient.invalidateQueries({ queryKey: [api.products.list.path] }); queryClient.invalidateQueries({ queryKey: [api.stats.get.path] }); toast({ title: "Éxito", description: "Movimiento registrado correctamente" }); }, onError: (error) => toast({ title: "No se pudo guardar", description: describeError(error, "No se pudo registrar el movimiento."), variant: "destructive" }) });
 }
 
 /**

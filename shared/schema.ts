@@ -56,22 +56,9 @@ export const products = pgTable("products", {
   supplierId: integer("supplier_id").references(() => suppliers.id),
   imageUrl: text("image_url"),
   minStockLevel: integer("min_stock_level").default(5),
-  // Stock is always counted in this unit. Presentations live in their own
-  // table because one product has several: cases of 6 and of 12.
+  // Cómo se llama una de estas en la percha. El stock se cuenta en ella y la
+  // venta se cobra por ella: no hay otra forma de vender.
   unitLabel: text("unit_label").notNull().default("unidad"),
-});
-
-export const productPacks = pgTable("product_packs", {
-  id: serial("id").primaryKey(),
-  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
-  productId: integer("product_id").notNull().references(() => products.id),
-  label: text("label").notNull(),
-  units: integer("units").notNull(),
-  // What the case costs the shop and what the shop sells it for. Both are for
-  // the whole case, which is how they appear on the invoice and on the shelf.
-  cost: decimal("cost", { precision: 10, scale: 2 }),
-  price: decimal("price", { precision: 10, scale: 2 }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 export const movements = pgTable("movements", {
@@ -81,12 +68,6 @@ export const movements = pgTable("movements", {
   type: varchar("type", { length: 20 }).notNull(), // 'IN' entra, 'OUT' sale
   // Stock is always counted in base units, whatever left the counter.
   quantity: integer("quantity").notNull(),
-  // The presentation it was registered with, and what the person actually
-  // typed: 2 against a quantity of 24 when the case holds twelve. NULL means
-  // loose units, which is what every movement before presentations meant.
-  packId: integer("pack_id").references(() => productPacks.id),
-  enteredQuantity: integer("entered_quantity"),
-  looseQuantity: integer("loose_quantity"),
   // Agrupa las líneas registradas en una misma venta, y lo que se cobró por
   // esta. El importe se guarda porque es un hecho del pasado: recalcularlo con
   // los precios de hoy da un número falso en cuanto alguien cambia uno.
@@ -129,9 +110,7 @@ export const creditPayments = pgTable("credit_payments", {
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true, organizationId: true });
 export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true, organizationId: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, organizationId: true });
-// entered_quantity is derived by the database from the presentation. A caller
-// able to set it could make the history disagree with the stock it moved.
-export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, organizationId: true, createdAt: true, enteredQuantity: true, looseQuantity: true, saleId: true, amount: true });
+export const insertMovementSchema = createInsertSchema(movements).omit({ id: true, organizationId: true, createdAt: true, saleId: true, amount: true });
 export const insertCreditAccountSchema = createInsertSchema(creditAccounts).omit({ id: true, organizationId: true, createdAt: true, updatedAt: true });
 export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({ id: true, organizationId: true, createdAt: true });
 
@@ -177,8 +156,6 @@ export type ProductWithDetails = Product & {
 
 export type MovementWithProduct = Movement & {
   product?: Product | null;
-  /** The presentation it was registered with, absent when sold loose. */
-  pack?: Presentation | null;
 };
 
 export type CreditAccountWithDetails = CreditAccount & {
@@ -196,92 +173,6 @@ export type UpdateSupplierRequest = z.infer<typeof updateSupplierRequestSchema>;
 export type CreateProductRequest = InsertProduct;
 export type UpdateProductRequest = Partial<InsertProduct>;
 
-
-// ============================================
-// PRESENTACIONES
-// ============================================
-
-/** One way a product leaves the counter: a case of 12, a six pack. */
-export interface Presentation {
-  id: number;
-  label: string;
-  units: number;
-  /** What the whole case costs the shop. Null when only the unit cost is known. */
-  cost: string | null;
-  /** What the whole case sells for. Null charges units × the unit price. */
-  price: string | null;
-}
-
-/** Base units taken by `quantity` of `presentation`, or of loose units. */
-export function toBaseUnits(quantity: number, presentation: Presentation | null): number {
-  return presentation ? quantity * presentation.units : quantity;
-}
-
-/**
- * What one of these costs. A presentation without its own price is charged at
- * its size times the unit price, so a shop that does not discount by the case
- * has nothing to fill in.
- */
-export function priceOf(presentation: Presentation | null, unitPrice: string | number): number {
-  const perUnit = Number(unitPrice);
-  if (!presentation) return perUnit;
-  if (presentation.price !== null) return Number(presentation.price);
-  return perUnit * presentation.units;
-}
-
-/**
- * What one unit of this presentation costs the shop. A case of twelve at
- * 17.00 puts each bottle at 1.42, which is what the stock is valued at.
- * Falls back to the product's own unit cost when the case cost is unknown.
- */
-export function unitCostOf(presentation: Presentation | null, unitCost: string | number): number {
-  const perUnit = Number(unitCost);
-  if (!presentation || presentation.cost === null) return perUnit;
-  return Number(presentation.cost) / presentation.units;
-}
-
-/**
- * What a sale of whole cases plus loose units comes to.
- *
- * The two are charged differently on purpose: six bottles bought loose cost
- * six times the unit price, while a case costs whatever the shop charges for
- * the case, which is normally less.
- */
-export function chargeFor(
-  packQuantity: number,
-  looseQuantity: number,
-  presentation: Presentation | null,
-  unitPrice: string | number,
-): number {
-  const perUnit = Number(unitPrice);
-  // With no presentation the first figure is already loose units — the same
-  // reading toBaseUnits gives it, and the same one create_credit_sale applies
-  // when p_pack_id is null. Charging it as nothing would put a sale at 0.00.
-  const packs = presentation
-    ? packQuantity * priceOf(presentation, perUnit)
-    : packQuantity * perUnit;
-  return packs + looseQuantity * perUnit;
-}
-
-/** The words to put beside a figure: "2 Caja de 12", "6 botellas". */
-
-/**
- * How a sale of cases plus loose units reads back: "1 × Caja de 12 + 6
- * botellas". Whichever side is zero is left out, so a plain sale of six
- * bottles does not read as a sale of no cases.
- */
-export function describeSale(
-  packQuantity: number,
-  looseQuantity: number,
-  presentation: Presentation | null,
-  unitLabel: string,
-): string {
-  const parts: string[] = [];
-  if (presentation && packQuantity > 0) parts.push(`${packQuantity} × ${presentation.label}`);
-  if (looseQuantity > 0) parts.push(describeQuantity(looseQuantity, null, unitLabel));
-  if (parts.length === 0) return describeQuantity(0, null, unitLabel);
-  return parts.join(" + ");
-}
 
 /**
  * The unit label in the plural.
@@ -307,30 +198,17 @@ export function pluralOf(unitLabel: string): string {
 }
 
 /** The words to put beside a figure: "2 Caja de 12", "6 botellas". */
-export function describeQuantity(quantity: number, presentation: Presentation | null, unitLabel: string): string {
-  if (presentation) return `${quantity} × ${presentation.label}`;
+export function describeQuantity(quantity: number, unitLabel: string): string {
   return `${quantity} ${quantity === 1 ? unitLabel : pluralOf(unitLabel)}`;
 }
 
-const mixedQuantities = {
-  // Whole cases of the chosen presentation, and units sold loose beside them.
-  // A shop hands over one case and six beers in a single sale, so either may
-  // be zero but not both.
-  quantity: z.coerce.number().int().min(0).max(1_000_000),
-  looseQuantity: z.coerce.number().int().min(0).max(1_000_000).default(0),
-  packId: z.coerce.number().int().positive().nullable().optional(),
-};
+// Se vende por unidad y solo por unidad: la cantidad es cuántas salieron.
+const soldQuantity = z.coerce.number().int().min(1, "Registra al menos una unidad.").max(1_000_000);
 
-const atLeastOneQuantity = (value: { quantity: number; looseQuantity: number }) =>
-  value.quantity > 0 || value.looseQuantity > 0;
-const nothingToRegister = { message: "Registra al menos una caja o una unidad." };
-
-export const saleLineSchema = z
-  .object({
-    productId: z.coerce.number().int().positive(),
-    ...mixedQuantities,
-  })
-  .refine(atLeastOneQuantity, nothingToRegister);
+export const saleLineSchema = z.object({
+  productId: z.coerce.number().int().positive(),
+  quantity: soldQuantity,
+});
 
 export const createSaleRequestSchema = z.object({
   items: z.array(saleLineSchema).min(1, "Agrega al menos un producto.").max(100),
@@ -340,27 +218,12 @@ export type SaleLine = z.infer<typeof saleLineSchema>;
 export type CreateSaleRequest = z.infer<typeof createSaleRequestSchema>;
 export interface SaleResult { saleId: string; total: number; }
 
-export const createMovementRequestSchema = z
-  .object({
-    productId: z.coerce.number().int().positive(),
-    // Stock either comes in or goes out. ADJUSTMENT set the count to an
-    // absolute figure, which is the shop rewriting its own stock without a
-    // reason attached — the product decision took it off the screens and the
-    // API kept accepting it. No movement in the database ever used it.
-    type: z.enum(["IN", "OUT"]),
-    reason: z.string().trim().max(500).nullable().optional(),
-    ...mixedQuantities,
-  })
-  .refine(atLeastOneQuantity, nothingToRegister);
-
-export const createCreditAccountRequestSchema = z
-  .object({
-    customerName: z.string().trim().min(2).max(120),
-    productId: z.coerce.number().int().positive(),
-    notes: z.string().trim().max(500).nullable().optional(),
-    ...mixedQuantities,
-  })
-  .refine(atLeastOneQuantity, nothingToRegister);
+export const createCreditAccountRequestSchema = z.object({
+  customerName: z.string().trim().min(2).max(120),
+  productId: z.coerce.number().int().positive(),
+  quantity: soldQuantity,
+  notes: z.string().trim().max(500).nullable().optional(),
+});
 
 export const createCreditPaymentRequestSchema = z.object({
   creditAccountId: z.coerce.number().int().positive(),
@@ -369,7 +232,6 @@ export const createCreditPaymentRequestSchema = z.object({
   notes: z.string().trim().max(500).nullable().optional(),
 });
 
-export type CreateMovementRequest = z.infer<typeof createMovementRequestSchema>;
 export type CreateCreditAccountRequest = z.infer<typeof createCreditAccountRequestSchema>;
 export type CreateCreditPaymentRequest = z.infer<typeof createCreditPaymentRequestSchema>;
 
@@ -435,15 +297,10 @@ export interface LedgerMovementEntry {
   type: "IN" | "OUT";
   /** Always in base units, whatever presentation was used. */
   quantity: number;
-  /** Whole cases the person typed: 2, when the case holds twelve. */
-  enteredQuantity: number | null;
   /** Groups the lines registered in one sale. Null for a lone movement. */
   saleId: string | null;
   /** What this line was charged, at the price of the day. Null when nothing was. */
   amount: string | null;
-  /** Units sold loose beside those cases. */
-  looseQuantity: number | null;
-  pack: Presentation | null;
   product: { id: number; name: string; unitLabel: string } | null;
   reason: string | null;
 }
@@ -460,11 +317,3 @@ export interface LedgerPaymentEntry {
 
 export type LedgerEntry = LedgerMovementEntry | LedgerPaymentEntry;
 
-export const createProductPackRequestSchema = z.object({
-  label: z.string().trim().min(2, "Ponle un nombre a la presentación.").max(60),
-  units: z.coerce.number().int().min(2, "Una presentación agrupa al menos 2 unidades.").max(10_000),
-  cost: z.coerce.number().min(0).max(1_000_000).nullable().optional(),
-  price: z.coerce.number().min(0).max(1_000_000).nullable().optional(),
-});
-
-export type CreateProductPackRequest = z.infer<typeof createProductPackRequestSchema>;

@@ -37,7 +37,7 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
  * The schema type is generated, never written.
  *
  * This file used to carry a hand-written `Database` interface describing the
- * January schema: no `organization_id` on any table, no `product_packs`, no
+ * January schema: no `organization_id` on any table, no
  * `retired_at`, prices as strings where PostgREST sends numbers. It rejected
  * correct code — which is why so many queries were written `(supabase as any)`
  * — and accepted queries against columns that were gone.
