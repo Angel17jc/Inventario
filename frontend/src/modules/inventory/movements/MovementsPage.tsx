@@ -120,7 +120,7 @@ export default function Movements() {
     <div className="flex h-screen bg-background text-foreground">
       <Sidebar />
       <main className="flex-1 overflow-auto">
-        <div className="p-8 max-w-7xl mx-auto space-y-8">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
           <div>
             <h1 className="text-3xl font-bold font-display text-white mb-2">Ventas y movimientos</h1>
             <p className="text-muted-foreground">Registra lo que sale del local. Lo que entra se anota al editar el producto en Inventario.</p>

@@ -19,7 +19,7 @@ export default function Dashboard() {
     return (
       <div className="flex h-screen bg-background">
         <Sidebar />
-        <main className="flex-1 p-8 overflow-auto">
+        <main className="flex-1 overflow-auto p-4 md:p-8">
           <div className="space-y-4">
             <Skeleton className="h-12 w-64" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -38,7 +38,7 @@ export default function Dashboard() {
     <div className="flex h-screen bg-background">
       <Sidebar />
       <main className="flex-1 overflow-auto">
-        <div className="p-8 max-w-7xl mx-auto space-y-8">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
           
           <div className="flex justify-between items-center mb-8">
             <div>

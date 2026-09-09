@@ -82,7 +82,7 @@ export default function Settings() {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <Sidebar />
-      <main className="flex-1 overflow-auto p-8">
+      <main className="flex-1 overflow-auto p-4 md:p-8">
         <div className="mx-auto max-w-2xl space-y-8">
           <div>
             <h1 className="font-display text-3xl font-bold text-white">Mi licorería</h1>

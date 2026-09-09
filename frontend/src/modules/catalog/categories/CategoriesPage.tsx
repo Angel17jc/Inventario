@@ -66,7 +66,7 @@ export default function CategoriesPage() {
     <div className="flex h-screen bg-background text-foreground">
       <Sidebar />
       <main className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-5xl space-y-8 p-8">
+        <div className="mx-auto max-w-5xl space-y-8 p-4 md:p-8">
           <header className="flex items-center justify-between">
             <div><h1 className="mb-2 text-3xl font-bold font-display text-white">Categorías</h1><p className="text-muted-foreground">Organiza tus productos.</p></div>
             <Button onClick={openNewCategory} className="bg-primary text-primary-foreground hover:bg-primary/90"><Plus className="mr-2 h-4 w-4" />Nueva Categoría</Button>

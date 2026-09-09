@@ -63,7 +63,7 @@ export default function Platform() {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <Sidebar />
-      <main className="flex-1 overflow-auto p-8">
+      <main className="flex-1 overflow-auto p-4 md:p-8">
         <div className="mx-auto max-w-2xl space-y-8">
           <div>
             <h1 className="text-3xl font-bold font-display text-white">Administración de plataforma</h1>

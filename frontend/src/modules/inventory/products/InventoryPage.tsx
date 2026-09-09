@@ -43,7 +43,7 @@ export default function Inventory() {
     <div className="flex h-screen bg-background text-foreground">
       <Sidebar />
       <main className="flex-1 overflow-auto">
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto">
           
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
