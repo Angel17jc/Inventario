@@ -66,10 +66,14 @@ jobs:
             exit 0
           fi
           [ "$estado" = "0" ] || exit "$estado"
-          # --porcelain rather than 'git diff', which reports nothing at all for
-          # a file that is untracked: if this one ever stopped being committed,
-          # the check would pass forever while checking nothing.
-          if [ -n "$(git status --porcelain -- backend/database.types.ts)" ]; then
+          # If the file ever stopped being committed, git diff would report
+          # nothing at all and the check would pass forever while checking nothing.
+          git ls-files --error-unmatch backend/database.types.ts > /dev/null || { echo "backend/database.types.ts is not tracked."; exit 1; }
+          # PostgrestVersion is the version of Supabase's server, not our schema.
+          # Supabase bumps it on its own — restoring the paused project took it
+          # from 14.1 to 14.5 — and a check that turns red for a change nobody
+          # made in this repository is a check people learn to re-run unread.
+          if ! git diff --quiet --ignore-matching-lines='PostgrestVersion' -- backend/database.types.ts; then
             echo "backend/database.types.ts does not match the database."
             git --no-pager diff -- backend/database.types.ts
             echo "Run 'npm run types:db' and commit the result."
