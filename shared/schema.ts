@@ -262,7 +262,8 @@ export type CreateCreditPaymentRequest = z.infer<typeof createCreditPaymentReque
 export interface DashboardStats {
   totalProducts: number;
   totalValue: number;
-  lowStockCount: number;
+  /** Productos en cero o por debajo. Antes se llamaba lowStockCount, de cuando había un mínimo. */
+  outOfStockCount: number;
   /** Lo cobrado hoy, en el día del local. Incluye lo fiado: la mercadería salió. */
   soldToday: number;
   /** Lo cobrado menos lo que costó, con el costo de la presentación vendida. */

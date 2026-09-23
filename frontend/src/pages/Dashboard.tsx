@@ -90,10 +90,10 @@ export default function Dashboard() {
             />
             <StatCard 
               title="Productos agotados" 
-              value={stats?.lowStockCount || 0}
+              value={stats?.outOfStockCount || 0}
               icon={AlertTriangle}
               colorClass="bg-red-500/20 text-red-400"
-              className={stats?.lowStockCount ? "border-red-500/30 ring-1 ring-red-500/20" : ""}
+              className={stats?.outOfStockCount ? "border-red-500/30 ring-1 ring-red-500/20" : ""}
             />
           </div>
 

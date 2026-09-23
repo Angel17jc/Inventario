@@ -421,7 +421,7 @@ export class DatabaseStorage implements IStorage {
 
     // Running out is the only stock warning the shop asked for: a minimum to
     // compare against was one more number to keep up to date for no gain.
-    const lowStockCount = (productsData as any[])?.filter((product) => product.quantity <= 0).length || 0;
+    const outOfStockCount = (productsData as any[])?.filter((product) => product.quantity <= 0).length || 0;
 
     // Se pide el día del local con un margen de un día a cada lado: la ventana
     // se corta en UTC y los días se cuentan en la zona de la licorería.
@@ -479,7 +479,7 @@ export class DatabaseStorage implements IStorage {
     return {
       totalProducts: totalProducts || 0,
       totalValue,
-      lowStockCount,
+      outOfStockCount,
       soldToday: Math.round(soldToday * 100) / 100,
       profitToday: Math.round((soldToday - costToday) * 100) / 100,
       salesToday: ventasDeHoy.size,
