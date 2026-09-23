@@ -14,11 +14,8 @@ import type { DashboardStats, MovementWithProduct } from './schema.js';
 // ============================================
 // SHARED ERROR SCHEMAS
 // ============================================
-// El cliente no envía estos: la descripción y el stock mínimo dejaron de
-// pedirse, y el costo por unidad lo calcula el servidor desde la compra.
+// El cliente no envía el costo por unidad: lo calcula el servidor desde la compra.
 const productInputSchema = insertProductSchema.omit({
-  description: true,
-  minStockLevel: true,
   costPrice: true,
 });
 

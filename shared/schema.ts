@@ -42,7 +42,6 @@ export const products = pgTable("products", {
   id: serial("id").primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   name: text("name").notNull(),
-  description: text("description"),
   // Unique within the shop, not across the platform: migration 003 dropped the
   // global constraint for a partial index on (organization_id, sku). Declaring
   // .unique() here described a rule the database does not have, and in a
@@ -59,7 +58,6 @@ export const products = pgTable("products", {
   categoryId: integer("category_id").references(() => categories.id),
   supplierId: integer("supplier_id").references(() => suppliers.id),
   imageUrl: text("image_url"),
-  minStockLevel: integer("min_stock_level").default(5),
   // Cómo se llama una de estas en la percha. El stock se cuenta en ella y la
   // venta se cobra por ella: no hay otra forma de vender.
   unitLabel: text("unit_label").notNull().default("unidad"),
