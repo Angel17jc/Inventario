@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: read
+  # Para volver a activarse a sí mismo y que GitHub no lo apague (último paso).
+  actions: write
 
 jobs:
   database-activity:
@@ -81,3 +83,42 @@ jobs:
           echo "::error::El latido no se registró (HTTP $CODE). El proyecto NO tuvo actividad hoy."
           echo "::error::Si esto se repite siete días, Supabase lo pausará."
           exit 1
+
+      # GitHub apaga los workflows programados de un repo PÚBLICO tras 60 días
+      # sin commits. Si pasara, este dejaría de correr, nadie lo notaría y el
+      # proyecto se pausaría otra vez — el mismo incidente por otra puerta.
+      # Volver a activarlo reinicia ese contador; sobre uno activo no cambia nada.
+      - name: Stay enabled past GitHub's 60-day rule
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X PUT "repos/${{ github.repository }}/actions/workflows/supabase-keepalive.yml/enable" \
+            && echo "Workflow reactivado: el contador de 60 días empieza de nuevo."
+
+      # SUPABASE_ACCESS_TOKEN vence a los 90 días y no hay forma de preguntarle
+      # su propia fecha. Se guarda en la variable de repositorio
+      # SUPABASE_TOKEN_EXPIRES (AAAA-MM-DD) y aquí se vigila. Al renovar el token,
+      # actualizar la variable: gh variable set SUPABASE_TOKEN_EXPIRES --body AAAA-MM-DD
+      # Va el último y con always(): un aviso sobre el token no debe impedir el latido.
+      - name: The Supabase token is not about to expire
+        if: always()
+        env:
+          EXPIRA: ${{ vars.SUPABASE_TOKEN_EXPIRES }}
+        run: |
+          if [ -z "$EXPIRA" ]; then
+            echo "::warning::Falta la variable SUPABASE_TOKEN_EXPIRES: no se sabe cuándo vence el token."
+            exit 0
+          fi
+          DIAS=$(( ( $(date -u -d "$EXPIRA" +%s) - $(date -u +%s) ) / 86400 ))
+          echo "El token de Supabase vence el $EXPIRA: quedan $DIAS días."
+          RENOVAR="Renuévalo en Supabase → Account → Access Tokens (alcance Project, solo lectura de Project Settings y Database, NUNCA API Keys), pégalo en el secreto SUPABASE_ACCESS_TOKEN y actualiza la variable SUPABASE_TOKEN_EXPIRES."
+          if [ "$DIAS" -le 0 ]; then
+            echo "::error::El token de Supabase VENCIÓ el $EXPIRA. $RENOVAR"
+            exit 1
+          elif [ "$DIAS" -le 7 ]; then
+            echo "::error::El token de Supabase vence en $DIAS días ($EXPIRA). $RENOVAR"
+            exit 1
+          elif [ "$DIAS" -le 14 ]; then
+            echo "::warning::El token de Supabase vence en $DIAS días ($EXPIRA). $RENOVAR"
+          fi
