@@ -12,25 +12,47 @@ jobs:
   database-activity:
     runs-on: ubuntu-latest
     steps:
-      # A free Supabase project pauses after a week without database activity,
-      # and this is the only thing that keeps it awake while the app has no
-      # real traffic yet.
+      # A free Supabase project pauses after seven days without activity, and
+      # this is the only thing keeping it awake while the app has no real
+      # traffic yet.
       #
-      # It used to call the app's /api/health/database. That endpoint moved
-      # behind the authentication guard in 0c0cfeb, because leaving a database
-      # probe open let anyone on the internet spend a round trip to Postgres
-      # per request — so this has been failing with 401 since 4 September. The
-      # guard is right; what was wrong was reaching the database through a door
-      # meant for people.
+      # What went wrong before, so it is not tried again: this used to read a
+      # table with the publishable key, get 42501 "permission denied" back, and
+      # call that a success on the theory that a refused query is still a query
+      # Postgres ran. Supabase did not count it. The job reported success every
+      # day from 9 to 15 September 2026, and on the 16th — seven days after the
+      # last real use — the project was paused and its hostname stopped
+      # resolving. A keepalive that says "fine" while the project goes to sleep
+      # is worse than none: it is why nobody looked.
       #
-      # So it asks PostgREST directly with the publishable key, which is public
-      # by design and already sits in the browser bundle. Migration 006 revoked
-      # every privilege from that role, so the answer is Postgres refusing:
-      # SQLSTATE 42501, raised by the database itself. That is the point — the
-      # error proves the query reached Postgres, which is what has to happen
-      # for the project to count as active. A 200 would mean the privileges
-      # came back and is accepted too; it is still a query.
-      - name: Reach Postgres and prove it
+      # So two rules now. Ask Supabase directly whether the project is up, and
+      # say so in plain words if it is not. And only report success on a real
+      # write that answered 200 — never on an error, however it is reasoned.
+
+      - name: The project is not paused
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::warning::No SUPABASE_ACCESS_TOKEN secret; cannot ask Supabase for the project status."
+            exit 0
+          fi
+          STATUS=$(curl --silent --show-error --retry 3 --retry-all-errors \
+            "https://api.supabase.com/v1/projects/htkzkykfmnybkqcrtkby" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).status||'desconocido')}catch{console.log('desconocido')}})")
+          echo "Estado del proyecto: $STATUS"
+          case "$STATUS" in
+            ACTIVE_HEALTHY) ;;
+            INACTIVE|PAUSED|PAUSING)
+              echo "::error::El proyecto de Supabase está PAUSADO. Los datos siguen ahí, pero la app no funciona."
+              echo "::error::Restáuralo en https://supabase.com/dashboard/project/htkzkykfmnybkqcrtkby"
+              exit 1 ;;
+            *)
+              echo "::warning::Estado inesperado: $STATUS. Se intenta el latido de todos modos." ;;
+          esac
+
+      - name: A real write, answered with 200
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -38,24 +60,24 @@ jobs:
           test -n "$SUPABASE_URL" || { echo "Missing the SUPABASE_URL secret."; exit 1; }
           test -n "$SUPABASE_ANON_KEY" || { echo "Missing the SUPABASE_ANON_KEY secret."; exit 1; }
 
+          # heartbeat_beat() updates one row that holds nothing belonging to any
+          # shop, and is the only function the publishable key may execute.
           CODE=$(curl --silent --show-error --retry 3 --retry-all-errors \
             --output respuesta.json --write-out '%{http_code}' \
-            "$SUPABASE_URL/rest/v1/organizations?select=id&limit=1" \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/heartbeat_beat" \
             -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}') || CODE="000"
 
           echo "HTTP $CODE"
-          cat respuesta.json
+          cat respuesta.json 2>/dev/null || true
           echo
 
-          if [ "$CODE" = "200" ]; then
-            echo "The database answered. Note the anon role can read this table again."
+          if [ "$CODE" = "200" ] && grep -qE '"?20[0-9]{2}-' respuesta.json; then
+            echo "Latido registrado. El proyecto tuvo actividad real hoy."
             exit 0
           fi
-          if [ "$CODE" = "401" ] && grep -q '"42501"' respuesta.json; then
-            echo "Postgres refused the read, which means Postgres ran it. The project is awake."
-            exit 0
-          fi
-          echo "This is not the database refusing a query: it did not reach Postgres."
-          echo "A paused project, a wrong URL or a rotated key all look like this."
+          echo "::error::El latido no se registró (HTTP $CODE). El proyecto NO tuvo actividad hoy."
+          echo "::error::Si esto se repite siete días, Supabase lo pausará."
           exit 1
