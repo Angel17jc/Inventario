@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Session, User } from "@supabase/supabase-js";
 import { arrivedFromRecoveryLink, supabase } from "./supabase";
 import { NetworkError, describeNetworkFailure } from "./api-errors";
+import { isPlatformAdmin } from "@shared/tenancy";
 
 export type Role = "platform_admin" | "owner" | "manager" | "cashier";
 
@@ -46,7 +47,7 @@ const IDLE_CHECK_MS = 30 * 1000;
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
 
 function getRole(user: User | null): Role | null {
-  if (user?.app_metadata.platform_role === "platform_admin" || user?.app_metadata.role === "admin") return "platform_admin";
+  if (isPlatformAdmin(user?.app_metadata)) return "platform_admin";
   // Organization membership, not a JWT claim, authorizes tenant users.
   return user ? "cashier" : null;
 }

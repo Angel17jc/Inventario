@@ -3,7 +3,7 @@ import { supabase } from "./db.js";
 import { fail } from "./errors.js";
 import { platformService } from "./platform-service.js";
 import { errorCodes } from "../shared/errors.js";
-import type { OrganizationRole } from "../shared/tenancy.js";
+import { isPlatformAdmin, type OrganizationRole } from "../shared/tenancy.js";
 export { requireOrganizationRole } from "./authorization.js";
 
 const organizationRoles = ["owner", "manager", "cashier"] as const;
@@ -53,9 +53,7 @@ export async function requireAuthenticatedUser(req: Request, res: Response, next
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return fail(res, 401, errorCodes.sessionExpired, "Tu sesión caducó. Vuelve a iniciar sesión.");
 
-  // `role: admin` is accepted only during the migration from the legacy release.
-  const isPlatformAdmin = user.app_metadata.platform_role === "platform_admin" || user.app_metadata.role === "admin";
-  req.user = { id: user.id, email: user.email, isPlatformAdmin };
+  req.user = { id: user.id, email: user.email, isPlatformAdmin: isPlatformAdmin(user.app_metadata) };
   return next();
 }
 
