@@ -106,12 +106,14 @@ function PanelLateral({ location, onNavegar }: { location: string; onNavegar: ()
         <div className="min-w-0">
           {activeOrganization ? (
             // The shop's own name where the product's used to be: the person
-            // working here cares which till they are standing at.
-            <h1 className="truncate font-display text-lg font-bold tracking-wide text-white" title={activeOrganization.name}>
+            // working here cares which till they are standing at. A paragraph,
+            // not a heading: each page opens with its own <h1>, and a second
+            // one here left every screen with two top-level headings.
+            <p className="truncate font-display text-lg font-bold tracking-wide text-white" title={activeOrganization.name}>
               {activeOrganization.name}
-            </h1>
+            </p>
           ) : (
-            <h1 className="font-display text-xl font-bold tracking-wide text-white">Licorería</h1>
+            <p className="font-display text-xl font-bold tracking-wide text-white">Licorería</p>
           )}
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
             {activeOrganization ? "Licorería Manager" : "Manager"}
