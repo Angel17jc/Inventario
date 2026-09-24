@@ -22,6 +22,8 @@ export const errorCodes = {
   conflict: "conflict",
   /** The product still has fiados nobody has paid, so it cannot be retired. */
   productHasUnpaidCredits: "product_has_unpaid_credits",
+  /** The product was retired: it can no longer be sold, lent or restocked. */
+  productRetired: "product_retired",
   /** The submitted values did not pass validation. */
   validation: "validation",
   /** Anything the server did not anticipate. */

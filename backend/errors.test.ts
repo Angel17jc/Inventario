@@ -20,6 +20,14 @@ test("maps missing records to HTTP 404", () => {
   });
 });
 
+test("tells a retired product apart from a missing one", () => {
+  assert.deepEqual(getApiError({ code: "LM002", message: "Product 7 is retired" }), {
+    status: 409,
+    code: errorCodes.productRetired,
+    message: "Ese producto está retirado: ya no se puede vender, fiar ni cambiar su stock.",
+  });
+});
+
 test("does not expose unexpected error details", () => {
   const mapped = getApiError({ message: "database host details" });
   assert.equal(mapped.status, 500);

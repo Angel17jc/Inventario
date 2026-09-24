@@ -143,8 +143,9 @@ export class DatabaseStorage implements IStorage {
     return (data || []).map(toCamelCase);
   }
 
+  /** A retired product is off the catalogue: to the API it no longer exists. */
   async getProduct(id: number): Promise<Product | undefined> {
-    const { data, error } = await supabase.from('products').select('*').eq('id', id).eq('organization_id', this.organizationScope).single();
+    const { data, error } = await supabase.from('products').select('*').eq('id', id).eq('organization_id', this.organizationScope).is('retired_at', null).single();
     if (error && error.code !== 'PGRST116') throw error;
     return data ? toCamelCase(data) : undefined;
   }
@@ -202,7 +203,10 @@ export class DatabaseStorage implements IStorage {
         .from('products')
         .update(toSnakeCase(this.conCostoDerivado(rest as any, anterior?.costPrice ?? 0)))
         .eq('id', id)
-        .eq('organization_id', this.organizationScope);
+        .eq('organization_id', this.organizationScope)
+        // Without this, editing a retired product with a new name and a new
+        // quantity renamed it and only then failed on the stock.
+        .is('retired_at', null);
       if (error) throw error;
     }
 
@@ -217,7 +221,9 @@ export class DatabaseStorage implements IStorage {
     }
 
     const updated = await this.getProduct(id);
-    if (!updated) throw new Error('Product not found in organization');
+    // The same state the database raises, so the route answers 404 rather than
+    // an unexpected error when the id is another shop's or a retired one.
+    if (!updated) throw Object.assign(new Error('Product not found in organization'), { code: 'P0002' });
     return updated;
   }
 

@@ -1,5 +1,6 @@
 -- Comprobación manual de las funciones transaccionales, tal como quedaron tras
--- la 021: se vende por unidad y el stock puede quedar negativo.
+-- la 025: se vende por unidad, el stock puede quedar negativo y un producto
+-- retirado ya no se mueve.
 -- No conserva nada: todo se deshace con el ROLLBACK del final.
 
 BEGIN;
@@ -91,6 +92,35 @@ BEGIN
     PERFORM create_sale(test_organization_id, '[]'::JSONB, NULL);
     RAISE EXCEPTION 'Se esperaba que rechazara una venta vacía';
   EXCEPTION WHEN SQLSTATE '22023' THEN
+    NULL;
+  END;
+
+  -- 6. Un producto retirado no se vende, no se fía ni se le corrige el stock (025).
+  UPDATE products SET retired_at = NOW()
+  WHERE id = test_product_id AND organization_id = test_organization_id;
+
+  BEGIN
+    PERFORM create_sale(
+      test_organization_id,
+      jsonb_build_array(jsonb_build_object('productId', test_product_id, 'quantity', 1)),
+      NULL
+    );
+    RAISE EXCEPTION 'Se esperaba que rechazara vender un producto retirado';
+  EXCEPTION WHEN SQLSTATE 'LM002' THEN
+    NULL;
+  END;
+
+  BEGIN
+    PERFORM create_credit_sale(test_organization_id, test_product_id, 'Prueba', 1, NULL, NULL);
+    RAISE EXCEPTION 'Se esperaba que rechazara fiar un producto retirado';
+  EXCEPTION WHEN SQLSTATE 'LM002' THEN
+    NULL;
+  END;
+
+  BEGIN
+    PERFORM set_product_stock(test_organization_id, test_product_id, 10);
+    RAISE EXCEPTION 'Se esperaba que rechazara cambiar el stock de un producto retirado';
+  EXCEPTION WHEN SQLSTATE 'LM002' THEN
     NULL;
   END;
 END;

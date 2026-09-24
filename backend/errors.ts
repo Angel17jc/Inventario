@@ -30,6 +30,11 @@ const postgresStates = {
    * of arriving as one more unexplained failure.
    */
   productHasUnpaidCredits: "LM001",
+  /**
+   * Raised by create_sale, create_credit_sale and set_product_stock since
+   * migration 025, when the product exists but was retired.
+   */
+  productRetired: "LM002",
 } as const;
 
 export function getApiError(error: unknown): ApiError {
@@ -82,6 +87,12 @@ export function getApiError(error: unknown): ApiError {
         status: 409,
         code: errorCodes.productHasUnpaidCredits,
         message: "No puedes retirar este producto: tiene fiados sin pagar. Cóbralos primero.",
+      };
+    case postgresStates.productRetired:
+      return {
+        status: 409,
+        code: errorCodes.productRetired,
+        message: "Ese producto está retirado: ya no se puede vender, fiar ni cambiar su stock.",
       };
   }
 
