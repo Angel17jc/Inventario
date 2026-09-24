@@ -61,8 +61,10 @@ export async function createApp(httpServer: Server) {
       return next(err);
     }
 
-    const { status, message } = getApiError(err);
-    return res.status(status).json({ message });
+    // The same body every route answers with: the interface reacts to the code,
+    // and an error that reached this far used to arrive without one.
+    const { status, code, message } = getApiError(err);
+    return res.status(status).json({ code, message });
   });
 
   return app;

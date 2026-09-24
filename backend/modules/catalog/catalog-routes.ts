@@ -2,7 +2,7 @@ import type { Express, Request, RequestHandler } from "express";
 import { z } from "zod";
 import { api } from "../../../shared/routes.js";
 import { DatabaseStorage } from "../../storage.js";
-import { fail } from "../../errors.js";
+import { fail, sendApiError } from "../../errors.js";
 import { errorCodes } from "../../../shared/errors.js";
 
 type ScopedStorage = (request: Request) => DatabaseStorage;
@@ -28,7 +28,7 @@ export function registerCatalogRoutes(app: Express, { requireManager, scopedStor
       const category = await scopedStorage(req).createCategory(api.categories.create.input.parse(req.body));
       return res.status(201).json(category);
     } catch (error) {
-      if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message });
+      if (error instanceof z.ZodError) return sendApiError(res, error);
       throw error;
     }
   });
@@ -38,7 +38,7 @@ export function registerCatalogRoutes(app: Express, { requireManager, scopedStor
       const category = await scopedStorage(req).updateCategory(Number(req.params.id), api.categories.update.input.parse(req.body));
       return res.json(category);
     } catch (error) {
-      if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message });
+      if (error instanceof z.ZodError) return sendApiError(res, error);
       throw error;
     }
   });
@@ -63,7 +63,7 @@ export function registerCatalogRoutes(app: Express, { requireManager, scopedStor
       const supplier = await scopedStorage(req).createSupplier(api.suppliers.create.input.parse(req.body));
       return res.status(201).json(supplier);
     } catch (error) {
-      if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message });
+      if (error instanceof z.ZodError) return sendApiError(res, error);
       throw error;
     }
   });
@@ -73,7 +73,7 @@ export function registerCatalogRoutes(app: Express, { requireManager, scopedStor
       const supplier = await scopedStorage(req).updateSupplier(Number(req.params.id), api.suppliers.update.input.parse(req.body));
       return res.json(supplier);
     } catch (error) {
-      if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message });
+      if (error instanceof z.ZodError) return sendApiError(res, error);
       throw error;
     }
   });

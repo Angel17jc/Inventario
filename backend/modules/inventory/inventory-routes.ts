@@ -21,7 +21,7 @@ export function registerInventoryRoutes(app: Express, { requireManager, requireO
       const input = createProductSchema.parse(req.body);
       if (input.sku && await scopedStorage(req).getProductBySku(String(input.sku))) return fail(res, 409, errorCodes.conflict, "Ya existe un producto con ese código SKU.");
       return res.status(201).json(await scopedStorage(req).createProduct(input as any));
-    } catch (error) { if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message }); throw error; }
+    } catch (error) { if (error instanceof z.ZodError) return sendApiError(res, error); throw error; }
   });
 
   app.put(api.products.update.path, requireManager, async (req, res) => {
@@ -30,7 +30,7 @@ export function registerInventoryRoutes(app: Express, { requireManager, requireO
       const existing = input.sku ? await scopedStorage(req).getProductBySku(String(input.sku)) : undefined;
       if (existing && existing.id !== productId) return fail(res, 409, errorCodes.conflict, "Ya existe un producto con ese código SKU.");
       return res.json(await scopedStorage(req).updateProduct(productId, input as any));
-    } catch (error) { if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors[0].message }); throw error; }
+    } catch (error) { if (error instanceof z.ZodError) return sendApiError(res, error); throw error; }
   });
 
   app.delete(api.products.delete.path, requireManager, async (req, res) => { try { await scopedStorage(req).deleteProduct(Number(req.params.id)); return res.status(204).send(); } catch (error) { return sendApiError(res, error); } });
