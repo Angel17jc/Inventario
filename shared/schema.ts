@@ -1,6 +1,11 @@
 import { pgTable, text, serial, integer, timestamp, decimal, varchar, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { spanishErrorMap } from "./validation-messages.js";
+
+// Installed here because every schema the API and the forms validate with is
+// declared in this module or built on it, so both sides load it before parsing.
+z.setErrorMap(spanishErrorMap);
 
 // === TABLE DEFINITIONS ===
 
