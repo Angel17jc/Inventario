@@ -2,7 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [main]
+    # develop recibe el trabajo diario y despliega una vista previa en Vercel;
+    # main es producción y solo recibe lo que ya pasó por develop.
+    branches: [main, develop]
   pull_request:
   workflow_dispatch:
 
