@@ -56,7 +56,6 @@ export interface IStorage {
   createSale(sale: CreateSaleRequest): Promise<SaleResult>;
   
   getCreditAccounts(): Promise<CreditAccountWithDetails[]>;
-  getCreditAccountsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]>;
   getCreditAccount(id: number): Promise<CreditAccountWithDetails | undefined>;
   createCreditAccount(credit: CreateCreditAccountRequest): Promise<CreditAccount>;
   createCreditPayment(payment: CreateCreditPaymentRequest): Promise<CreditPayment>;
@@ -339,17 +338,6 @@ export class DatabaseStorage implements IStorage {
     const { data, error } = await supabase
       .from('credit_accounts')
       .select('*, product:products(*), payments:credit_payments(*)')
-      .eq('organization_id', this.organizationScope)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data || []).map(toCamelCase);
-  }
-
-  async getCreditAccountsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]> {
-    const { data, error } = await supabase
-      .from('credit_accounts')
-      .select('*, product:products(*), payments:credit_payments(*)')
-      .eq('customer_name', customerName)
       .eq('organization_id', this.organizationScope)
       .order('created_at', { ascending: false });
     if (error) throw error;

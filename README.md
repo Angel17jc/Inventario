@@ -586,7 +586,7 @@ operan sobre datos de una licorería exigen además la cabecera `X-Organization-
 | GET | `/api/movimientos/historial` | miembro |
 | GET | `/api/categories`, `/api/suppliers` (y `/:id`) | miembro |
 | POST, PUT, DELETE | `/api/categories`, `/api/suppliers` | encargado |
-| GET | `/api/credits`, `/api/credits/stats`, `/api/credits/customer/:nombre` | miembro |
+| GET | `/api/credits`, `/api/credits/stats` | miembro |
 | POST | `/api/credits`, `/api/credits/payment` | cajero |
 | GET | `/api/stats` | miembro |
 | PATCH | `/api/organization` | propietario |

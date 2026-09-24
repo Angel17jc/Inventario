@@ -11,12 +11,6 @@ async function fetchCredits(): Promise<CreditAccountWithDetails[]> {
   return response.json();
 }
 
-async function fetchCreditsByCustomer(customerName: string): Promise<CreditAccountWithDetails[]> {
-  const response = await authenticatedFetch(`/api/credits/customer/${encodeURIComponent(customerName)}`);
-  if (!response.ok) await throwApiError(response, "No se pudieron cargar los fiados del cliente.");
-  return response.json();
-}
-
 async function fetchCreditsStats(): Promise<CreditsStats> {
   const response = await authenticatedFetch("/api/credits/stats");
   if (!response.ok) await throwApiError(response, "No se pudieron cargar las estadísticas de fiados.");
@@ -47,14 +41,6 @@ export function useCredits() {
   return useQuery<CreditAccountWithDetails[]>({
     queryKey: ["credits"],
     queryFn: fetchCredits,
-  });
-}
-
-export function useCreditsByCustomer(customerName: string) {
-  return useQuery<CreditAccountWithDetails[]>({
-    queryKey: ["credits", "customer", customerName],
-    queryFn: () => fetchCreditsByCustomer(customerName),
-    enabled: !!customerName,
   });
 }
 
