@@ -169,7 +169,7 @@ export class DatabaseStorage implements IStorage {
     if (product.purchaseUnits === undefined && product.purchasePrice === undefined) return product;
     return {
       ...product,
-      costPrice: unitCostFromPurchase(product.purchaseUnits, product.purchasePrice, costoAnterior).toFixed(4),
+      costPrice: unitCostFromPurchase(product.purchaseUnits, product.purchasePrice, costoAnterior).toFixed(6),
     };
   }
 

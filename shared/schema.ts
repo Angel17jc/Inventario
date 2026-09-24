@@ -58,7 +58,7 @@ export const products = pgTable("products", {
   // unidad sale de dividirlos, así que no se teclea.
   purchaseUnits: integer("purchase_units"),
   purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }),
-  costPrice: decimal("cost_price", { precision: 10, scale: 2 }).notNull(),
+  costPrice: decimal("cost_price", { precision: 14, scale: 6 }).notNull(),
   sellingPrice: decimal("selling_price", { precision: 10, scale: 2 }).notNull(),
   categoryId: integer("category_id").references(() => categories.id),
   supplierId: integer("supplier_id").references(() => suppliers.id),

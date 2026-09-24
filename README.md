@@ -283,7 +283,9 @@ La factura dice "24 cervezas, 17 dólares". Nadie lleva encima el 0,708.
   tal como viene en la factura.
 - `products.cost_price` — **se deriva** (`purchase_price / purchase_units`) y no se acepta
   desde una petición. Aceptarlo dejaría el inventario valorado en algo distinto de lo que
-  se pagó, y dos números que mantener de acuerdo en vez de uno.
+  se pagó, y dos números que mantener de acuerdo en vez de uno. Se guarda con **seis
+  decimales** (`NUMERIC(14,6)`): redondeado a centavos, 17/24 quedaba en 0,71 y la
+  ganancia salía siempre un poco más baja de lo que era.
 - `products.selling_price` — lo que se cobra **por unidad**.
 
 Hubo un modelo de presentaciones —cajas de 6, 12 y 24, cada una con su precio— y se
