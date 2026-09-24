@@ -1,21 +1,29 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { Link } from "wouter";
+import { Compass } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
+/**
+ * An address the router does not know: an old bookmark, a mistyped path, or a
+ * section this account's role does not have. The way back is the panel, which
+ * every signed-in role can open.
+ */
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
+    <main className="grid min-h-screen place-items-center bg-background p-6">
+      <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary">
+          <Compass className="h-6 w-6" />
+        </span>
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold text-foreground">No encontramos esta página</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            La dirección no existe o tu cuenta no tiene acceso a esta sección.
           </p>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+        <Button asChild>
+          <Link href="/panel">Volver al panel</Link>
+        </Button>
+      </div>
+    </main>
   );
 }
