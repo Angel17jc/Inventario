@@ -1,7 +1,8 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import type { Server } from "http";
 import { registerRoutes } from "./routes.js";
-import { getApiError } from "./errors.js";
+import { fail, getApiError } from "./errors.js";
+import { errorCodes } from "../shared/errors.js";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -54,9 +55,12 @@ export async function createApp(httpServer: Server) {
 
   await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-    console.error("Internal Server Error:", err);
+  // After every route, so only an address nothing answered reaches it, and
+  // behind the same guards: without a session this is still a 401, which says
+  // nothing about which routes exist. Express's default was an HTML page.
+  app.use("/api", (_req, res) => fail(res, 404, errorCodes.notFound, "Esa dirección de la API no existe."));
 
+  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     if (res.headersSent) {
       return next(err);
     }
@@ -64,6 +68,10 @@ export async function createApp(httpServer: Server) {
     // The same body every route answers with: the interface reacts to the code,
     // and an error that reached this far used to arrive without one.
     const { status, code, message } = getApiError(err);
+    // Only failures that are ours. A broken JSON body or a retired product is
+    // the request's problem, and logging it as an internal error buried the
+    // ones that were.
+    if (status >= 500) console.error("Internal Server Error:", err);
     return res.status(status).json({ code, message });
   });
 

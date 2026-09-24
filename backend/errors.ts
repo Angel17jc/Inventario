@@ -4,6 +4,8 @@ import { errorCodes, type ApiErrorBody, type ErrorCode } from "../shared/errors.
 
 interface DatabaseError {
   code?: string;
+  /** Set by body-parser, which express.json uses, on the requests it refuses. */
+  type?: string;
   status?: number;
   statusCode?: number;
   message?: string;
@@ -23,6 +25,8 @@ const postgresStates = {
   foreignKeyViolation: "23503",
   noDataFound: "P0002",
   raisedException: "22000",
+  /** A number too large for its column, such as a sale total over NUMERIC(10,2). */
+  numericOutOfRange: "22003",
   invalidParameter: "22023",
   /**
    * Ours, raised by retire_product in migration 017. Postgres does not use the
@@ -47,6 +51,15 @@ export function getApiError(error: unknown): ApiError {
   }
 
   const databaseError = error as DatabaseError;
+
+  // Refused by express.json before any route ran. The status was already right;
+  // the message called it unexpected, when the problem is in the request.
+  if (databaseError.type === "entity.parse.failed") {
+    return { status: 400, code: errorCodes.validation, message: "Los datos enviados no se pudieron leer." };
+  }
+  if (databaseError.type === "entity.too.large") {
+    return { status: 413, code: errorCodes.validation, message: "Los datos enviados son demasiado grandes." };
+  }
 
   switch (databaseError.code) {
     case postgresStates.uniqueViolation:
@@ -75,6 +88,12 @@ export function getApiError(error: unknown): ApiError {
         status: 400,
         code: errorCodes.validation,
         message: "No se pudo completar la operación con los datos indicados.",
+      };
+    case postgresStates.numericOutOfRange:
+      return {
+        status: 400,
+        code: errorCodes.validation,
+        message: "Una cantidad o un importe supera el máximo que se puede guardar.",
       };
     case postgresStates.invalidParameter:
       return {

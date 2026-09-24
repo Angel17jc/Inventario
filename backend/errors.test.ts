@@ -28,6 +28,27 @@ test("tells a retired product apart from a missing one", () => {
   });
 });
 
+test("a request the JSON parser refused is the request's fault", () => {
+  assert.deepEqual(getApiError({ type: "entity.parse.failed", status: 400 }), {
+    status: 400,
+    code: errorCodes.validation,
+    message: "Los datos enviados no se pudieron leer.",
+  });
+  assert.deepEqual(getApiError({ type: "entity.too.large", status: 413 }), {
+    status: 413,
+    code: errorCodes.validation,
+    message: "Los datos enviados son demasiado grandes.",
+  });
+});
+
+test("a number too large for its column is refused, not unexpected", () => {
+  assert.deepEqual(getApiError({ code: "22003", message: "numeric field overflow" }), {
+    status: 400,
+    code: errorCodes.validation,
+    message: "Una cantidad o un importe supera el máximo que se puede guardar.",
+  });
+});
+
 test("does not expose unexpected error details", () => {
   const mapped = getApiError({ message: "database host details" });
   assert.equal(mapped.status, 500);
